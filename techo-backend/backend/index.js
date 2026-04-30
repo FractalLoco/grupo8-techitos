@@ -3,6 +3,7 @@ const cors = require('cors');
 require('dotenv').config();
 
 const inicioSesionRoutes = require('./routes/inicioSesionRoutes');
+const comunicacionesRoutes = require('./routes/comunicacionesRoutes');
 
 const aplicacion = express();
 
@@ -13,6 +14,8 @@ aplicacion.use(express.json());
 
 // todas las rutas relacionadas al login van bajo /auth
 aplicacion.use('/auth', inicioSesionRoutes);
+// comunicaciones en general: chat y dashboard público
+aplicacion.use('/api', comunicacionesRoutes);
 
 // si alguien entra a una ruta que no existe respondemos con 404
 aplicacion.use((solicitud, respuesta) => {
