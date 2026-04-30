@@ -51,7 +51,7 @@ enrutador.get("/usuarios", verificarToken, async (req, res) => {
 
 enrutador.get("/usuarios/:id", verificarToken, async (req, res) => {
   try {
-    const usuario = await obtenerUsuarioPorId(req.params.id);
+    const usuario = await buscarPorId(req.params.id);
 
     if (!usuario) {
       return res.status(404).json({
@@ -77,7 +77,7 @@ enrutador.patch(
       const { id } = req.params;
       const { nombre, correo, rol } = req.body;
 
-      const usuario = await actualizarUsuario(id, nombre, correo, rol);
+      const usuario = await actualizarUsuario(id, { nombre, correo, rol });
 
       if (!usuario) {
         return res.status(404).json({
