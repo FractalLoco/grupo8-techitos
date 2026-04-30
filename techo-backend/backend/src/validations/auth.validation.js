@@ -1,10 +1,11 @@
-// validaciones del body antes de que lleguen al controller
-// si algo falta o está mal formado, cortamos acá y avisamos
+'use strict';
 
-const validarInicioSesion = (solicitud, respuesta, siguiente) => {
+// Valido los datos de inicio de sesión antes de que lleguen al controlador.
+// Con esto evito procesar solicitudes incompletas y doy mensajes de error claros al usuario.
+export const validarInicioSesion = (solicitud, respuesta, siguiente) => {
   const { rut, contrasena } = solicitud.body;
 
-  // verificamos que llegaron los dos campos obligatorios
+  // Rechazo si faltan campos obligatorios en el cuerpo de la solicitud
   if (!rut || !contrasena) {
     return respuesta.status(400).json({
       estado: 'error',
@@ -13,7 +14,7 @@ const validarInicioSesion = (solicitud, respuesta, siguiente) => {
     });
   }
 
-  // el rut no puede ser un string vacío con espacios
+  // Me aseguro de que no sean cadenas vacías con solo espacios
   if (rut.trim() === '' || contrasena.trim() === '') {
     return respuesta.status(400).json({
       estado: 'error',
@@ -22,7 +23,7 @@ const validarInicioSesion = (solicitud, respuesta, siguiente) => {
     });
   }
 
-  // la contraseña debe tener al menos 6 caracteres
+  // Exijo un mínimo de 6 caracteres en la contraseña para filtrar intentos inválidos
   if (contrasena.length < 6) {
     return respuesta.status(400).json({
       estado: 'error',
@@ -31,8 +32,6 @@ const validarInicioSesion = (solicitud, respuesta, siguiente) => {
     });
   }
 
-  // si todo está bien dejamos pasar al controller
+  // Todo es válido; paso la solicitud al controlador
   siguiente();
 };
-
-module.exports = { validarInicioSesion };
