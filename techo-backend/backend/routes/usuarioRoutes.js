@@ -4,15 +4,14 @@ const enrutador = express.Router();
 const verificarToken = require("../middleware/verificarToken");
 const verificarRol = require("../middleware/verificarRol");
 
+const { listarUsuarios, buscarPorId } = require("../models/usuarioModel");
 const {
   crearUsuario,
-  listarUsuarios,
-  buscarPorId,
   actualizarUsuario,
   eliminarUsuario,
   cambiarEstadoActivo,
   desactivarUsuario,
-} = require("../models/usuarioModel");
+} = require("../services/usuarioService");
 
 enrutador.post(
   "/usuarios",
@@ -75,9 +74,9 @@ enrutador.patch(
   async (req, res) => {
     try {
       const { id } = req.params;
-      const { nombre, correo, rol } = req.body;
+      const { nombre, correo, rol, contrasena } = req.body;
 
-      const usuario = await actualizarUsuario(id, { nombre, correo, rol });
+      const usuario = await actualizarUsuario(id, { nombre, correo, rol, contrasena });
 
       if (!usuario) {
         return res.status(404).json({

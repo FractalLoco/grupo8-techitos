@@ -1,6 +1,6 @@
-const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const usuarioModel = require('../models/usuarioModel');
+const { validarContrasena } = require('../services/seguridad');
 
 // acá va toda la lógica del login
 // la ruta llama este controller, el controller llama el model
@@ -31,8 +31,8 @@ const iniciarSesion = async (solicitud, respuesta) => {
       });
     }
 
-    // bcrypt compara la contraseña que llegó con el hash guardado en la base de datos
-    const contrasenaValida = await bcrypt.compare(contrasena, usuario.contrasena);
+    // validamos la contraseña usando el service de seguridad
+    const contrasenaValida = await validarContrasena(contrasena, usuario.contrasena);
     if (!contrasenaValida) {
       return respuesta.status(401).json({
         estado: 'error',

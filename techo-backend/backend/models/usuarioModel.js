@@ -1,7 +1,8 @@
 const conexion = require("../config/baseDatos");
 
 // acá van todas las consultas SQL relacionadas al usuario
-// el controller llama estas funciones, nunca escribe SQL directamente
+// el service llama estas funciones con la lógica de negocio
+// nunca escribe SQL directamente en controllers o routes
 
 const registrarAuditoria = async (usuarioId, accion) => {
   await conexion.query(
@@ -27,7 +28,7 @@ const buscarPorId = async (id) => {
   return resultado.rows[0] || null;
 };
 
-// crear un nuevo usuario en la base de datos
+// crear un nuevo usuario en la base de datos (recibe hash ya encriptado del service)
 const crearUsuario = async (
   nombre,
   rut,
@@ -40,11 +41,7 @@ const crearUsuario = async (
     [nombre, rut, correo, contrasenaHash, rol, false],
   );
 
-  const usuario = resultado.rows[0];
-
-  await registrarAuditoria(usuario.id, "CREAR");
-
-  return usuario;
+  return resultado.rows[0];
 };
 
 // obtener todos los usuarios (con paginación opcional)
@@ -63,20 +60,42 @@ const contarUsuarios = async () => {
   return parseInt(resultado.rows[0].count, 10);
 };
 
-// actualizar datos de un usuario
+// actualizar datos de un usuario (puede incluir nombre, correo, rol y/o contraseña)
 const actualizarUsuario = async (id, datos) => {
-  const { nombre, correo, rol } = datos;
-  const resultado = await conexion.query(
-    "UPDATE usuarios SET nombre = $1, correo = $2, rol = $3 WHERE id = $4 RETURNING id, nombre, rut, correo, rol, activo",
-    [nombre, correo, rol, id],
-  );
-  const usuario = resultado.rows[0];
+  const { nombre, correo, rol, contrasena } = datos;
+  
+  // construir la consulta dinámicamente según qué campos se quieran actualizar
+  const campos = [];
+  const valores = [];
+  let contador = 1;
 
-  if (usuario) {
-    await registrarAuditoria(id, "EDITAR");
+  if (nombre !== undefined) {
+    campos.push(`nombre = $${contador++}`);
+    valores.push(nombre);
+  }
+  if (correo !== undefined) {
+    campos.push(`correo = $${contador++}`);
+    valores.push(correo);
+  }
+  if (rol !== undefined) {
+    campos.push(`rol = $${contador++}`);
+    valores.push(rol);
+  }
+  if (contrasena !== undefined) {
+    campos.push(`contrasena = $${contador++}`);
+    valores.push(contrasena);
   }
 
-  return usuario;
+  if (campos.length === 0) {
+    return null; // nada que actualizar
+  }
+
+  valores.push(id); // el id va al final en el WHERE
+
+  const consulta = `UPDATE usuarios SET ${campos.join(", ")} WHERE id = $${contador} RETURNING id, nombre, rut, correo, rol, activo`;
+  
+  const resultado = await conexion.query(consulta, valores);
+  return resultado.rows[0] || null;
 };
 
 // cambiar la contraseña de un usuario
@@ -94,13 +113,7 @@ const cambiarEstadoActivo = async (id, activo) => {
     "UPDATE usuarios SET activo = $1 WHERE id = $2 RETURNING id, nombre, rut, correo, rol, activo",
     [activo, id],
   );
-  const usuario = resultado.rows[0];
-
-  if (usuario) {
-    await registrarAuditoria(id, activo ? "ACTIVAR" : "DESACTIVAR");
-  }
-
-  return usuario;
+  return resultado.rows[0] || null;
 };
 
 // eliminar un usuario (soft delete recomendado, pero acá es hard delete)
@@ -119,13 +132,7 @@ const desactivarUsuario = async (id) => {
     [id],
   );
 
-  const usuario = resultado.rows[0];
-
-  if (usuario) {
-    await registrarAuditoria(id, "DESACTIVAR");
-  }
-
-  return usuario;
+  return resultado.rows[0] || null;
 };
 
 // buscar usuarios por rol
@@ -138,6 +145,7 @@ const buscarPorRol = async (rol) => {
 };
 
 module.exports = {
+  registrarAuditoria,
   buscarPorRut,
   buscarPorId,
   crearUsuario,
