@@ -1,4 +1,5 @@
 {
+<<<<<<< HEAD
   "name": "techo-backend",
   "version": "2.0.0",
   "description": "Backend del Dashboard Multifuncional TECHO Chile — modelo PERN",
@@ -9,16 +10,33 @@
     "dev": "nodemon src/index.js"
   },
   "dependencies": {
+    "axios": "^1.15.2",
+=======
+  "name": "backend",
+  "version": "1.0.0",
+  "description": "Backend del proyecto Techo",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "nodemon index.js"
+  },
+  "dependencies": {
+>>>>>>> c2e0bbb (arreglado los problemas del index.js)
     "bcryptjs": "^2.4.3",
     "cors": "^2.8.5",
     "dotenv": "^16.0.3",
     "express": "^4.18.2",
     "jsonwebtoken": "^9.0.0",
+<<<<<<< HEAD
     "pg": "^8.11.0",
     "reflect-metadata": "^0.2.2",
     "typeorm": "^0.3.28"
   },
   "devDependencies": {
     "nodemon": "^3.0.1"
+=======
+    "pg": "^8.10.0",
+    "nodemon": "^3.1.14"
+>>>>>>> c2e0bbb (arreglado los problemas del index.js)
   }
 }
