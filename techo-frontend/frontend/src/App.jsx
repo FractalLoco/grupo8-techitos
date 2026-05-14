@@ -12,6 +12,7 @@ import Registro from './pages/Registro';
 import Inicio from './pages/Inicio';
 import SinPermiso from './pages/SinPermiso';
 import NotFound from './pages/NotFound';
+import GestionUsuarios from './pages/GestionUsuarios';
 
 function Aplicacion() {
   return (
@@ -42,6 +43,15 @@ function Aplicacion() {
           <Route path="/mapa" element={<Próximamente titulo="Mapa Interactivo" />} />
           <Route path="/emergencias" element={<Próximamente titulo="Emergencias" />} />
           <Route path="/herramientas" element={<Próximamente titulo="Control de Herramientas" />} />
+
+          <Route
+            path="/usuarios"
+            element={
+              <RutaProtegida rolesPermitidos={['coordinador']}>
+                <GestionUsuarios />
+              </RutaProtegida>
+            }
+          />
 
           {/* Muestro esta página cuando el middleware de roles rechaza el acceso */}
           <Route path="/sin-permiso" element={<SinPermiso />} />
