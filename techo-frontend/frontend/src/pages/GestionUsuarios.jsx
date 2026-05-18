@@ -1,184 +1,163 @@
-import { useEffect, useState, useContext } from "react";
+import { useEffect, useState } from 'react';
+import Navbar from '../components/Navbar';
 import {
   obtenerUsuarios,
   crearUsuario,
   activarUsuario,
   desactivarUsuario,
-} from "../services/usuarioService";
+} from '../services/usuarioService';
 
-import { AuthContext } from "../context/AuthContext";
-
-const GestionUsuarios = () => {
-  const { usuario } = useContext(AuthContext);
-
+function GestionUsuarios() {
   const [usuarios, setUsuarios] = useState([]);
-  const [error, setError] = useState("");
-
-  const [form, setForm] = useState({
-    nombreCompleto: "",
-    rut: "",
-    correo: "",
-    rol: "voluntario",
+  const [cargando, setCargando] = useState(true);
+  const [formulario, setFormulario] = useState({
+    nombre: '',
+    rut: '',
+    correo: '',
+    rol: 'voluntario',
   });
+
+  async function cargarUsuarios() {
+    try {
+      const data = await obtenerUsuarios();
+      setUsuarios(data.data || data);
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setCargando(false);
+    }
+  }
 
   useEffect(() => {
     cargarUsuarios();
   }, []);
 
-  const cargarUsuarios = async () => {
-    try {
-      const response = await obtenerUsuarios();
-
-      // Ajusta según tu backend
-      setUsuarios(response.data || []);
-    } catch (err) {
-      console.error(err);
-      setError("Error al cargar usuarios");
-    }
-  };
-
-  const handleChange = (e) => {
-    setForm({
-      ...form,
+  const manejarCambio = (e) => {
+    setFormulario({
+      ...formulario,
       [e.target.name]: e.target.value,
     });
   };
 
-  const handleSubmit = async (e) => {
+  const manejarSubmit = async (e) => {
     e.preventDefault();
 
-    try {
-      await crearUsuario(form);
+    await crearUsuario(formulario);
 
-      setForm({
-        nombreCompleto: "",
-        rut: "",
-        correo: "",
-        rol: "voluntario",
-      });
+    setFormulario({
+      nombre: '',
+      rut: '',
+      correo: '',
+      rol: 'voluntario',
+    });
 
-      cargarUsuarios();
-    } catch (err) {
-      console.error(err);
-      setError("Error al crear usuario");
-    }
+    cargarUsuarios();
   };
 
-  const activar = async (id) => {
-    try {
-      await activarUsuario(id);
-      cargarUsuarios();
-    } catch (err) {
-      console.error(err);
+  const cambiarEstado = async (usuario) => {
+    if (usuario.activo) {
+      await desactivarUsuario(usuario.id);
+    } else {
+      await activarUsuario(usuario.id);
     }
+
+    cargarUsuarios();
   };
-
-  const desactivar = async (id) => {
-    try {
-      await desactivarUsuario(id);
-      cargarUsuarios();
-    } catch (err) {
-      console.error(err);
-    }
-  };
-
-  // Protección segura
-  if (!usuario) {
-    return <p>Cargando...</p>;
-  }
-
-  if (usuario.rol !== "coordinador") {
-    return <p>No autorizado</p>;
-  }
 
   return (
-    <div style={{ padding: "20px" }}>
-      <h1>Gestión de Usuarios</h1>
+    <div className="min-h-screen bg-gray-100">
+      <Navbar />
 
-      {error && <p style={{ color: "red" }}>{error}</p>}
+      <div className="pt-24 px-6 max-w-6xl mx-auto">
+        <h1 className="text-3xl font-bold mb-6">Gestión de Usuarios</h1>
 
-      <form onSubmit={handleSubmit} style={{ marginBottom: "20px" }}>
-        <input
-          type="text"
-          name="nombreCompleto"
-          placeholder="Nombre completo"
-          value={form.nombreCompleto}
-          onChange={handleChange}
-          required
-        />
-
-        <input
-          type="text"
-          name="rut"
-          placeholder="RUT"
-          value={form.rut}
-          onChange={handleChange}
-          required
-        />
-
-        <input
-          type="email"
-          name="correo"
-          placeholder="Correo"
-          value={form.correo}
-          onChange={handleChange}
-          required
-        />
-
-        <select
-          name="rol"
-          value={form.rol}
-          onChange={handleChange}
+        <form
+          onSubmit={manejarSubmit}
+          className="bg-white p-6 rounded-xl shadow mb-8 grid grid-cols-1 md:grid-cols-2 gap-4"
         >
-          <option value="coordinador">Coordinador</option>
-          <option value="jefe_cuadrilla">Jefe de cuadrilla</option>
-          <option value="voluntario">Voluntario</option>
-        </select>
+          <input
+            type="text"
+            name="nombre"
+            placeholder="Nombre completo"
+            value={formulario.nombre}
+            onChange={manejarCambio}
+            className="border rounded-lg px-4 py-2"
+            required
+          />
 
-        <button type="submit">
-          Crear Usuario
-        </button>
-      </form>
+          <input
+            type="text"
+            name="rut"
+            placeholder="RUT"
+            value={formulario.rut}
+            onChange={manejarCambio}
+            className="border rounded-lg px-4 py-2"
+            required
+          />
 
-      <table border="1" cellPadding="10">
-        <thead>
-          <tr>
-            <th>Nombre</th>
-            <th>Correo</th>
-            <th>Rol</th>
-            <th>Estado</th>
-            <th>Acciones</th>
-          </tr>
-        </thead>
+          <input
+            type="email"
+            name="correo"
+            placeholder="Correo"
+            value={formulario.correo}
+            onChange={manejarCambio}
+            className="border rounded-lg px-4 py-2"
+            required
+          />
 
-        <tbody>
-          {usuarios?.map((u) => (
-            <tr key={u.id}>
-              <td>{u.nombreCompleto}</td>
-              <td>{u.correo}</td>
-              <td>{u.rol}</td>
+          <select
+            name="rol"
+            value={formulario.rol}
+            onChange={manejarCambio}
+            className="border rounded-lg px-4 py-2"
+          >
+            <option value="coordinador">Coordinador</option>
+            <option value="jefe_cuadrilla">Jefe de cuadrilla</option>
+            <option value="voluntario">Voluntario</option>
+          </select>
 
-              <td>
-                {u.activo ? "Activo" : "Desactivado"}
-              </td>
+          <button className="bg-blue-600 text-white rounded-lg py-2 px-4 col-span-full">
+            Crear usuario
+          </button>
+        </form>
 
-              <td>
-                {u.activo ? (
-                  <button onClick={() => desactivar(u.id)}>
-                    Desactivar
-                  </button>
-                ) : (
-                  <button onClick={() => activar(u.id)}>
-                    Activar
-                  </button>
-                )}
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+        <div className="bg-white rounded-xl shadow overflow-hidden">
+          <table className="w-full">
+            <thead className="bg-gray-200 text-left">
+              <tr>
+                <th className="p-3">Nombre</th>
+                <th className="p-3">Correo</th>
+                <th className="p-3">Rol</th>
+                <th className="p-3">Estado</th>
+                <th className="p-3">Acción</th>
+              </tr>
+            </thead>
+
+            <tbody>
+              {!cargando && usuarios?.map((usuario) => (
+                <tr key={usuario.id} className="border-t">
+                  <td className="p-3">{usuario.nombre}</td>
+                  <td className="p-3">{usuario.correo}</td>
+                  <td className="p-3">{usuario.rol}</td>
+                  <td className="p-3">
+                    {usuario.activo ? 'Activo' : 'Desactivado'}
+                  </td>
+                  <td className="p-3">
+                    <button
+                      onClick={() => cambiarEstado(usuario)}
+                      className="bg-slate-800 text-white px-3 py-1 rounded"
+                    >
+                      {usuario.activo ? 'Desactivar' : 'Activar'}
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
     </div>
   );
-};
+}
 
 export default GestionUsuarios;
