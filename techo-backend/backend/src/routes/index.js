@@ -5,6 +5,7 @@ import authRoutes from './auth.routes.js';
 import cuadrillaRoutes from './cuadrilla.routes.js';
 import emergenciaRoutes from './emergencia.routes.js';
 import herramientaRoutes from './herramienta.routes.js';
+import usuarioRoutes from './usuario.routes.js';
 
 const router = Router();
 
@@ -14,5 +15,6 @@ router.use('/auth', authRoutes);
 router.use('/cuadrillas', cuadrillaRoutes);
 router.use('/emergencias', emergenciaRoutes);
 router.use('/herramientas', herramientaRoutes);
+router.use('/usuarios', usuarioRoutes);
 
 export default router;

@@ -1,0 +1,50 @@
+const API_URL = 'http://localhost:3000/api/usuarios';
+
+function obtenerHeaders() {
+  const token = localStorage.getItem('token');
+
+  return {
+    'Content-Type': 'application/json',
+    Authorization: `Bearer ${token}`,
+  };
+}
+
+export async function obtenerUsuarios() {
+  const respuesta = await fetch(API_URL, {
+    headers: obtenerHeaders(),
+  });
+
+  if (!respuesta.ok) {
+    throw new Error('No se pudieron obtener los usuarios');
+  }
+
+  return respuesta.json();
+}
+
+export async function crearUsuario(datos) {
+  const respuesta = await fetch(API_URL, {
+    method: 'POST',
+    headers: obtenerHeaders(),
+    body: JSON.stringify(datos),
+  });
+
+  return respuesta.json();
+}
+
+export async function activarUsuario(id) {
+  const respuesta = await fetch(`${API_URL}/${id}/activar`, {
+    method: 'PATCH',
+    headers: obtenerHeaders(),
+  });
+
+  return respuesta.json();
+}
+
+export async function desactivarUsuario(id) {
+  const respuesta = await fetch(`${API_URL}/${id}/desactivar`, {
+    method: 'PATCH',
+    headers: obtenerHeaders(),
+  });
+
+  return respuesta.json();
+}
