@@ -10,6 +10,7 @@ import {
 function GestionUsuarios() {
   const [usuarios, setUsuarios] = useState([]);
   const [cargando, setCargando] = useState(true);
+
   const [formulario, setFormulario] = useState({
     nombre: '',
     rut: '',
@@ -17,12 +18,26 @@ function GestionUsuarios() {
     rol: 'voluntario',
   });
 
+  // Obtiene id compatible con MongoDB o SQL
+  const obtenerId = (usuario) => usuario._id || usuario.id;
+
   async function cargarUsuarios() {
     try {
+      setCargando(true);
+
       const data = await obtenerUsuarios();
-      setUsuarios(data.data || data);
+
+      // Validación segura
+      if (Array.isArray(data)) {
+        setUsuarios(data);
+      } else if (Array.isArray(data.data)) {
+        setUsuarios(data.data);
+      } else {
+        setUsuarios([]);
+      }
     } catch (error) {
       console.error(error);
+      setUsuarios([]);
     } finally {
       setCargando(false);
     }
@@ -39,29 +54,41 @@ function GestionUsuarios() {
     });
   };
 
+  // Crear usuario con manejo de errores
   const manejarSubmit = async (e) => {
     e.preventDefault();
 
-    await crearUsuario(formulario);
+    try {
+      await crearUsuario(formulario);
 
-    setFormulario({
-      nombre: '',
-      rut: '',
-      correo: '',
-      rol: 'voluntario',
-    });
+      setFormulario({
+        nombre: '',
+        rut: '',
+        correo: '',
+        rol: 'voluntario',
+      });
 
-    cargarUsuarios();
+      cargarUsuarios();
+    } catch (error) {
+      console.error(error);
+    }
   };
 
+  // Activar o desactivar usuario
   const cambiarEstado = async (usuario) => {
-    if (usuario.activo) {
-      await desactivarUsuario(usuario.id);
-    } else {
-      await activarUsuario(usuario.id);
-    }
+    try {
+      const id = obtenerId(usuario);
 
-    cargarUsuarios();
+      if (usuario.activo) {
+        await desactivarUsuario(id);
+      } else {
+        await activarUsuario(id);
+      }
+
+      cargarUsuarios();
+    } catch (error) {
+      console.error(error);
+    }
   };
 
   return (
@@ -69,7 +96,9 @@ function GestionUsuarios() {
       <Navbar />
 
       <div className="pt-24 px-6 max-w-6xl mx-auto">
-        <h1 className="text-3xl font-bold mb-6">Gestión de Usuarios</h1>
+        <h1 className="text-3xl font-bold mb-6">
+          Gestión de Usuarios
+        </h1>
 
         <form
           onSubmit={manejarSubmit}
@@ -111,9 +140,17 @@ function GestionUsuarios() {
             onChange={manejarCambio}
             className="border rounded-lg px-4 py-2"
           >
-            <option value="coordinador">Coordinador</option>
-            <option value="jefe_cuadrilla">Jefe de cuadrilla</option>
-            <option value="voluntario">Voluntario</option>
+            <option value="coordinador">
+              Coordinador
+            </option>
+
+            <option value="jefe_cuadrilla">
+              Jefe de cuadrilla
+            </option>
+
+            <option value="voluntario">
+              Voluntario
+            </option>
           </select>
 
           <button className="bg-blue-600 text-white rounded-lg py-2 px-4 col-span-full">
@@ -134,24 +171,45 @@ function GestionUsuarios() {
             </thead>
 
             <tbody>
-              {!cargando && usuarios.map((usuario) => (
-                <tr key={usuario.id} className="border-t">
-                  <td className="p-3">{usuario.nombre}</td>
-                  <td className="p-3">{usuario.correo}</td>
-                  <td className="p-3">{usuario.rol}</td>
-                  <td className="p-3">
-                    {usuario.activo ? 'Activo' : 'Desactivado'}
-                  </td>
-                  <td className="p-3">
-                    <button
-                      onClick={() => cambiarEstado(usuario)}
-                      className="bg-slate-800 text-white px-3 py-1 rounded"
-                    >
-                      {usuario.activo ? 'Desactivar' : 'Activar'}
-                    </button>
-                  </td>
-                </tr>
-              ))}
+              {!cargando &&
+                Array.isArray(usuarios) &&
+                usuarios.map((usuario) => (
+                  <tr
+                    key={obtenerId(usuario)}
+                    className="border-t"
+                  >
+                    <td className="p-3">
+                      {usuario.nombre}
+                    </td>
+
+                    <td className="p-3">
+                      {usuario.correo}
+                    </td>
+
+                    <td className="p-3">
+                      {usuario.rol}
+                    </td>
+
+                    <td className="p-3">
+                      {usuario.activo
+                        ? 'Activo'
+                        : 'Desactivado'}
+                    </td>
+
+                    <td className="p-3">
+                      <button
+                        onClick={() =>
+                          cambiarEstado(usuario)
+                        }
+                        className="bg-slate-800 text-white px-3 py-1 rounded"
+                      >
+                        {usuario.activo
+                          ? 'Desactivar'
+                          : 'Activar'}
+                      </button>
+                    </td>
+                  </tr>
+                ))}
             </tbody>
           </table>
         </div>

@@ -1,6 +1,6 @@
 import Navbar from '../components/Navbar';
 
-function Próximamente({ titulo = 'Página en construcción' }) {
+function Proximamente({ titulo = 'Página en construcción' }) {
   return (
     <div className="min-h-screen bg-techo-light">
       <Navbar />
@@ -15,4 +15,4 @@ function Próximamente({ titulo = 'Página en construcción' }) {
   );
 }
 
-export default Próximamente;
+export default Proximamente;
