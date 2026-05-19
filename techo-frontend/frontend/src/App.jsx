@@ -5,7 +5,7 @@ import { ProveedorAutenticacion } from './context/AuthContext';
 // Importo el guardián de rutas que bloquea el acceso según autenticación y rol
 import RutaProtegida from './components/RutaProtegida';
 // Importo el componente genérico para páginas aún en construcción
-import Próximamente from './components/Próximamente';
+import Proximamente from './components/Próximamente';
 // Importo todas las páginas de la aplicación
 import Login from './pages/Login';
 import Registro from './pages/Registro';
@@ -39,10 +39,10 @@ function Aplicacion() {
           />
 
           {/* Estas secciones aún están en desarrollo; uso Próximamente como placeholder */}
-          <Route path="/cuadrillas" element={<Próximamente titulo="Gestión de Cuadrillas" />} />
-          <Route path="/mapa" element={<Próximamente titulo="Mapa Interactivo" />} />
-          <Route path="/emergencias" element={<Próximamente titulo="Emergencias" />} />
-          <Route path="/herramientas" element={<Próximamente titulo="Control de Herramientas" />} />
+          <Route path="/cuadrillas" element={<Proximamente titulo="Gestión de Cuadrillas" />} />
+          <Route path="/mapa" element={<Proximamente titulo="Mapa Interactivo" />} />
+          <Route path="/emergencias" element={<Proximamente titulo="Emergencias" />} />
+          <Route path="/herramientas" element={<Proximamente titulo="Control de Herramientas" />} />
 
           <Route
             path="/usuarios"
