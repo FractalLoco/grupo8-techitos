@@ -11,6 +11,7 @@ import Login from './pages/Login';
 import Registro from './pages/Registro';
 import Inicio from './pages/Inicio';
 import SinPermiso from './pages/SinPermiso';
+import GestionEmergencias from './pages/GestionEmergencias';
 import NotFound from './pages/NotFound';
 import GestionUsuarios from './pages/GestionUsuarios';
 
@@ -41,7 +42,7 @@ function Aplicacion() {
           {/* Estas secciones aún están en desarrollo; uso Próximamente como placeholder */}
           <Route path="/cuadrillas" element={<Proximamente titulo="Gestión de Cuadrillas" />} />
           <Route path="/mapa" element={<Proximamente titulo="Mapa Interactivo" />} />
-          <Route path="/emergencias" element={<Proximamente titulo="Emergencias" />} />
+          <Route path="/emergencias" element={<GestionEmergencias />}/>
           <Route path="/herramientas" element={<Proximamente titulo="Control de Herramientas" />} />
 
           <Route
