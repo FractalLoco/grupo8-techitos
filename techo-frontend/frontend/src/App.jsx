@@ -42,7 +42,7 @@ function Aplicacion() {
           {/* Estas secciones aún están en desarrollo; uso Próximamente como placeholder */}
           <Route path="/cuadrillas" element={<Proximamente titulo="Gestión de Cuadrillas" />} />
           <Route path="/mapa" element={<Proximamente titulo="Mapa Interactivo" />} />
-          <Route path="/emergencias" element={<Proximamente titulo="Emergencias" />} />
+          <Route path="/emergencias" element={<GestionEmergencias />}/>
           <Route path="/herramientas" element={<Proximamente titulo="Control de Herramientas" />} />
 
           <Route
