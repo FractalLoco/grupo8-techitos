@@ -11,6 +11,7 @@ import Login from './pages/Login';
 import Registro from './pages/Registro';
 import Inicio from './pages/Inicio';
 import SinPermiso from './pages/SinPermiso';
+import GestionEmergencias from './pages/GestionEmergencias';
 import NotFound from './pages/NotFound';
 import GestionUsuarios from './pages/GestionUsuarios';
 
