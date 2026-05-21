@@ -74,11 +74,22 @@ export const CuadrillaEntity = new EntitySchema({
       type: 'text',
       nullable: true,
     },
+    // Se activa cuando el balance de herramientas al cierre del día presenta diferencias
+    alerta_herramienta: {
+      type: 'boolean',
+      default: false,
+    },
+    // Resumen del balance con diferencias para que el coordinador sepa qué gestionar
+    descripcion_alerta_herramienta: {
+      type: 'text',
+      nullable: true,
+    },
   },
-  // Combino ambas restricciones en un solo arreglo para que TypeORM las aplique correctamente
+  // Plazo solo puede ser 2 o 5 días según la magnitud del trabajo (Req 1)
   checks: [
     { expression: `"estado" IN ('activa', 'en_progreso', 'completada', 'desarmada')` },
     { expression: `"fase" IN ('limpieza', 'montaje', 'terminaciones') OR "fase" IS NULL` },
+    { expression: `"plazo_dias" IN (2, 5)` },
   ],
   relations: {
     // Cada cuadrilla pertenece a una sola emergencia

@@ -11,6 +11,7 @@ import {
   reasignarVoluntario,
   obtenerCuadrillasConEstado,
   obtenerBalanceHerramientas,
+  cerrarBalanceDia,
   listarPorEmergencia,
 } from '../controllers/cuadrilla.controller.js';
 import { authMiddleware } from '../middleware/auth.middleware.js';
@@ -86,8 +87,15 @@ router.put('/reasignar/:cuadrillaOrigenId/:voluntarioId', authMiddleware, roleMi
 
 /**
  * GET /api/cuadrillas/:cuadrillaId/herramientas/balance
- * Generar balance de herramientas
+ * Consultar balance de herramientas sin efecto secundario
  */
 router.get('/:cuadrillaId/herramientas/balance', authMiddleware, obtenerBalanceHerramientas);
+
+/**
+ * POST /api/cuadrillas/:cuadrillaId/herramientas/cierre
+ * Cerrar el balance del día: activa alerta en el mapa si hay diferencias y notifica al coordinador
+ * Solo coordinador o jefe_cuadrilla
+ */
+router.post('/:cuadrillaId/herramientas/cierre', authMiddleware, roleMiddleware('coordinador', 'jefe_cuadrilla'), cerrarBalanceDia);
 
 export default router;
