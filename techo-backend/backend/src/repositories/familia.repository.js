@@ -23,6 +23,11 @@ export class FamiliaRepository {
     return this.getRepository().find({ where: { emergencia_id: emergenciaId } });
   }
 
+  // Cuento las familias de una emergencia; lo uso para validar que existan antes de crear cuadrillas
+  static async contarPorEmergencia(emergenciaId) {
+    return this.getRepository().count({ where: { emergencia_id: emergenciaId } });
+  }
+
   // Actualizo los datos de una familia y devuelvo el registro con los cambios aplicados
   static async actualizar(id, datos) {
     const repo = this.getRepository();

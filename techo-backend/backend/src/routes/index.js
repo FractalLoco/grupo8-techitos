@@ -6,6 +6,8 @@ import cuadrillaRoutes from './cuadrilla.routes.js';
 import emergenciaRoutes from './emergencia.routes.js';
 import herramientaRoutes from './herramienta.routes.js';
 import usuarioRoutes from './usuario.routes.js';
+import obraRoutes from './obra.routes.js';
+import notificacionRoutes from './notificacion.routes.js';
 
 const router = Router();
 
@@ -16,5 +18,7 @@ router.use('/cuadrillas', cuadrillaRoutes);
 router.use('/emergencias', emergenciaRoutes);
 router.use('/herramientas', herramientaRoutes);
 router.use('/usuarios', usuarioRoutes);
+router.use('/obras', obraRoutes);
+router.use('/notificaciones', notificacionRoutes);
 
 export default router;
