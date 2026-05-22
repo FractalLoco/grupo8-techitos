@@ -7,8 +7,8 @@ const obtenerHeaders = () => {
 
   return {
     headers: {
-      Authorization: `Bearer ${token}`,
-    },
+      Authorization: `Bearer ${token}`
+    }
   };
 };
 
@@ -31,7 +31,7 @@ export const crearEmergencia = async (data) => {
   return response.data;
 };
 
-export const actualizarEmergencia = async (id, data) => {
+export const actualizarEmergencia = async (id,data) => {
   const response = await axios.put(
     `${API_URL}/${id}`,
     data,
@@ -42,7 +42,8 @@ export const actualizarEmergencia = async (id, data) => {
 };
 
 export const cerrarEmergencia = async (id) => {
-  const response = await axios.patch(
+
+  const response = await axios.put(
     `${API_URL}/${id}/finalizar`,
     {},
     obtenerHeaders()

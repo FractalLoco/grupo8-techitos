@@ -1,12 +1,22 @@
-'use strict';
-import { EmergenciaRepository } from '../repositories/emergencia.repository.js';
-import { FamiliaRepository } from '../repositories/familia.repository.js';
-import { EvaluacionRepository } from '../repositories/evaluacion.repository.js';
+"use strict";
+import { EmergenciaRepository } from "../repositories/emergencia.repository.js";
+import { FamiliaRepository } from "../repositories/familia.repository.js";
+import { EvaluacionRepository } from "../repositories/evaluacion.repository.js";
 
 export class EmergenciaService {
   // Creo una nueva emergencia con los datos recibidos; la base de datos asigna el ID y la fecha de inicio.
   static async crearEmergencia(datos) {
     return EmergenciaRepository.crear(datos);
+  }
+
+  static async actualizarEmergencia(id, datos) {
+    const emergencia = await EmergenciaRepository.buscarPorId(id);
+
+    if (!emergencia) {
+      throw new Error("Emergencia no encontrada");
+    }
+
+    return EmergenciaRepository.actualizar(id, datos);
   }
 
   // Devuelvo solo las emergencias activas para el panel operativo del coordinador.
@@ -23,7 +33,7 @@ export class EmergenciaService {
   static async obtenerDetalle(id) {
     const emergencia = await EmergenciaRepository.buscarPorId(id);
     if (!emergencia) {
-      throw new Error('Emergencia no encontrada');
+      throw new Error("Emergencia no encontrada");
     }
     return emergencia;
   }
