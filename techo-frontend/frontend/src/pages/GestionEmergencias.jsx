@@ -13,11 +13,26 @@ function GestionEmergencias() {
 
   const [formulario, setFormulario] = useState({
     nombre: "",
-    fechaInicio: "",
-    ubicacion: "",
     descripcion: "",
-    familiasAfectadas: "",
+    lat: "",
+    lng: "",
   });
+
+  const [familias, setFamilias] = useState([]);
+
+  const [emergenciaSeleccionada, setEmergenciaSeleccionada] = useState(null);
+
+  const cargarFamilias = async (id) => {
+    try {
+      const data = await obtenerFamilias(id);
+
+      setFamilias(data?.datos?.familias || []);
+
+      setEmergenciaSeleccionada(id);
+    } catch (error) {
+      console.error(error);
+    }
+  };
 
   const [editandoId, setEditandoId] = useState(null);
 
@@ -56,10 +71,9 @@ function GestionEmergencias() {
   const limpiarFormulario = () => {
     setFormulario({
       nombre: "",
-      fechaInicio: "",
-      ubicacion: "",
       descripcion: "",
-      familiasAfectadas: "",
+      lat: "",
+      lng: "",
     });
 
     setEditandoId(null);
@@ -86,20 +100,18 @@ function GestionEmergencias() {
   };
 
   const editarEmergencia = (emergencia) => {
-    if (emergencia.estado === "cerrada") {
+    if (emergencia.estado === "finalizada") {
       return;
     }
 
     setFormulario({
       nombre: emergencia.nombre || "",
 
-      fechaInicio: emergencia.fechaInicio?.split("T")[0] || "",
-
-      ubicacion: emergencia.ubicacion || "",
-
       descripcion: emergencia.descripcion || "",
 
-      familiasAfectadas: emergencia.familiasAfectadas || "",
+      lat: emergencia.lat || "",
+
+      lng: emergencia.lng || "",
     });
 
     setEditandoId(obtenerId(emergencia));
@@ -137,32 +149,22 @@ function GestionEmergencias() {
           />
 
           <input
-            type="date"
-            name="fechaInicio"
-            value={formulario.fechaInicio}
+            type="number"
+            step="any"
+            name="lat"
+            placeholder="Latitud"
+            value={formulario.lat}
             onChange={manejarCambio}
             className="border rounded-lg px-4 py-2"
-            required
           />
-
-          <input
-            type="text"
-            name="ubicacion"
-            placeholder="Ubicación"
-            value={formulario.ubicacion}
-            onChange={manejarCambio}
-            className="border rounded-lg px-4 py-2"
-            required
-          />
-
           <input
             type="number"
-            name="familiasAfectadas"
-            placeholder="Familias afectadas"
-            value={formulario.familiasAfectadas}
+            step="any"
+            name="lng"
+            placeholder="Longitud"
+            value={formulario.lng}
             onChange={manejarCambio}
             className="border rounded-lg px-4 py-2"
-            required
           />
 
           <textarea
@@ -186,11 +188,7 @@ function GestionEmergencias() {
               <tr>
                 <th className="p-3">Nombre</th>
 
-                <th className="p-3">Ubicación</th>
-
                 <th className="p-3">Estado</th>
-
-                <th className="p-3">Familias</th>
 
                 <th className="p-3">Acciones</th>
               </tr>
@@ -198,42 +196,84 @@ function GestionEmergencias() {
 
             <tbody>
               {Array.isArray(emergencias) &&
-                emergencias.map((emergencia) => (
-                  console.log(emergencia),
-                  <tr key={obtenerId(emergencia)} className="border-t">
-                    <td className="p-3">{emergencia.nombre}</td>
+                emergencias.map(
+                  (emergencia) => (
+                    console.log(emergencia),
+                    (
+                      <tr key={obtenerId(emergencia)} className="border-t">
+                        <td className="p-3">{emergencia.nombre}</td>
 
-                    <td className="p-3">{emergencia.ubicacion}</td>
+                        <td className="p-3">{emergencia.estado}</td>
 
-                    <td className="p-3">{emergencia.estado}</td>
+                        <td className="p-3 flex gap-2">
+                          {emergencia.estado === "activa" && (
+                            <>
+                              <button
+                                onClick={() => editarEmergencia(emergencia)}
+                                className="bg-blue-600 text-white px-3 py-1 rounded"
+                              >
+                                Editar
+                              </button>
 
-                    <td className="p-3">{emergencia.familiasAfectadas}</td>
+                              <button
+                                onClick={() =>
+                                  cargarFamilias(obtenerId(emergencia))
+                                }
+                                className="bg-green-600 text-white px-3 py-1 rounded"
+                              >
+                                Familias
+                              </button>
 
-                    <td className="p-3 flex gap-2">
-                      {emergencia.estado === "activa" && (
-                        <>
-                          <button
-                            onClick={() => editarEmergencia(emergencia)}
-                            className="bg-blue-600 text-white px-3 py-1 rounded"
-                          >
-                            Editar
-                          </button>
-
-                          <button
-                            onClick={() =>
-                              finalizarEmergencia(obtenerId(emergencia))
-                            }
-                            className="bg-slate-800 text-white px-3 py-1 rounded"
-                          >
-                            Cerrar
-                          </button>
-                        </>
-                      )}
-                    </td>
-                  </tr>
-                ))}
+                              <button
+                                onClick={() =>
+                                  finalizarEmergencia(obtenerId(emergencia))
+                                }
+                                className="bg-slate-800 text-white px-3 py-1 rounded"
+                              >
+                                Cerrar
+                              </button>
+                            </>
+                          )}
+                        </td>
+                      </tr>
+                    )
+                  ),
+                )}
             </tbody>
           </table>
+          {familias.length > 0 && (
+            <div
+              className="mt-8 bg-white rounded-xl p-4"
+            >
+              <h2
+                className="text-xl font-bold mb-4"
+              >
+                Familias afectadas
+              </h2>
+
+              <table className="w-full">
+                <thead>
+                  <tr>
+                    <th>Nombre</th>
+                    <th>Dirección</th>
+                    <th>Prioridad</th>
+                  </tr>
+                </thead>
+
+                <tbody>
+                  {familias.map((f) => (
+                    <tr key={f.id}>
+                      <td>{f.nombre_cabeza_familia}</td>
+
+                      <td>{f.direccion}</td>
+
+                      <td>{f.prioridad}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
       </div>
     </div>
