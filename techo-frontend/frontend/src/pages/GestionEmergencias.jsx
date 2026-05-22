@@ -6,6 +6,9 @@ import {
   crearEmergencia,
   actualizarEmergencia,
   cerrarEmergencia,
+  obtenerFamilias,
+  registrarFamilia,
+  obtenerEvaluaciones,
 } from "../services/emergenciaService";
 
 function GestionEmergencias() {
@@ -26,9 +29,9 @@ function GestionEmergencias() {
     try {
       const data = await obtenerFamilias(id);
 
-      setFamilias(data?.datos?.familias || []);
+      console.log(data);
 
-      setEmergenciaSeleccionada(id);
+      setFamilias(data?.datos?.familias || data?.familias || data?.data || []);
     } catch (error) {
       console.error(error);
     }
@@ -44,7 +47,7 @@ function GestionEmergencias() {
 
       const lista = data?.datos?.emergencias || data?.datos || data || [];
 
-      console.log("Emergencias recibidas:", lista);
+      /* console.log("Emergencias recibidas:", lista); */
 
       if (Array.isArray(lista)) {
         setEmergencias(lista);
@@ -196,84 +199,78 @@ function GestionEmergencias() {
 
             <tbody>
               {Array.isArray(emergencias) &&
-                emergencias.map(
-                  (emergencia) => (
-                    console.log(emergencia),
-                    (
-                      <tr key={obtenerId(emergencia)} className="border-t">
-                        <td className="p-3">{emergencia.nombre}</td>
+                emergencias.map((emergencia) => (
+                  /* console.log(emergencia), */
+                  <tr key={obtenerId(emergencia)} className="border-t">
+                    <td className="p-3">{emergencia.nombre}</td>
 
-                        <td className="p-3">{emergencia.estado}</td>
+                    <td className="p-3">{emergencia.estado}</td>
 
-                        <td className="p-3 flex gap-2">
-                          {emergencia.estado === "activa" && (
-                            <>
-                              <button
-                                onClick={() => editarEmergencia(emergencia)}
-                                className="bg-blue-600 text-white px-3 py-1 rounded"
-                              >
-                                Editar
-                              </button>
+                    <td className="p-3 flex gap-2">
+                      {emergencia.estado === "activa" && (
+                        <>
+                          <button
+                            onClick={() => editarEmergencia(emergencia)}
+                            className="bg-blue-600 text-white px-3 py-1 rounded"
+                          >
+                            Editar
+                          </button>
 
-                              <button
-                                onClick={() =>
-                                  cargarFamilias(obtenerId(emergencia))
-                                }
-                                className="bg-green-600 text-white px-3 py-1 rounded"
-                              >
-                                Familias
-                              </button>
+                          <button
+                            onClick={() =>
+                              cargarFamilias(obtenerId(emergencia))
+                            }
+                            className="bg-green-600 text-white px-3 py-1 rounded"
+                          >
+                            Familias
+                          </button>
 
-                              <button
-                                onClick={() =>
-                                  finalizarEmergencia(obtenerId(emergencia))
-                                }
-                                className="bg-slate-800 text-white px-3 py-1 rounded"
-                              >
-                                Cerrar
-                              </button>
-                            </>
-                          )}
-                        </td>
-                      </tr>
-                    )
-                  ),
-                )}
+                          <button
+                            onClick={() =>
+                              finalizarEmergencia(obtenerId(emergencia))
+                            }
+                            className="bg-slate-800 text-white px-3 py-1 rounded"
+                          >
+                            Cerrar
+                          </button>
+                        </>
+                      )}
+                    </td>
+                  </tr>
+                ))}
             </tbody>
           </table>
-          {familias.length > 0 && (
-            <div
-              className="mt-8 bg-white rounded-xl p-4"
-            >
-              <h2
-                className="text-xl font-bold mb-4"
-              >
-                Familias afectadas
-              </h2>
+          <div className="mt-8 bg-white rounded-xl shadow p-4">
+            <h2 className="text-xl font-bold mb-4">Familias afectadas</h2>
 
+            {familias.length === 0 ? (
+              <p className="text-gray-500">
+                No hay familias registradas para esta emergencia
+              </p>
+            ) : (
               <table className="w-full">
-                <thead>
+                <thead className="bg-gray-200">
                   <tr>
-                    <th>Nombre</th>
-                    <th>Dirección</th>
-                    <th>Prioridad</th>
+                    <th className="p-3">Nombre</th>
+                    <th className="p-3">Dirección</th>
+                    <th className="p-3">Prioridad</th>
                   </tr>
                 </thead>
 
                 <tbody>
-                  {familias.map((f) => (
-                    <tr key={f.id}>
-                      <td>{f.nombre_cabeza_familia}</td>
+                  {familias.map((familia) => (
+                    <tr key={familia.id} className="border-t">
+                      <td className="p-3">{familia.nombre_cabeza_familia}</td>
 
-                      <td>{f.direccion}</td>
+                      <td className="p-3">{familia.direccion}</td>
 
-                      <td>{f.prioridad}</td>
+                      <td className="p-3">{familia.prioridad}</td>
                     </tr>
                   ))}
                 </tbody>
               </table>
-            </div>
-          )}
+            )}
+          </div>
         </div>
       </div>
     </div>
