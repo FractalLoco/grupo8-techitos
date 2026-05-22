@@ -44,7 +44,7 @@ function GestionEmergencias() {
 
       const lista = data?.datos?.emergencias || data?.datos || data || [];
 
-      console.log("Emergencias recibidas:", lista);
+      /* console.log("Emergencias recibidas:", lista); */
 
       if (Array.isArray(lista)) {
         setEmergencias(lista);
@@ -198,7 +198,7 @@ function GestionEmergencias() {
               {Array.isArray(emergencias) &&
                 emergencias.map(
                   (emergencia) => (
-                    console.log(emergencia),
+                    /* console.log(emergencia), */
                     (
                       <tr key={obtenerId(emergencia)} className="border-t">
                         <td className="p-3">{emergencia.nombre}</td>
@@ -242,14 +242,8 @@ function GestionEmergencias() {
             </tbody>
           </table>
           {familias.length > 0 && (
-            <div
-              className="mt-8 bg-white rounded-xl p-4"
-            >
-              <h2
-                className="text-xl font-bold mb-4"
-              >
-                Familias afectadas
-              </h2>
+            <div className="mt-8 bg-white rounded-xl p-4">
+              <h2 className="text-xl font-bold mb-4">Familias afectadas</h2>
 
               <table className="w-full">
                 <thead>
