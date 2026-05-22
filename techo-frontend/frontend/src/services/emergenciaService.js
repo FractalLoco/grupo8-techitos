@@ -31,6 +31,46 @@ export const crearEmergencia = async (data) => {
   return response.data;
 };
 
+export const obtenerFamilias =
+async (emergenciaId)=>{
+
+ const response=
+ await axios.get(
+   `${API_URL}/${emergenciaId}/familias`,
+   obtenerHeaders()
+ );
+
+ return response.data;
+};
+
+export const registrarFamilia =
+async (
+ emergenciaId,
+ datos
+)=>{
+
+ const response=
+ await axios.post(
+   `${API_URL}/${emergenciaId}/familias`,
+   datos,
+   obtenerHeaders()
+ );
+
+ return response.data;
+};
+
+export const obtenerEvaluaciones =
+async(emergenciaId)=>{
+
+ const response=
+ await axios.get(
+ `${API_URL}/${emergenciaId}/evaluaciones`,
+ obtenerHeaders()
+ );
+
+ return response.data;
+};
+
 export const actualizarEmergencia = async (id,data) => {
   const response = await axios.put(
     `${API_URL}/${id}`,

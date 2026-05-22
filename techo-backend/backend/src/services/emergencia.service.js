@@ -16,6 +16,10 @@ export class EmergenciaService {
       throw new Error("Emergencia no encontrada");
     }
 
+    if (emergencia.estado === "finalizada") {
+      throw new Error("No se puede modificar una emergencia finalizada");
+    }
+
     return EmergenciaRepository.actualizar(id, datos);
   }
 
