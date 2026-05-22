@@ -42,6 +42,36 @@ export const obtenerDetalle = async (solicitud, respuesta) => {
   }
 };
 
+export const actualizarEmergencia = async (
+  solicitud,
+  respuesta
+) => {
+  try {
+
+    const emergencia =
+      await EmergenciaService.actualizarEmergencia(
+        solicitud.params.id,
+        solicitud.body
+      );
+
+    return respuestaExito(
+      respuesta,
+      200,
+      'Emergencia actualizada correctamente',
+      { emergencia }
+    );
+
+  } catch (error) {
+
+    return respuestaError(
+      respuesta,
+      400,
+      error.message
+    );
+
+  }
+};
+
 // Finalizo la emergencia registrando la fecha de cierre y cambiando su estado a 'finalizada'.
 export const finalizarEmergencia = async (solicitud, respuesta) => {
   try {
