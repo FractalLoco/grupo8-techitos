@@ -1,37 +1,34 @@
-import { useEffect, useState } from 'react';
-import Navbar from '../components/Navbar';
+import { useEffect, useState } from "react";
+import Navbar from "../components/Navbar";
 import {
   obtenerUsuarios,
   crearUsuario,
   activarUsuario,
   desactivarUsuario,
-} from '../services/usuarioService';
+} from "../services/usuarioService";
 
 function GestionUsuarios() {
   const [usuarios, setUsuarios] = useState([]);
   const [cargando, setCargando] = useState(true);
 
   const [formulario, setFormulario] = useState({
-    nombre: '',
-    rut: '',
-    correo: '',
-    rol: 'voluntario',
+    nombre: "",
+    rut: "",
+    correo: "",
+    rol: "voluntario",
   });
 
   // Obtiene id compatible con MongoDB o SQL
   const obtenerId = (usuario) => usuario._id || usuario.id;
 
-  async function cargarUsuarios() {
+  const cargarUsuarios = async () => {
     try {
       setCargando(true);
 
       const data = await obtenerUsuarios();
 
-      // Validación segura
-      if (Array.isArray(data)) {
-        setUsuarios(data);
-      } else if (Array.isArray(data.data)) {
-        setUsuarios(data.data);
+      if (Array.isArray(data?.datos?.usuarios)) {
+        setUsuarios(data.datos.usuarios);
       } else {
         setUsuarios([]);
       }
@@ -41,7 +38,7 @@ function GestionUsuarios() {
     } finally {
       setCargando(false);
     }
-  }
+  };
 
   useEffect(() => {
     cargarUsuarios();
@@ -62,10 +59,10 @@ function GestionUsuarios() {
       await crearUsuario(formulario);
 
       setFormulario({
-        nombre: '',
-        rut: '',
-        correo: '',
-        rol: 'voluntario',
+        nombre: "",
+        rut: "",
+        correo: "",
+        rol: "voluntario",
       });
 
       cargarUsuarios();
@@ -96,9 +93,7 @@ function GestionUsuarios() {
       <Navbar />
 
       <div className="pt-24 px-6 max-w-6xl mx-auto">
-        <h1 className="text-3xl font-bold mb-6">
-          Gestión de Usuarios
-        </h1>
+        <h1 className="text-3xl font-bold mb-6">Gestión de Usuarios</h1>
 
         <form
           onSubmit={manejarSubmit}
@@ -140,17 +135,11 @@ function GestionUsuarios() {
             onChange={manejarCambio}
             className="border rounded-lg px-4 py-2"
           >
-            <option value="coordinador">
-              Coordinador
-            </option>
+            <option value="coordinador">Coordinador</option>
 
-            <option value="jefe_cuadrilla">
-              Jefe de cuadrilla
-            </option>
+            <option value="jefe_cuadrilla">Jefe de cuadrilla</option>
 
-            <option value="voluntario">
-              Voluntario
-            </option>
+            <option value="voluntario">Voluntario</option>
           </select>
 
           <button className="bg-blue-600 text-white rounded-lg py-2 px-4 col-span-full">
@@ -174,38 +163,23 @@ function GestionUsuarios() {
               {!cargando &&
                 Array.isArray(usuarios) &&
                 usuarios.map((usuario) => (
-                  <tr
-                    key={obtenerId(usuario)}
-                    className="border-t"
-                  >
-                    <td className="p-3">
-                      {usuario.nombre}
-                    </td>
+                  <tr key={obtenerId(usuario)} className="border-t">
+                    <td className="p-3">{usuario.nombre}</td>
+
+                    <td className="p-3">{usuario.correo}</td>
+
+                    <td className="p-3">{usuario.rol}</td>
 
                     <td className="p-3">
-                      {usuario.correo}
-                    </td>
-
-                    <td className="p-3">
-                      {usuario.rol}
-                    </td>
-
-                    <td className="p-3">
-                      {usuario.activo
-                        ? 'Activo'
-                        : 'Desactivado'}
+                      {usuario.activo ? "Activo" : "Desactivado"}
                     </td>
 
                     <td className="p-3">
                       <button
-                        onClick={() =>
-                          cambiarEstado(usuario)
-                        }
+                        onClick={() => cambiarEstado(usuario)}
                         className="bg-slate-800 text-white px-3 py-1 rounded"
                       >
-                        {usuario.activo
-                          ? 'Desactivar'
-                          : 'Activar'}
+                        {usuario.activo ? "Desactivar" : "Activar"}
                       </button>
                     </td>
                   </tr>
