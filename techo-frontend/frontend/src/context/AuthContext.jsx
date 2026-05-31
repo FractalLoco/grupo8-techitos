@@ -1,44 +1,51 @@
+// Importo las herramientas de React para crear el contexto global de autenticación
 import { createContext, useContext, useState, useEffect } from 'react';
+// Importo la función que consulta al backend si el token sigue siendo válido
 import { verificarSesion } from '../services/inicioSesionService';
 
-// contexto global para manejar la sesión del usuario en toda la app
+// Creo el contexto que comparte el estado de sesión con toda la aplicación
 const ContextoAutenticacion = createContext();
 
+// Este proveedor envuelve la app y expone el usuario, token y las funciones de sesión
 export function ProveedorAutenticacion({ children }) {
   const [usuario, setUsuario] = useState(null);
   const [token, setToken] = useState(null);
+  // Uso esta bandera para bloquear las rutas protegidas mientras verifico la sesión guardada
   const [verificando, setVerificando] = useState(true);
 
-  // al cargar la app revisamos si el usuario ya tenía sesión abierta
+  // Al montar la app reviso si el usuario ya tenía una sesión guardada en localStorage
   useEffect(() => {
     const tokenGuardado = localStorage.getItem('token');
     const usuarioGuardado = localStorage.getItem('usuario');
 
     if (tokenGuardado && usuarioGuardado) {
-      // le preguntamos al backend si el token guardado sigue siendo válido
+      // Consulto al backend para confirmar que el token no expiró desde la última visita
       verificarSesion(tokenGuardado)
         .then((valido) => {
           if (valido) {
+            // El token sigue activo: restauro la sesión sin pedirle credenciales al usuario
             setToken(tokenGuardado);
             setUsuario(JSON.parse(usuarioGuardado));
           } else {
-            // el token venció, limpiamos todo para que vuelva a loguearse
+            // El token venció: limpio el storage para forzar un nuevo inicio de sesión
             localStorage.removeItem('token');
             localStorage.removeItem('usuario');
           }
         })
         .catch(() => {
-          // si el servidor no responde, limpiamos igual
+          // Si el backend no responde, limpio igual por seguridad
           localStorage.removeItem('token');
           localStorage.removeItem('usuario');
         })
         .finally(() => setVerificando(false));
     } else {
+      // No hay sesión guardada: termino la verificación de inmediato
       setVerificando(false);
     }
   }, []);
 
-  // guardamos en estado y en localStorage para que sobreviva recargas de página
+  // Guardo el token y el usuario tanto en el estado de React como en localStorage
+  // para que la sesión sobreviva recargas de página
   const iniciarSesion = (nuevoToken, nuevoUsuario) => {
     localStorage.setItem('token', nuevoToken);
     localStorage.setItem('usuario', JSON.stringify(nuevoUsuario));
@@ -46,6 +53,7 @@ export function ProveedorAutenticacion({ children }) {
     setUsuario(nuevoUsuario);
   };
 
+  // Limpio completamente la sesión del estado y del almacenamiento local
   const cerrarSesion = () => {
     localStorage.removeItem('token');
     localStorage.removeItem('usuario');
@@ -60,7 +68,7 @@ export function ProveedorAutenticacion({ children }) {
   );
 }
 
-// hook para usar el contexto fácilmente desde cualquier componente
+// Expongo este hook para que cualquier componente acceda al contexto sin importar el objeto directamente
 export function useAutenticacion() {
   return useContext(ContextoAutenticacion);
 }
