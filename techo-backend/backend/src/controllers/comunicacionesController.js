@@ -1,5 +1,5 @@
-const chatModel = require('../models/chatModel');
-const usuarioModel = require('../models/usuarioModel');
+const chatModel = require('../../models/chatModel');
+const usuarioModel = require('../../models/usuarioModel');
 
 // enviar mensaje (puede ser broadcast si cuadrilla_id es null, solo coordinador)
 const enviarMensaje = async (req, res) => {

@@ -1,4 +1,4 @@
-const chatModel = require('../models/chatModel');
+const chatModel = require('../../models/chatModel');
 
 // Middleware que verifica si el usuario es miembro de la cuadrilla indicada.
 // Si no hay cuadrilla en params ni en body, deja pasar.
