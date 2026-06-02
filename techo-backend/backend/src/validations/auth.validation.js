@@ -15,7 +15,7 @@ export const validarInicioSesion = (solicitud, respuesta, siguiente) => {
   }
 
   // Me aseguro de que no sean cadenas vacías con solo espacios
-  if (rut.trim() === '' || contrasena.trim() === '') {
+  if (String(rut).trim() === '' || contrasena.trim() === '') {
     return respuesta.status(400).json({
       estado: 'error',
       codigo: 400,
