@@ -1,32 +1,44 @@
-import { useEffect, useState } from 'react';
-import Navbar from '../components/Navbar';
+import { useEffect, useState } from "react";
+import Navbar from "../components/Navbar";
 import {
   obtenerUsuarios,
   crearUsuario,
   activarUsuario,
   desactivarUsuario,
-} from '../services/usuarioService';
+} from "../services/usuarioService";
 
 function GestionUsuarios() {
   const [usuarios, setUsuarios] = useState([]);
   const [cargando, setCargando] = useState(true);
+
   const [formulario, setFormulario] = useState({
-    nombre: '',
-    rut: '',
-    correo: '',
-    rol: 'voluntario',
+    nombre: "",
+    rut: "",
+    correo: "",
+    rol: "voluntario",
   });
 
-  async function cargarUsuarios() {
+  // Obtiene id compatible con MongoDB o SQL
+  const obtenerId = (usuario) => usuario._id || usuario.id;
+
+  const cargarUsuarios = async () => {
     try {
+      setCargando(true);
+
       const data = await obtenerUsuarios();
-      setUsuarios(data.data || data);
+
+      if (Array.isArray(data?.datos?.usuarios)) {
+        setUsuarios(data.datos.usuarios);
+      } else {
+        setUsuarios([]);
+      }
     } catch (error) {
       console.error(error);
+      setUsuarios([]);
     } finally {
       setCargando(false);
     }
-  }
+  };
 
   useEffect(() => {
     cargarUsuarios();
@@ -39,29 +51,41 @@ function GestionUsuarios() {
     });
   };
 
+  // Crear usuario con manejo de errores
   const manejarSubmit = async (e) => {
     e.preventDefault();
 
-    await crearUsuario(formulario);
+    try {
+      await crearUsuario(formulario);
 
-    setFormulario({
-      nombre: '',
-      rut: '',
-      correo: '',
-      rol: 'voluntario',
-    });
+      setFormulario({
+        nombre: "",
+        rut: "",
+        correo: "",
+        rol: "voluntario",
+      });
 
-    cargarUsuarios();
+      cargarUsuarios();
+    } catch (error) {
+      console.error(error);
+    }
   };
 
+  // Activar o desactivar usuario
   const cambiarEstado = async (usuario) => {
-    if (usuario.activo) {
-      await desactivarUsuario(usuario.id);
-    } else {
-      await activarUsuario(usuario.id);
-    }
+    try {
+      const id = obtenerId(usuario);
 
-    cargarUsuarios();
+      if (usuario.activo) {
+        await desactivarUsuario(id);
+      } else {
+        await activarUsuario(id);
+      }
+
+      cargarUsuarios();
+    } catch (error) {
+      console.error(error);
+    }
   };
 
   return (
@@ -112,7 +136,9 @@ function GestionUsuarios() {
             className="border rounded-lg px-4 py-2"
           >
             <option value="coordinador">Coordinador</option>
+
             <option value="jefe_cuadrilla">Jefe de cuadrilla</option>
+
             <option value="voluntario">Voluntario</option>
           </select>
 
@@ -134,24 +160,30 @@ function GestionUsuarios() {
             </thead>
 
             <tbody>
-              {!cargando && usuarios.map((usuario) => (
-                <tr key={usuario.id} className="border-t">
-                  <td className="p-3">{usuario.nombre}</td>
-                  <td className="p-3">{usuario.correo}</td>
-                  <td className="p-3">{usuario.rol}</td>
-                  <td className="p-3">
-                    {usuario.activo ? 'Activo' : 'Desactivado'}
-                  </td>
-                  <td className="p-3">
-                    <button
-                      onClick={() => cambiarEstado(usuario)}
-                      className="bg-slate-800 text-white px-3 py-1 rounded"
-                    >
-                      {usuario.activo ? 'Desactivar' : 'Activar'}
-                    </button>
-                  </td>
-                </tr>
-              ))}
+              {!cargando &&
+                Array.isArray(usuarios) &&
+                usuarios.map((usuario) => (
+                  <tr key={obtenerId(usuario)} className="border-t">
+                    <td className="p-3">{usuario.nombre}</td>
+
+                    <td className="p-3">{usuario.correo}</td>
+
+                    <td className="p-3">{usuario.rol}</td>
+
+                    <td className="p-3">
+                      {usuario.activo ? "Activo" : "Desactivado"}
+                    </td>
+
+                    <td className="p-3">
+                      <button
+                        onClick={() => cambiarEstado(usuario)}
+                        className="bg-slate-800 text-white px-3 py-1 rounded"
+                      >
+                        {usuario.activo ? "Desactivar" : "Activar"}
+                      </button>
+                    </td>
+                  </tr>
+                ))}
             </tbody>
           </table>
         </div>

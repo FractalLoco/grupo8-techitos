@@ -8,6 +8,8 @@ import herramientaRoutes from './herramienta.routes.js';
 import usuarioRoutes from './usuario.routes.js';
 import mensajeRoutes from './mensaje.routes.js';
 import dashboardRoutes from './dashboard.routes.js';
+import obraRoutes from './obra.routes.js';
+import notificacionRoutes from './notificacion.routes.js';
 
 const router = Router();
 
@@ -20,5 +22,7 @@ router.use('/herramientas', herramientaRoutes);
 router.use('/usuarios', usuarioRoutes);
 router.use('/comunicaciones', mensajeRoutes);
 router.use('/dashboard', dashboardRoutes);
+router.use('/obras', obraRoutes);
+router.use('/notificaciones', notificacionRoutes);
 
 export default router;

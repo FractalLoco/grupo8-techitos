@@ -12,6 +12,8 @@ import { CuadrillaEntity } from '../entity/cuadrilla.entity.js';
 import { MiembroCuadrillaEntity } from '../entity/miembro-cuadrilla.entity.js';
 import { HerramientaEntity } from '../entity/herramienta.entity.js';
 import { MensajeEntity } from '../entity/mensaje.entity.js';
+import { ObraEntity } from '../entity/obra.entity.js';
+import { NotificacionEntity } from '../entity/notificacion.entity.js';
 
 dotenv.config();
 
@@ -36,6 +38,8 @@ const AppDataSource = new DataSource({
     MiembroCuadrillaEntity,
     HerramientaEntity,
     MensajeEntity,
+    ObraEntity,
+    NotificacionEntity,
   ],
 });
 

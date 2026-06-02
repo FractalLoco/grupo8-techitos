@@ -1,10 +1,10 @@
-const API_URL = 'http://localhost:3000/api/usuarios';
+const API_URL = "http://localhost:3000/api/usuarios";
 
 function obtenerHeaders() {
-  const token = localStorage.getItem('token');
+  const token = localStorage.getItem("token");
 
   return {
-    'Content-Type': 'application/json',
+    "Content-Type": "application/json",
     Authorization: `Bearer ${token}`,
   };
 }
@@ -15,7 +15,7 @@ export async function obtenerUsuarios() {
   });
 
   if (!respuesta.ok) {
-    throw new Error('No se pudieron obtener los usuarios');
+    throw new Error("No se pudieron obtener los usuarios");
   }
 
   return respuesta.json();
@@ -23,17 +23,23 @@ export async function obtenerUsuarios() {
 
 export async function crearUsuario(datos) {
   const respuesta = await fetch(API_URL, {
-    method: 'POST',
+    method: "POST",
     headers: obtenerHeaders(),
     body: JSON.stringify(datos),
   });
 
-  return respuesta.json();
+  const data = await respuesta.json();
+
+  if (!respuesta.ok) {
+    throw new Error(data.mensaje || "Error al crear usuario");
+  }
+
+  return data;
 }
 
 export async function activarUsuario(id) {
   const respuesta = await fetch(`${API_URL}/${id}/activar`, {
-    method: 'PATCH',
+    method: "PATCH",
     headers: obtenerHeaders(),
   });
 
@@ -42,7 +48,7 @@ export async function activarUsuario(id) {
 
 export async function desactivarUsuario(id) {
   const respuesta = await fetch(`${API_URL}/${id}/desactivar`, {
-    method: 'PATCH',
+    method: "PATCH",
     headers: obtenerHeaders(),
   });
 
