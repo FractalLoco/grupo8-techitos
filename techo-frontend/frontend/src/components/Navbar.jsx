@@ -33,6 +33,7 @@ function Navbar() {
   // Defino los enlaces de navegación con sus rutas e íconos SVG en formato path
   const enlaces = [
     { label: 'Inicio', path: '/inicio', icon: 'M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6' },
+    { label: 'Comunicaciones', path: '/comunicaciones', icon: 'M8 10h8m-8 4h5m-6 6h12a2 2 0 002-2v-6a2 2 0 00-2-2h-1l-3-3H7a2 2 0 00-2 2v9a2 2 0 002 2z' },
     { label: 'Cuadrillas', path: '/cuadrillas', icon: 'M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z' },
     { label: 'Mapa', path: '/mapa', icon: 'M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7' },
     { label: 'Emergencias', path: '/emergencias', icon: 'M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z' },
@@ -112,7 +113,7 @@ function Navbar() {
             {!esCoordinador && (
               <div className="mb-3">
                 <p className="text-white/40 text-xs font-semibold uppercase tracking-wider mb-2">Menú</p>
-                {enlaces.slice(0, 3).map((enlace) => (
+                {enlaces.filter((enlace) => ['Inicio', 'Comunicaciones', 'Cuadrillas', 'Mapa'].includes(enlace.label)).map((enlace) => (
                   <Link
                     key={enlace.path}
                     to={enlace.path}

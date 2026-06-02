@@ -13,10 +13,22 @@ export class MensajeRepository {
   }
 
   static async listarPorCuadrilla(cuadrillaId, limite = 200) {
-    return this.getRepository().find({ where: { cuadrilla_id: cuadrillaId }, order: { creado_en: 'DESC' }, take: limite });
+    return this.getRepository().find({
+      where: { cuadrilla_id: cuadrillaId },
+      order: { creado_en: 'ASC' },
+      take: limite,
+      relations: { remitente: true },
+    });
   }
 
   static async listarBroadcast(limite = 200) {
-    return this.getRepository().find({ where: { cuadrilla_id: null }, order: { creado_en: 'DESC' }, take: limite });
+    return this.getRepository()
+      .createQueryBuilder('mensaje')
+      .leftJoinAndSelect('mensaje.remitente', 'remitente')
+      .where('mensaje.cuadrilla_id IS NULL')
+      .andWhere('remitente.rol = :rol', { rol: 'coordinador' })
+      .orderBy('mensaje.creado_en', 'ASC')
+      .take(limite)
+      .getMany();
   }
 }

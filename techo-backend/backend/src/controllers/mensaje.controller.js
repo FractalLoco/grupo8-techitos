@@ -23,7 +23,8 @@ export const enviarMensaje = async (req, res) => {
     }
 
     const mensaje = await MensajeService.enviarMensaje({ cuadrilla_id, remitente_id, tipo, contenido, archivo_url, prioridad });
-    return respuestaExito(res, 201, 'Mensaje enviado', { mensaje });
+    const mensajeDTO = MensajeService.toDTO(mensaje, req.usuario?.nombre || null);
+    return respuestaExito(res, 201, 'Mensaje enviado', { mensaje: mensajeDTO });
   } catch (error) {
     console.error('error enviarMensaje:', error.message);
     return respuestaError(res, 500, 'Error interno');
@@ -34,8 +35,11 @@ export const listarMensajesCuadrilla = async (req, res) => {
   try {
     const usuario_id = req.usuario.id;
     const cuadrilla_id = parseInt(req.params.cuadrillaId, 10);
-    const esta = await MensajeService.usuarioEnCuadrilla(usuario_id, cuadrilla_id);
-    if (!esta) return respuestaError(res, 403, 'No tienes permiso para ver este chat');
+    const esCoordinador = req.usuario.rol === 'coordinador';
+    if (!esCoordinador) {
+      const esta = await MensajeService.usuarioEnCuadrilla(usuario_id, cuadrilla_id);
+      if (!esta) return respuestaError(res, 403, 'No tienes permiso para ver este chat');
+    }
     const mensajes = await MensajeService.listarPorCuadrilla(cuadrilla_id);
     return respuestaExito(res, 200, 'Mensajes obtenidos', { mensajes });
   } catch (error) {

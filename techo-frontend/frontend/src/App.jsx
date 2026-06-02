@@ -10,6 +10,7 @@ import Próximamente from './components/Próximamente';
 import Login from './pages/Login';
 import Registro from './pages/Registro';
 import Inicio from './pages/Inicio';
+import Comunicaciones from './pages/Comunicaciones';
 import SinPermiso from './pages/SinPermiso';
 import NotFound from './pages/NotFound';
 import GestionUsuarios from './pages/GestionUsuarios';
@@ -34,6 +35,15 @@ function Aplicacion() {
             element={
               <RutaProtegida rolesPermitidos={['coordinador', 'jefe_cuadrilla', 'voluntario']}>
                 <Inicio />
+              </RutaProtegida>
+            }
+          />
+
+          <Route
+            path="/comunicaciones"
+            element={
+              <RutaProtegida rolesPermitidos={['coordinador', 'jefe_cuadrilla', 'voluntario']}>
+                <Comunicaciones />
               </RutaProtegida>
             }
           />
