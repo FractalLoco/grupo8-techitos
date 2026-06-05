@@ -5,6 +5,8 @@ import ReactDOM from 'react-dom/client';
 import Aplicacion from './App.jsx';
 // Cargo los estilos globales que incluyen Tailwind y las animaciones personalizadas
 import './index.css';
+// Estilos de Leaflet necesarios para que el mapa renderice correctamente
+import 'leaflet/dist/leaflet.css';
 
 // Busco el elemento #root en el index.html y monto la app React dentro de él.
 // Uso StrictMode para que React me muestre advertencias de buenas prácticas en desarrollo.

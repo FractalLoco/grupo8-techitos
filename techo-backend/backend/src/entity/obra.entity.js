@@ -20,6 +20,12 @@ export const ObraEntity = new EntitySchema({
       type: 'text',
       nullable: true,
     },
+    // Dirección completa para mostrar junto a las coordenadas en el mapa
+    direccion: {
+      type: 'varchar',
+      length: 300,
+      nullable: true,
+    },
     // Coordenadas que usa Leaflet para pintar el punto exacto en el mapa
     lat: {
       type: 'float',
