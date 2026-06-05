@@ -41,8 +41,11 @@ function Navbar() {
     { label: 'Herramientas', path: '/herramientas', icon: 'M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z' },
   ];
 
-  // Uso este flag para mostrar todas las opciones al coordinador y solo 3 al resto
   const esCoordinador = usuario?.rol === 'coordinador';
+  const esJefe = usuario?.rol === 'jefe_cuadrilla';
+  // Los voluntarios solo ven Inicio, Mapa y Comunicaciones; el jefe además ve Cuadrillas
+  const enlacesJefe = ['Inicio', 'Comunicaciones', 'Cuadrillas', 'Mapa'];
+  const enlacesVoluntario = ['Inicio', 'Comunicaciones', 'Mapa'];
 
   return (
     <>
@@ -109,17 +112,29 @@ function Navbar() {
               </div>
             )}
 
-            {/* Los jefes y voluntarios solo ven Inicio, Cuadrillas y Mapa */}
-            {!esCoordinador && (
+            {/* El jefe ve Inicio, Comunicaciones, Cuadrillas y Mapa */}
+            {esJefe && (
               <div className="mb-3">
                 <p className="text-white/40 text-xs font-semibold uppercase tracking-wider mb-2">Menú</p>
-                {enlaces.filter((enlace) => ['Inicio', 'Comunicaciones', 'Cuadrillas', 'Mapa'].includes(enlace.label)).map((enlace) => (
-                  <Link
-                    key={enlace.path}
-                    to={enlace.path}
-                    onClick={cerrarMenu}
-                    className="flex items-center gap-3 px-3 py-2.5 text-white/80 hover:text-white hover:bg-white/10 rounded-lg transition-all text-sm"
-                  >
+                {enlaces.filter((e) => enlacesJefe.includes(e.label)).map((enlace) => (
+                  <Link key={enlace.path} to={enlace.path} onClick={cerrarMenu}
+                    className="flex items-center gap-3 px-3 py-2.5 text-white/80 hover:text-white hover:bg-white/10 rounded-lg transition-all text-sm">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d={enlace.icon} />
+                    </svg>
+                    {enlace.label}
+                  </Link>
+                ))}
+              </div>
+            )}
+
+            {/* El voluntario solo ve Inicio, Comunicaciones y Mapa */}
+            {!esCoordinador && !esJefe && (
+              <div className="mb-3">
+                <p className="text-white/40 text-xs font-semibold uppercase tracking-wider mb-2">Menú</p>
+                {enlaces.filter((e) => enlacesVoluntario.includes(e.label)).map((enlace) => (
+                  <Link key={enlace.path} to={enlace.path} onClick={cerrarMenu}
+                    className="flex items-center gap-3 px-3 py-2.5 text-white/80 hover:text-white hover:bg-white/10 rounded-lg transition-all text-sm">
                     <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d={enlace.icon} />
                     </svg>

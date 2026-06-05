@@ -1,5 +1,6 @@
 # Dependencias
 node_modules/
+.claude
 .env
 .env.local
 .env.*.local
@@ -29,3 +30,4 @@ out/
 .env
 techo-backend.zip
 techo-frontend.zip
+seed.sql
