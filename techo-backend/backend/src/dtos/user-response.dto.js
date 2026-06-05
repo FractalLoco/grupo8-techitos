@@ -1,7 +1,6 @@
 'use strict';
 
-// DTO de respuesta de usuario: filtra los campos que puedo enviar al cliente.
-// Lo uso para asegurarme de que la contraseña y otros datos internos nunca lleguen al frontend.
+
 export class UserResponseDTO {
   constructor(usuario) {
     this.id = usuario.id;

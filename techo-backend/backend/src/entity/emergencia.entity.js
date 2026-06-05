@@ -27,6 +27,12 @@ export const EmergenciaEntity = new EntitySchema({
       length: 20,
       default: 'activa',
     },
+    // Dirección legible del lugar de la emergencia para mostrar en el mapa
+    direccion: {
+      type: 'varchar',
+      length: 300,
+      nullable: true,
+    },
     // Guardo las coordenadas para mostrar la emergencia en el mapa del frontend
     lat: {
       type: 'float',

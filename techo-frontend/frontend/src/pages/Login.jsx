@@ -1,5 +1,5 @@
 // Importo useState para manejar los campos del formulario y estados de UI
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 // Importo useNavigate para redirigir al inicio tras un login exitoso y Link para el registro
 import { useNavigate, Link } from 'react-router-dom';
 // Accedo a la función iniciarSesion del contexto para guardar la sesión globalmente
@@ -13,10 +13,14 @@ function Login() {
   const [contrasena, setContrasena] = useState('');
   const [mensajeError, setMensajeError] = useState('');
   const [cargando, setCargando] = useState(false);
+  const [resumenPublico, setResumenPublico] = useState(null);
+  const [cargandoResumen, setCargandoResumen] = useState(true);
+  const [errorResumen, setErrorResumen] = useState('');
   // Controlo si el input de contraseña muestra el texto en claro o enmascarado
   const [mostrarContrasena, setMostrarContrasena] = useState(false);
   const navegar = useNavigate();
   const { iniciarSesion } = useAutenticacion();
+  const urlBase = import.meta.env.VITE_URL_BACKEND || 'http://localhost:3000';
 
   // Valido el formato del RUT chileno antes de enviarlo al backend
   const validarRut = (rutIngresado) => {
@@ -61,6 +65,28 @@ function Login() {
       setCargando(false);
     }
   };
+
+  useEffect(() => {
+    const cargarResumen = async () => {
+      try {
+        setErrorResumen('');
+        const respuesta = await fetch(`${urlBase}/api/dashboard/publico`);
+        const datos = await respuesta.json();
+
+        if (!respuesta.ok) {
+          throw new Error(datos.mensaje || 'No se pudo cargar el dashboard');
+        }
+
+        setResumenPublico(datos.datos);
+      } catch (errorActual) {
+        setErrorResumen(errorActual.message);
+      } finally {
+        setCargandoResumen(false);
+      }
+    };
+
+    cargarResumen();
+  }, [urlBase]);
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-techo-light px-4">
@@ -148,6 +174,58 @@ function Login() {
               ¿No tienes cuenta? Regístrate aquí
             </Link>
           </div>
+        </div>
+
+        <div className="mt-6 bg-white/90 border border-white/70 rounded-2xl p-5 shadow-sm">
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="text-sm font-semibold text-techo-primary">Dashboard publico</h2>
+            <span className="text-[10px] uppercase tracking-wider text-gray-400">Actualizado</span>
+          </div>
+
+          {cargandoResumen && (
+            <p className="text-xs text-gray-400">Cargando indicadores...</p>
+          )}
+
+          {!cargandoResumen && errorResumen && (
+            <p className="text-xs text-red-500">{errorResumen}</p>
+          )}
+
+          {!cargandoResumen && !errorResumen && resumenPublico && (
+            <div className="grid grid-cols-1 gap-3">
+              <div className="flex items-center justify-between rounded-xl bg-techo-light px-4 py-3">
+                <div>
+                  <p className="text-xs text-gray-400">Casas finalizadas</p>
+                  <p className="text-lg font-bold text-techo-primary">
+                    {resumenPublico.casas_finalizadas || 0}
+                  </p>
+                </div>
+                <span className="text-xs text-techo-secondary">+ avance</span>
+              </div>
+              <div className="flex items-center justify-between rounded-xl bg-techo-light px-4 py-3">
+                <div>
+                  <p className="text-xs text-gray-400">Voluntarios desplegados</p>
+                  <p className="text-lg font-bold text-techo-primary">
+                    {resumenPublico.voluntarios_desplegados || 0}
+                  </p>
+                </div>
+                <span className="text-xs text-techo-secondary">Activos</span>
+              </div>
+              <div className="flex items-center justify-between rounded-xl bg-techo-light px-4 py-3">
+                <div>
+                  <p className="text-xs text-gray-400">Cuadrillas activas</p>
+                  <p className="text-lg font-bold text-techo-primary">
+                    {resumenPublico.cuadrillas_activas || 0}
+                  </p>
+                </div>
+                <span className="text-xs text-techo-secondary">En terreno</span>
+              </div>
+              {resumenPublico.aviso && (
+                <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-2 text-xs text-amber-700">
+                  {resumenPublico.aviso}
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         <p className="text-center text-gray-300 text-xs mt-6">

@@ -37,4 +37,10 @@ export class MiembroCuadrillaRepository {
   static async buscarVoluntarioEnCuadrilla(voluntarioId) {
     return this.getRepository().findOne({ where: { voluntario_id: voluntarioId } });
   }
+
+  // Comprueba si un usuario (voluntario) es miembro de una cuadrilla específica
+  static async existeMiembro(voluntarioId, cuadrillaId) {
+    const registro = await this.getRepository().findOne({ where: { voluntario_id: voluntarioId, cuadrilla_id: cuadrillaId } });
+    return !!registro;
+  }
 }
