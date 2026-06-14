@@ -70,13 +70,13 @@ const dashboardPublico = async (req, res) => {
 
     // contar voluntarios asignados a cuadrillas activas
     const voluntarios = await db.query(
-      `SELECT COUNT(DISTINCT cm.usuario_id)::int AS count
-       FROM cuadrilla_miembros cm
-       JOIN usuarios u ON u.id = cm.usuario_id
-       JOIN cuadrillas c ON c.id = cm.cuadrilla_id
-       WHERE u.rol = 'voluntario' AND c.activo = true`
+      `SELECT COUNT(DISTINCT mc.voluntario_id)::int AS count
+       FROM miembros_cuadrilla mc
+       JOIN usuarios u ON u.id = mc.voluntario_id
+       JOIN cuadrillas c ON c.id = mc.cuadrilla_id
+       WHERE u.rol = 'voluntario' AND c.estado IN ('activa', 'en_progreso')`
     );
-    const cuadrillasAct = await db.query("SELECT COUNT(*)::int as count FROM cuadrillas WHERE activo = true");
+    const cuadrillasAct = await db.query("SELECT COUNT(*)::int as count FROM cuadrillas WHERE estado IN ('activa', 'en_progreso')");
 
     const datos = {
       casas_finalizadas: casasFinalizadas || 0,

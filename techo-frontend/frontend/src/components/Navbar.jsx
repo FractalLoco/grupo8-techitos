@@ -49,8 +49,8 @@ function Navbar() {
 
   return (
     <>
-      {/* Barra superior fija con el botón hamburguesa y el nombre del usuario */}
-      <nav className="fixed top-0 left-0 right-0 h-[60px] bg-techo-primary/95 backdrop-blur-sm flex items-center justify-between px-6 z-100 shadow-lg">
+      {/* Barra superior fija — z-[1000] para quedar sobre los tiles y controles de Leaflet (que llegan a z-index 800) */}
+      <nav className="fixed top-0 left-0 right-0 h-[60px] bg-techo-primary/95 backdrop-blur-sm flex items-center justify-between px-6 z-[1000] shadow-lg">
         {/* Botón de tres líneas que abre el menú lateral */}
         <button
           className="bg-transparent border-none cursor-pointer flex flex-col gap-[5px] p-1"
@@ -70,13 +70,13 @@ function Navbar() {
         )}
       </nav>
 
-      {/* Overlay oscuro semitransparente que aparece detrás del menú; al hacer clic lo cierra */}
+      {/* Overlay oscuro — z-[2000] para tapar el mapa y todo su contenido cuando el menú está abierto */}
       {menuAbierto && (
-        <div className="fixed inset-0 bg-black/40 z-200" onClick={cerrarMenu} />
+        <div className="fixed inset-0 bg-black/40 z-[2000]" onClick={cerrarMenu} />
       )}
 
-      {/* Panel lateral deslizante: se mueve fuera de pantalla cuando está cerrado */}
-      <div className={`fixed top-0 bottom-0 w-[300px] bg-gradient-to-b from-techo-primary to-techo-dark z-300 transition-all duration-300 flex flex-col ${menuAbierto ? 'left-0' : '-left-[300px]'}`}>
+      {/* Panel lateral deslizante — z-[3000] para estar siempre encima del overlay y del mapa */}
+      <div className={`fixed top-0 bottom-0 w-[300px] bg-gradient-to-b from-techo-primary to-techo-dark z-[3000] transition-all duration-300 flex flex-col ${menuAbierto ? 'left-0' : '-left-[300px]'}`}>
         {/* Botón X para cerrar el panel desde adentro */}
         <button className="self-end text-white text-xl cursor-pointer bg-transparent border-none p-2 mb-4 hover:bg-white/10 rounded" onClick={cerrarMenu}>
           ✕
