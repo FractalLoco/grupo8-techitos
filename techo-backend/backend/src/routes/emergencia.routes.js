@@ -6,6 +6,7 @@ import {
   listarTodas,
   obtenerDetalle,
   finalizarEmergencia,
+  actualizarEmergencia,
   registrarFamilia,
   listarFamilias,
   registrarEvaluacion,
@@ -45,6 +46,7 @@ router.post('/', authMiddleware, roleMiddleware('coordinador'), crearEmergencia)
  * PUT /api/emergencias/:id/finalizar
  * Cierro la emergencia registrando la fecha de fin (solo coordinador)
  */
+router.put('/:id', authMiddleware, roleMiddleware('coordinador'), actualizarEmergencia);
 router.put('/:id/finalizar', authMiddleware, roleMiddleware('coordinador'), finalizarEmergencia);
 
 /**

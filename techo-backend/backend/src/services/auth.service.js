@@ -10,7 +10,7 @@ export class AuthService {
   static async iniciarSesion(rut, contrasena) {
     const usuario = await UsuarioRepository.buscarPorRut(rut);
 
-    // Uso el mismo mensaje para RUT y contraseña incorrectos para no revelar cuál falló
+    // Uso el mismo mensaje para rut y contraseña incorrectos para no revelar cuál falló
     if (!usuario) {
       throw new Error('RUT o contraseña incorrectos');
     }

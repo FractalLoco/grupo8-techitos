@@ -1,8 +1,8 @@
 'use strict';
 import { EntitySchema } from 'typeorm';
 
-// Zona de peligro: area circular en el mapa que el coordinador marca para advertir a las cuadrillas.
-// Amarilla = zona dificil de atravesar, Roja = zona imposible de pasar.
+// Representa un área peligrosa pintada como círculo en el mapa.
+// Amarilla = se puede pasar con cuidado, Roja = zona completamente bloqueada.
 export const ZonaPeligroEntity = new EntitySchema({
   name: 'ZonaPeligro',
   tableName: 'zonas_peligro',
@@ -12,50 +12,57 @@ export const ZonaPeligroEntity = new EntitySchema({
       type: 'int',
       generated: true,
     },
-    // Latitud del centro del circulo
-    lat: {
-      type: 'float',
-      nullable: false,
-    },
-    // Longitud del centro del circulo
-    lng: {
-      type: 'float',
-      nullable: false,
-    },
-    // Radio en metros que define el tamano del area de peligro en el mapa
-    radio: {
-      type: 'float',
-      default: 200,
-    },
-    // 'amarilla' = dificil de pasar, 'roja' = imposible pasar
-    tipo: {
-      type: 'varchar',
-      length: 20,
-      nullable: false,
-    },
-    // Descripcion libre del peligro para que las cuadrillas sepan que se encontraran
-    comentario: {
-      type: 'text',
-      nullable: true,
-    },
-    // Emergencia a la que pertenece esta zona
     emergencia_id: {
       type: 'int',
       nullable: false,
     },
-    // Usuario coordinador que creo la zona
+    // Dos niveles: amarilla (precaución) o roja (acceso bloqueado)
+    tipo: {
+      type: 'varchar',
+      length: 10,
+      nullable: false,
+    },
+    lat: {
+      type: 'float',
+      nullable: false,
+    },
+    lng: {
+      type: 'float',
+      nullable: false,
+    },
+    // Radio en metros; el coordinador lo define al crear y puede editarlo luego
+    radio: {
+      type: 'int',
+      default: 200,
+    },
+    descripcion: {
+      type: 'varchar',
+      length: 300,
+      nullable: true,
+    },
+    // Campo libre para dejar notas sobre el estado de la zona
+    comentarios: {
+      type: 'text',
+      nullable: true,
+    },
     creado_por: {
       type: 'int',
       nullable: false,
     },
-    fecha_creacion: {
+    creado_en: {
       type: 'timestamp',
       createDate: true,
+      default: () => 'CURRENT_TIMESTAMP',
+    },
+    actualizado_en: {
+      type: 'timestamp',
+      updateDate: true,
       default: () => 'CURRENT_TIMESTAMP',
     },
   },
   checks: [
     { expression: `"tipo" IN ('amarilla', 'roja')` },
+    { expression: `"radio" >= 50 AND "radio" <= 10000` },
   ],
   relations: {
     emergencia: {
@@ -63,6 +70,14 @@ export const ZonaPeligroEntity = new EntitySchema({
       type: 'many-to-one',
       joinColumn: {
         name: 'emergencia_id',
+        referencedColumnName: 'id',
+      },
+    },
+    creador: {
+      target: 'Usuario',
+      type: 'many-to-one',
+      joinColumn: {
+        name: 'creado_por',
         referencedColumnName: 'id',
       },
     },

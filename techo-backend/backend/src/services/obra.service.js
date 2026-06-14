@@ -16,6 +16,7 @@ export class ObraService {
     return ObraRepository.crear({
       nombre: datos.nombre,
       descripcion: datos.descripcion || null,
+      direccion: datos.direccion || null,
       lat: datos.lat,
       lng: datos.lng,
       emergencia_id: datos.emergencia_id,

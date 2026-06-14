@@ -1,107 +1,49 @@
-// Servicio para gestionar cuadrillas: creacion, miembros, fases, alertas y reasignacion
+import axios from 'axios';
 
-const BASE_URL = 'http://localhost:3000/api';
+const API = 'http://localhost:3000/api/cuadrillas';
 
-const obtenerHeaders = () => ({
-  Authorization: `Bearer ${localStorage.getItem('token')}`,
-  'Content-Type': 'application/json',
+const headers = () => ({
+  headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
 });
 
-// Obtiene cuadrillas de una emergencia con estadoColor y miembrosCount ya calculados
-export const obtenerCuadrillasPorEmergencia = async (emergenciaId) => {
-  const res = await fetch(
-    `${BASE_URL}/cuadrillas/emergencia/${emergenciaId}/estado`,
-    { headers: obtenerHeaders() }
-  );
-  return res.json();
+export const listarCuadrillas = (emergenciaId) =>
+  axios.get(`${API}/emergencia/${emergenciaId}`, headers()).then((r) => r.data);
+
+export const listarCuadrillasConEstado = (emergenciaId, color = null) => {
+  const url = color
+    ? `${API}/emergencia/${emergenciaId}/estado?color=${color}`
+    : `${API}/emergencia/${emergenciaId}/estado`;
+  return axios.get(url, headers()).then((r) => r.data);
 };
 
-// Crea una nueva cuadrilla con nombre, jefe y plazo (2 o 5 dias)
-export const crearCuadrilla = async (datos) => {
-  const res = await fetch(`${BASE_URL}/cuadrillas`, {
-    method: 'POST',
-    headers: obtenerHeaders(),
-    body: JSON.stringify(datos),
-  });
-  return res.json();
-};
+export const crearCuadrilla = (datos) =>
+  axios.post(API, datos, headers()).then((r) => r.data);
 
-// Agrega un voluntario a la cuadrilla; el backend valida el limite maximo de 11
-export const agregarMiembro = async (cuadrillaId, voluntarioId, habilidades = '') => {
-  const res = await fetch(`${BASE_URL}/cuadrillas/${cuadrillaId}/miembros`, {
-    method: 'POST',
-    headers: obtenerHeaders(),
-    body: JSON.stringify({ voluntarioId, habilidades }),
-  });
-  return res.json();
-};
+export const agregarMiembro = (cuadrillaId, datos) =>
+  axios.post(`${API}/${cuadrillaId}/miembros`, datos, headers()).then((r) => r.data);
 
-// Elimina un miembro de la cuadrilla; el backend valida que queden al menos 10
-export const eliminarMiembro = async (cuadrillaId, voluntarioId) => {
-  const res = await fetch(`${BASE_URL}/cuadrillas/${cuadrillaId}/miembros/${voluntarioId}`, {
-    method: 'DELETE',
-    headers: obtenerHeaders(),
-  });
-  return res.json();
-};
+export const eliminarMiembro = (cuadrillaId, voluntarioId) =>
+  axios.delete(`${API}/${cuadrillaId}/miembros/${voluntarioId}`, headers()).then((r) => r.data);
 
-// Asigna una obra a la cuadrilla y notifica a todos los integrantes con lat/lng y plazo
-export const asignarObra = async (cuadrillaId, obraId) => {
-  const res = await fetch(`${BASE_URL}/cuadrillas/${cuadrillaId}/obra`, {
-    method: 'PUT',
-    headers: obtenerHeaders(),
-    body: JSON.stringify({ obraId }),
-  });
-  return res.json();
-};
+export const asignarObra = (cuadrillaId, obraId) =>
+  axios.put(`${API}/${cuadrillaId}/obra`, { obraId }, headers()).then((r) => r.data);
 
-// El jefe actualiza la fase de avance: 'limpieza', 'montaje' o 'terminaciones'
-export const actualizarFase = async (cuadrillaId, fase) => {
-  const res = await fetch(`${BASE_URL}/cuadrillas/${cuadrillaId}/fase`, {
-    method: 'PUT',
-    headers: obtenerHeaders(),
-    body: JSON.stringify({ fase }),
-  });
-  return res.json();
-};
+export const actualizarFase = (cuadrillaId, fase) =>
+  axios.put(`${API}/${cuadrillaId}/fase`, { fase }, headers()).then((r) => r.data);
 
-// El jefe activa una alerta de emergencia con descripcion del incidente
-export const enviarAlertaEmergencia = async (cuadrillaId, descripcion) => {
-  const res = await fetch(`${BASE_URL}/cuadrillas/${cuadrillaId}/alerta`, {
-    method: 'POST',
-    headers: obtenerHeaders(),
-    body: JSON.stringify({ descripcion }),
-  });
-  return res.json();
-};
+export const enviarAlertaEmergencia = (cuadrillaId, descripcion) =>
+  axios.post(`${API}/${cuadrillaId}/alerta`, { descripcion }, headers()).then((r) => r.data);
 
-// El coordinador marca la cuadrilla como completada y libera a los voluntarios
-export const completarCuadrilla = async (cuadrillaId) => {
-  const res = await fetch(`${BASE_URL}/cuadrillas/${cuadrillaId}/completar`, {
-    method: 'PUT',
-    headers: obtenerHeaders(),
-  });
-  return res.json();
-};
+export const completarCuadrilla = (cuadrillaId) =>
+  axios.put(`${API}/${cuadrillaId}/completar`, {}, headers()).then((r) => r.data);
 
-// Mueve un voluntario de una cuadrilla origen a una cuadrilla destino
-export const reasignarVoluntario = async (cuadrillaOrigenId, voluntarioId, cuadrillaDestinoId) => {
-  const res = await fetch(
-    `${BASE_URL}/cuadrillas/reasignar/${cuadrillaOrigenId}/${voluntarioId}`,
-    {
-      method: 'PUT',
-      headers: obtenerHeaders(),
-      body: JSON.stringify({ cuadrillaDestinoId }),
-    }
-  );
-  return res.json();
-};
+export const reasignarVoluntario = (cuadrillaOrigenId, voluntarioId, cuadrillaDestinoId) =>
+  axios
+    .put(`${API}/reasignar/${cuadrillaOrigenId}/${voluntarioId}`, { cuadrillaDestinoId }, headers())
+    .then((r) => r.data);
 
-// Obtiene las obras disponibles de una emergencia para que el coordinador pueda asignarlas
-export const obtenerObrasPorEmergencia = async (emergenciaId) => {
-  const res = await fetch(
-    `${BASE_URL}/obras/emergencia/${emergenciaId}`,
-    { headers: obtenerHeaders() }
-  );
-  return res.json();
-};
+export const obtenerBalanceHerramientas = (cuadrillaId) =>
+  axios.get(`${API}/${cuadrillaId}/herramientas/balance`, headers()).then((r) => r.data);
+
+export const cerrarBalanceDia = (cuadrillaId) =>
+  axios.post(`${API}/${cuadrillaId}/herramientas/cierre`, {}, headers()).then((r) => r.data);

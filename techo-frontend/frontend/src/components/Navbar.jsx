@@ -33,6 +33,7 @@ function Navbar() {
   // Defino los enlaces de navegación con sus rutas e íconos SVG en formato path
   const enlaces = [
     { label: 'Inicio', path: '/inicio', icon: 'M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6' },
+    { label: 'Comunicaciones', path: '/comunicaciones', icon: 'M8 10h8m-8 4h5m-6 6h12a2 2 0 002-2v-6a2 2 0 00-2-2h-1l-3-3H7a2 2 0 00-2 2v9a2 2 0 002 2z' },
     { label: 'Cuadrillas', path: '/cuadrillas', icon: 'M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z' },
     { label: 'Mapa', path: '/mapa', icon: 'M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7' },
     { label: 'Emergencias', path: '/emergencias', icon: 'M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z' },
@@ -40,8 +41,11 @@ function Navbar() {
     { label: 'Herramientas', path: '/herramientas', icon: 'M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z' },
   ];
 
-  // Uso este flag para mostrar todas las opciones al coordinador y solo 3 al resto
   const esCoordinador = usuario?.rol === 'coordinador';
+  const esJefe = usuario?.rol === 'jefe_cuadrilla';
+  // Los voluntarios solo ven Inicio, Mapa y Comunicaciones; el jefe además ve Cuadrillas
+  const enlacesJefe = ['Inicio', 'Comunicaciones', 'Cuadrillas', 'Mapa'];
+  const enlacesVoluntario = ['Inicio', 'Comunicaciones', 'Mapa'];
 
   return (
     <>
@@ -108,17 +112,29 @@ function Navbar() {
               </div>
             )}
 
-            {/* Los jefes y voluntarios solo ven Inicio, Cuadrillas y Mapa */}
-            {!esCoordinador && (
+            {/* El jefe ve Inicio, Comunicaciones, Cuadrillas y Mapa */}
+            {esJefe && (
               <div className="mb-3">
                 <p className="text-white/40 text-xs font-semibold uppercase tracking-wider mb-2">Menú</p>
-                {enlaces.slice(0, 3).map((enlace) => (
-                  <Link
-                    key={enlace.path}
-                    to={enlace.path}
-                    onClick={cerrarMenu}
-                    className="flex items-center gap-3 px-3 py-2.5 text-white/80 hover:text-white hover:bg-white/10 rounded-lg transition-all text-sm"
-                  >
+                {enlaces.filter((e) => enlacesJefe.includes(e.label)).map((enlace) => (
+                  <Link key={enlace.path} to={enlace.path} onClick={cerrarMenu}
+                    className="flex items-center gap-3 px-3 py-2.5 text-white/80 hover:text-white hover:bg-white/10 rounded-lg transition-all text-sm">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d={enlace.icon} />
+                    </svg>
+                    {enlace.label}
+                  </Link>
+                ))}
+              </div>
+            )}
+
+            {/* El voluntario solo ve Inicio, Comunicaciones y Mapa */}
+            {!esCoordinador && !esJefe && (
+              <div className="mb-3">
+                <p className="text-white/40 text-xs font-semibold uppercase tracking-wider mb-2">Menú</p>
+                {enlaces.filter((e) => enlacesVoluntario.includes(e.label)).map((enlace) => (
+                  <Link key={enlace.path} to={enlace.path} onClick={cerrarMenu}
+                    className="flex items-center gap-3 px-3 py-2.5 text-white/80 hover:text-white hover:bg-white/10 rounded-lg transition-all text-sm">
                     <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d={enlace.icon} />
                     </svg>

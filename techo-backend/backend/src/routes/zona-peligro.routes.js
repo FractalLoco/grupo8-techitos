@@ -1,28 +1,39 @@
 'use strict';
 import { Router } from 'express';
-import { crearZona, listarZonas, eliminarZona } from '../controllers/zona-peligro.controller.js';
+import {
+  crearZona,
+  listarZonasPorEmergencia,
+  actualizarZona,
+  eliminarZona,
+} from '../controllers/zona-peligro.controller.js';
 import { authMiddleware } from '../middleware/auth.middleware.js';
 import { roleMiddleware } from '../middleware/role.middleware.js';
 
 const router = Router();
 
 /**
- * GET /api/zonas-peligro/emergencia/:emergenciaId
- * Devuelve las zonas de peligro de una emergencia para pintarlas en el mapa.
- * Todos los usuarios autenticados pueden verlas.
- */
-router.get('/emergencia/:emergenciaId', authMiddleware, listarZonas);
-
-/**
  * POST /api/zonas-peligro
- * El coordinador marca un punto del mapa como zona de peligro.
- * Body: { lat, lng, radio?, tipo, comentario?, emergencia_id }
+ * Crear zona amarilla o roja (solo coordinador)
+ * Body: { emergencia_id, tipo, lat, lng, radio, descripcion?, comentarios? }
  */
 router.post('/', authMiddleware, roleMiddleware('coordinador'), crearZona);
 
 /**
+ * GET /api/zonas-peligro/emergencia/:emergenciaId
+ * Listar todas las zonas de peligro de una emergencia (cualquier usuario autenticado)
+ */
+router.get('/emergencia/:emergenciaId', authMiddleware, listarZonasPorEmergencia);
+
+/**
+ * PUT /api/zonas-peligro/:zonaId
+ * Editar radio, tipo, descripcion o comentarios (solo coordinador)
+ * Body: { tipo?, lat?, lng?, radio?, descripcion?, comentarios? }
+ */
+router.put('/:zonaId', authMiddleware, roleMiddleware('coordinador'), actualizarZona);
+
+/**
  * DELETE /api/zonas-peligro/:zonaId
- * El coordinador elimina una zona de peligro del mapa.
+ * Eliminar zona del mapa (solo coordinador)
  */
 router.delete('/:zonaId', authMiddleware, roleMiddleware('coordinador'), eliminarZona);
 
