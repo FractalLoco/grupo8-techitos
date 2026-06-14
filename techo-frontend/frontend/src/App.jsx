@@ -14,6 +14,9 @@ import SinPermiso from './pages/SinPermiso';
 import GestionEmergencias from './pages/GestionEmergencias';
 import NotFound from './pages/NotFound';
 import GestionUsuarios from './pages/GestionUsuarios';
+import Mapa from './pages/Mapa';
+import GestionCuadrillas from './pages/GestionCuadrillas';
+import GestionHerramientas from './pages/GestionHerramientas';
 
 function Aplicacion() {
   return (
@@ -40,10 +43,31 @@ function Aplicacion() {
           />
 
           {/* Estas secciones aún están en desarrollo; uso Próximamente como placeholder */}
-          <Route path="/cuadrillas" element={<Proximamente titulo="Gestión de Cuadrillas" />} />
-          <Route path="/mapa" element={<Proximamente titulo="Mapa Interactivo" />} />
+          <Route
+            path="/cuadrillas"
+            element={
+              <RutaProtegida rolesPermitidos={['coordinador', 'jefe_cuadrilla', 'voluntario']}>
+                <GestionCuadrillas />
+              </RutaProtegida>
+            }
+          />
+          <Route
+            path="/mapa"
+            element={
+              <RutaProtegida rolesPermitidos={['coordinador', 'jefe_cuadrilla', 'voluntario']}>
+                <Mapa />
+              </RutaProtegida>
+            }
+          />
           <Route path="/emergencias" element={<GestionEmergencias />}/>
-          <Route path="/herramientas" element={<Proximamente titulo="Control de Herramientas" />} />
+          <Route
+            path="/herramientas"
+            element={
+              <RutaProtegida rolesPermitidos={['coordinador', 'jefe_cuadrilla', 'voluntario']}>
+                <GestionHerramientas />
+              </RutaProtegida>
+            }
+          />
 
           <Route
             path="/usuarios"

@@ -4,6 +4,7 @@ import ReactDOM from 'react-dom/client';
 // Importo el componente raíz que contiene todos los providers y rutas de la app
 import Aplicacion from './App.jsx';
 // Cargo los estilos globales que incluyen Tailwind y las animaciones personalizadas
+import 'leaflet/dist/leaflet.css';
 import './index.css';
 
 // Busco el elemento #root en el index.html y monto la app React dentro de él.

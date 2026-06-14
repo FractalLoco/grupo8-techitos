@@ -8,6 +8,7 @@ import herramientaRoutes from './herramienta.routes.js';
 import usuarioRoutes from './usuario.routes.js';
 import obraRoutes from './obra.routes.js';
 import notificacionRoutes from './notificacion.routes.js';
+import zonaPeligroRoutes from './zona-peligro.routes.js';
 
 const router = Router();
 
@@ -20,5 +21,6 @@ router.use('/herramientas', herramientaRoutes);
 router.use('/usuarios', usuarioRoutes);
 router.use('/obras', obraRoutes);
 router.use('/notificaciones', notificacionRoutes);
+router.use('/zonas-peligro', zonaPeligroRoutes);
 
 export default router;
