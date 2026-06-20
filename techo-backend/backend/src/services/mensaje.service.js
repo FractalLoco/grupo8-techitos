@@ -41,4 +41,25 @@ export class MensajeService {
     const existe = await repo.findOne({ where: { voluntario_id: usuarioId, cuadrilla_id: cuadrillaId } });
     return !!existe;
   }
+
+  static async obtenerCuadrillasAccesibles(usuario) {
+    const ESTADOS_ACTIVOS = new Set(['activa', 'en_progreso']);
+
+    if (usuario.rol === 'coordinador') {
+      return CuadrillaRepository.listarActivas();
+    }
+
+    if (usuario.rol === 'jefe_cuadrilla') {
+      return CuadrillaRepository.listarActivasPorJefe(usuario.id);
+    }
+
+    if (usuario.rol === 'voluntario') {
+      const membresias = await MiembroCuadrillaRepository.listarPorVoluntario(usuario.id);
+      return membresias
+        .filter((m) => m.cuadrilla && ESTADOS_ACTIVOS.has(m.cuadrilla.estado))
+        .map((m) => m.cuadrilla);
+    }
+
+    return [];
+  }
 }

@@ -81,6 +81,15 @@ export async function enviarEmergencia(payload) {
   return datos.mensaje;
 }
 
+export async function obtenerCuadrillasAccesibles() {
+  const respuesta = await fetch(`${URL_BASE}/api/comunicaciones/cuadrillas`, {
+    headers: obtenerHeaders(),
+  });
+
+  const datos = await manejarRespuesta(respuesta, 'No se pudieron cargar las cuadrillas');
+  return datos.cuadrillas || [];
+}
+
 export async function marcarAvance(cuadrillaId, hito, contenido = '') {
   const respuesta = await fetch(`${URL_BASE}/api/comunicaciones/cuadrilla/${cuadrillaId}/marcar-avance`, {
     method: 'POST',

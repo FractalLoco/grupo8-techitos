@@ -43,4 +43,12 @@ export class MiembroCuadrillaRepository {
     const registro = await this.getRepository().findOne({ where: { voluntario_id: voluntarioId, cuadrilla_id: cuadrillaId } });
     return !!registro;
   }
+
+  // Listo todas las membresías de un voluntario con la relación a cuadrilla
+  static async listarPorVoluntario(voluntarioId) {
+    return this.getRepository().find({
+      where: { voluntario_id: voluntarioId },
+      relations: ['cuadrilla'],
+    });
+  }
 }

@@ -130,6 +130,16 @@ export const listarBroadcast = async (req, res) => {
   }
 };
 
+export const listarCuadrillasAccesibles = async (req, res) => {
+  try {
+    const cuadrillas = await MensajeService.obtenerCuadrillasAccesibles(req.usuario);
+    return respuestaExito(res, 200, 'Cuadrillas obtenidas', { cuadrillas });
+  } catch (error) {
+    console.error('error listarCuadrillasAccesibles:', error.message);
+    return respuestaError(res, 500, 'Error interno');
+  }
+};
+
 export const dashboardPublico = async (req, res) => {
   try {
     const AppDataSource = (await import('../config/database.js')).default;

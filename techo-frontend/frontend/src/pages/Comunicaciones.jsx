@@ -1,8 +1,9 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Navbar from '../components/Navbar';
 import { useAutenticacion } from '../context/AuthContext';
 import {
   obtenerBroadcast,
+  obtenerCuadrillasAccesibles,
   obtenerMensajesCuadrilla,
   enviarMensaje,
   enviarEmergencia,
@@ -13,6 +14,7 @@ import {
 
 const TIPOS_FOTO_PERMITIDOS = ['image/jpeg', 'image/png', 'image/webp'];
 const MAX_FOTO_BYTES = 5 * 1024 * 1024;
+const INTERVALO_AUTO_REFRESH = 5000;
 
 const FORMATO_FECHA = new Intl.DateTimeFormat('es-CL', {
   day: '2-digit',
@@ -24,53 +26,161 @@ const FORMATO_FECHA = new Intl.DateTimeFormat('es-CL', {
 function Comunicaciones() {
   const { usuario } = useAutenticacion();
   const [canal, setCanal] = useState('broadcast');
+  const [cuadrillas, setCuadrillas] = useState([]);
   const [cuadrillaId, setCuadrillaId] = useState('');
+  const [cargandoCuadrillas, setCargandoCuadrillas] = useState(true);
   const [prioridadAlta, setPrioridadAlta] = useState(false);
   const [mensajes, setMensajes] = useState([]);
   const [contenido, setContenido] = useState('');
   const [cargando, setCargando] = useState(false);
   const [error, setError] = useState('');
-  const [actualizando, setActualizando] = useState(false);
+  const [errorAutoRefresh, setErrorAutoRefresh] = useState('');
   const [esEmergencia, setEsEmergencia] = useState(false);
   const [registrarHito, setRegistrarHito] = useState(false);
   const [hitoFinalizado, setHitoFinalizado] = useState(false);
   const [foto, setFoto] = useState(null);
   const [vistaPreviaFoto, setVistaPreviaFoto] = useState('');
   const inputFotoRef = useRef(null);
+  const intervaloRef = useRef(null);
+  const montadoRef = useRef(true);
+
+  const cuadrillaSeleccionada = useMemo(
+    () => cuadrillas.find((c) => c.id === Number(cuadrillaId)),
+    [cuadrillas, cuadrillaId],
+  );
 
   const tituloCanal = useMemo(() => {
     if (canal === 'broadcast') return 'Anuncios generales';
-    if (cuadrillaId) return `Chat Cuadrilla #${cuadrillaId}`;
+    if (cuadrillaSeleccionada) return `Chat ${cuadrillaSeleccionada.nombre}`;
     return 'Chat de cuadrilla';
-  }, [canal, cuadrillaId]);
+  }, [canal, cuadrillaSeleccionada]);
 
-  const cargarMensajes = async () => {
-    setError('');
-    setActualizando(true);
+  // Carga la lista de cuadrillas accesibles
+  const cargarCuadrillas = useCallback(async () => {
+    try {
+      setCargandoCuadrillas(true);
+      const datos = await obtenerCuadrillasAccesibles();
+      if (!montadoRef.current) return;
+      setCuadrillas(datos || []);
+    } catch {
+      // Error silencioso, se mantiene la lista anterior
+    } finally {
+      if (montadoRef.current) {
+        setCargandoCuadrillas(false);
+      }
+    }
+  }, []);
+
+  // Carga los mensajes del canal activo
+  const cargarMensajes = useCallback(async (esAutoRefresh = false) => {
+    if (esAutoRefresh) {
+      setErrorAutoRefresh('');
+    } else {
+      setError('');
+    }
+
     try {
       if (canal === 'broadcast') {
         const datos = await obtenerBroadcast();
-        setMensajes(datos || []);
+        if (montadoRef.current) setMensajes(datos || []);
         return;
       }
 
       if (!cuadrillaId) {
-        setMensajes([]);
+        if (montadoRef.current) setMensajes([]);
         return;
       }
 
       const datos = await obtenerMensajesCuadrilla(cuadrillaId);
-      setMensajes(datos || []);
+      if (montadoRef.current) setMensajes(datos || []);
     } catch (errorActual) {
-      setError(errorActual.message || 'No se pudieron cargar los mensajes');
-    } finally {
-      setActualizando(false);
+      if (!montadoRef.current) return;
+      if (esAutoRefresh) {
+        setErrorAutoRefresh(errorActual.message || 'Error al actualizar mensajes');
+      } else {
+        setError(errorActual.message || 'No se pudieron cargar los mensajes');
+      }
     }
-  };
+  }, [canal, cuadrillaId]);
 
+  // Cargar cuadrillas al montar el componente
   useEffect(() => {
-    cargarMensajes();
-  }, [canal]);
+    montadoRef.current = true;
+    cargarCuadrillas();
+    return () => {
+      montadoRef.current = false;
+    };
+  }, [cargarCuadrillas]);
+
+  // Cuando cambia el canal, cargar mensajes y ajustar selector
+  useEffect(() => {
+    if (canal === 'broadcast') {
+      setCuadrillaId('');
+      cargarMensajes();
+    }
+  }, [canal, cargarMensajes]);
+
+  // Auto-seleccionar la primera cuadrilla al entrar en modo cuadrilla
+  useEffect(() => {
+    if (canal !== 'cuadrilla') return;
+
+    if (cuadrillas.length > 0) {
+      const sigueDisponible = cuadrillas.some((c) => c.id === Number(cuadrillaId));
+      if (cuadrillaId && sigueDisponible) {
+        // La selección actual sigue disponible; solo cargar mensajes
+        cargarMensajes();
+      } else {
+        // Seleccionar la primera disponible
+        const primera = cuadrillas[0];
+        setCuadrillaId(String(primera.id));
+      }
+    } else {
+      setCuadrillaId('');
+      setMensajes([]);
+    }
+  }, [canal, cuadrillas, cuadrillaId, cargarMensajes]);
+
+  // Cuando cuadrillaId cambia (por selector o auto-selección), cargar mensajes
+  useEffect(() => {
+    if (canal === 'cuadrilla' && cuadrillaId) {
+      cargarMensajes();
+    }
+  }, [cuadrillaId]); 
+
+  // Si la cuadrilla seleccionada deja de estar disponible, elegir otra
+  useEffect(() => {
+    if (canal !== 'cuadrilla' || !cuadrillaId || cargandoCuadrillas) return;
+    const sigueDisponible = cuadrillas.some((c) => c.id === Number(cuadrillaId));
+    if (!sigueDisponible) {
+      if (cuadrillas.length > 0) {
+        setCuadrillaId(String(cuadrillas[0].id));
+      } else {
+        setCuadrillaId('');
+        setMensajes([]);
+      }
+    }
+  }, [cuadrillas, cuadrillaId, canal, cargandoCuadrillas]);
+
+  // Intervalo de auto-refresh cada 5 segundos
+  useEffect(() => {
+    if (intervaloRef.current) {
+      clearInterval(intervaloRef.current);
+      intervaloRef.current = null;
+    }
+
+    if (!canal || (canal === 'cuadrilla' && !cuadrillaId)) return;
+
+    intervaloRef.current = setInterval(() => {
+      cargarMensajes(true);
+    }, INTERVALO_AUTO_REFRESH);
+
+    return () => {
+      if (intervaloRef.current) {
+        clearInterval(intervaloRef.current);
+        intervaloRef.current = null;
+      }
+    };
+  }, [canal, cuadrillaId, cargarMensajes]);
 
   useEffect(() => {
     if (!foto) {
@@ -110,6 +220,10 @@ function Comunicaciones() {
     setPrioridadAlta(false);
   };
 
+  const manejarCambioCuadrilla = (evento) => {
+    setCuadrillaId(evento.target.value);
+  };
+
   const manejarEnvio = async (evento) => {
     evento.preventDefault();
     setError('');
@@ -120,7 +234,7 @@ function Comunicaciones() {
     }
 
     if (canal === 'cuadrilla' && !cuadrillaId) {
-      setError('Ingresa el ID de la cuadrilla');
+      setError('Selecciona una cuadrilla');
       return;
     }
 
@@ -222,14 +336,6 @@ function Comunicaciones() {
               >
                 Cuadrilla
               </button>
-              <button
-                type="button"
-                className="px-4 py-2 rounded-full text-sm font-semibold border border-white/60 bg-white/70 text-slate-600 hover:bg-white"
-                onClick={cargarMensajes}
-                disabled={actualizando}
-              >
-                {actualizando ? 'Actualizando...' : 'Actualizar'}
-              </button>
             </div>
           </div>
 
@@ -247,14 +353,31 @@ function Comunicaciones() {
 
                 {canal === 'cuadrilla' && (
                   <div className="flex items-center gap-3">
-                    <label className="text-xs font-semibold text-slate-500">ID cuadrilla</label>
-                    <input
-                      className="w-24 px-3 py-2 rounded-lg border border-slate-200 text-sm focus:ring-2 focus:ring-techo-secondary/30 focus:border-techo-secondary outline-none"
+                    <label className="text-xs font-semibold text-slate-500" htmlFor="selector-cuadrilla">
+                      Cuadrilla
+                    </label>
+                    <select
+                      id="selector-cuadrilla"
+                      className="px-3 py-2 rounded-lg border border-slate-200 text-sm focus:ring-2 focus:ring-techo-secondary/30 focus:border-techo-secondary outline-none bg-white min-w-[180px]"
                       value={cuadrillaId}
-                      onChange={(e) => setCuadrillaId(e.target.value)}
-                      placeholder="12"
-                      inputMode="numeric"
-                    />
+                      onChange={manejarCambioCuadrilla}
+                      disabled={cargandoCuadrillas}
+                    >
+                      {cargandoCuadrillas ? (
+                        <option value="">Cargando cuadrillas...</option>
+                      ) : cuadrillas.length === 0 ? (
+                        <option value="">No hay cuadrillas disponibles</option>
+                      ) : (
+                        <>
+                          <option value="">Selecciona una cuadrilla</option>
+                          {cuadrillas.map((c) => (
+                            <option key={c.id} value={c.id}>
+                              {c.nombre}
+                            </option>
+                          ))}
+                        </>
+                      )}
+                    </select>
                   </div>
                 )}
               </div>
@@ -262,6 +385,12 @@ function Comunicaciones() {
               {error && (
                 <div className="mb-4 rounded-lg border border-red-200 bg-red-50 text-red-600 px-4 py-2 text-sm">
                   {error}
+                </div>
+              )}
+
+              {errorAutoRefresh && (
+                <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 text-amber-700 px-4 py-2 text-xs">
+                  {errorAutoRefresh}
                 </div>
               )}
 

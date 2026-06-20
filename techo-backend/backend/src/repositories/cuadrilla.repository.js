@@ -1,4 +1,5 @@
 'use strict';
+import { In } from 'typeorm';
 import AppDataSource from '../config/database.js';
 
 export class CuadrillaRepository {
@@ -29,6 +30,22 @@ export class CuadrillaRepository {
   // Listo todas las cuadrillas del sistema independientemente de la emergencia
   static async listarTodas() {
     return this.getRepository().find({ order: { fecha_creacion: 'DESC' } });
+  }
+
+  // Listo las cuadrillas activas (estado 'activa' o 'en_progreso') ordenadas por nombre
+  static async listarActivas() {
+    return this.getRepository().find({
+      where: { estado: In(['activa', 'en_progreso']) },
+      order: { nombre: 'ASC' },
+    });
+  }
+
+  // Listo las cuadrillas activas donde el usuario es el jefe de la cuadrilla
+  static async listarActivasPorJefe(jefeId) {
+    return this.getRepository().find({
+      where: { jefe_id: jefeId, estado: In(['activa', 'en_progreso']) },
+      order: { nombre: 'ASC' },
+    });
   }
 
   // Actualizo campos parciales de una cuadrilla y devuelvo el registro resultante
