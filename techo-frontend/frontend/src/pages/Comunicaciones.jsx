@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import Navbar from '../components/Navbar';
 import { useAutenticacion } from '../context/AuthContext';
 import {
@@ -6,8 +6,13 @@ import {
   obtenerMensajesCuadrilla,
   enviarMensaje,
   enviarEmergencia,
+  enviarFotoAvance,
   marcarAvance,
+  obtenerUrlArchivo,
 } from '../services/comunicacionesService';
+
+const TIPOS_FOTO_PERMITIDOS = ['image/jpeg', 'image/png', 'image/webp'];
+const MAX_FOTO_BYTES = 5 * 1024 * 1024;
 
 const FORMATO_FECHA = new Intl.DateTimeFormat('es-CL', {
   day: '2-digit',
@@ -29,6 +34,9 @@ function Comunicaciones() {
   const [esEmergencia, setEsEmergencia] = useState(false);
   const [registrarHito, setRegistrarHito] = useState(false);
   const [hitoFinalizado, setHitoFinalizado] = useState(false);
+  const [foto, setFoto] = useState(null);
+  const [vistaPreviaFoto, setVistaPreviaFoto] = useState('');
+  const inputFotoRef = useRef(null);
 
   const tituloCanal = useMemo(() => {
     if (canal === 'broadcast') return 'Anuncios generales';
@@ -64,11 +72,49 @@ function Comunicaciones() {
     cargarMensajes();
   }, [canal]);
 
+  useEffect(() => {
+    if (!foto) {
+      setVistaPreviaFoto('');
+      return undefined;
+    }
+
+    const url = URL.createObjectURL(foto);
+    setVistaPreviaFoto(url);
+    return () => URL.revokeObjectURL(url);
+  }, [foto]);
+
+  const quitarFoto = () => {
+    setFoto(null);
+    if (inputFotoRef.current) inputFotoRef.current.value = '';
+  };
+
+  const manejarSeleccionFoto = (evento) => {
+    const archivo = evento.target.files?.[0];
+    setError('');
+    if (!archivo) return;
+    if (!TIPOS_FOTO_PERMITIDOS.includes(archivo.type)) {
+      setError('Formato no permitido. Usa JPG, PNG o WebP');
+      evento.target.value = '';
+      return;
+    }
+    if (archivo.size > MAX_FOTO_BYTES) {
+      setError('La foto no puede superar los 5 MB');
+      evento.target.value = '';
+      return;
+    }
+
+    setFoto(archivo);
+    setEsEmergencia(false);
+    setRegistrarHito(false);
+    setHitoFinalizado(false);
+    setPrioridadAlta(false);
+  };
+
   const manejarEnvio = async (evento) => {
     evento.preventDefault();
     setError('');
 
-    if (!contenido.trim() && !registrarHito) {
+    if (!contenido.trim() && !registrarHito && !foto) {
       setError('Escribe un mensaje antes de enviar');
       return;
     }
@@ -81,6 +127,14 @@ function Comunicaciones() {
     setCargando(true);
 
     try {
+      if (foto) {
+        const mensajeNuevo = await enviarFotoAvance(Number(cuadrillaId), foto, contenido);
+        setMensajes((previo) => [...previo, mensajeNuevo]);
+        setContenido('');
+        quitarFoto();
+        return;
+      }
+
       if (usuario?.rol === 'jefe_cuadrilla' && registrarHito) {
         const mensajeNuevo = await marcarAvance(
           Number(cuadrillaId),
@@ -150,7 +204,10 @@ function Comunicaciones() {
                     ? 'bg-techo-primary text-white border-techo-primary'
                     : 'bg-white/70 text-techo-primary border-white/60 hover:bg-white'
                 }`}
-                onClick={() => setCanal('broadcast')}
+                onClick={() => {
+                  setCanal('broadcast');
+                  quitarFoto();
+                }}
               >
                 Broadcast
               </button>
@@ -251,7 +308,30 @@ function Comunicaciones() {
                             </span>
                           )}
                         </div>
-                        <p className="text-sm leading-relaxed">{mensaje.contenido || 'Mensaje sin contenido'}</p>
+                        {mensaje.tipo === 'imagen' && mensaje.archivo_url && (
+                          <a
+                            href={obtenerUrlArchivo(mensaje.archivo_url)}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="block mt-2"
+                            aria-label="Abrir foto de avance en tamano completo"
+                          >
+                            <img
+                              src={obtenerUrlArchivo(mensaje.archivo_url)}
+                              alt={mensaje.contenido || 'Foto de avance de la cuadrilla'}
+                              className="max-h-80 w-full rounded-xl object-cover"
+                              loading="lazy"
+                            />
+                          </a>
+                        )}
+                        {mensaje.contenido && (
+                          <p className={`text-sm leading-relaxed ${mensaje.tipo === 'imagen' ? 'mt-2' : ''}`}>
+                            {mensaje.contenido}
+                          </p>
+                        )}
+                        {!mensaje.contenido && mensaje.tipo !== 'imagen' && (
+                          <p className="text-sm leading-relaxed">Mensaje sin contenido</p>
+                        )}
                         <p className={`text-[11px] mt-2 ${esPropio ? 'text-white/70' : 'text-slate-400'}`}>
                           {mensaje.creado_en
                             ? FORMATO_FECHA.format(new Date(mensaje.creado_en))
@@ -264,6 +344,47 @@ function Comunicaciones() {
               </div>
 
               <form onSubmit={manejarEnvio} className="space-y-3">
+                {usuario?.rol === 'jefe_cuadrilla' && canal === 'cuadrilla' && (
+                  <div className="rounded-xl border border-slate-200 bg-white/80 p-3">
+                    <div className="flex flex-wrap items-center gap-3">
+                      <label className="cursor-pointer rounded-lg bg-slate-100 px-4 py-2 text-xs font-semibold text-techo-primary hover:bg-slate-200">
+                        Seleccionar foto de avance
+                        <input
+                          ref={inputFotoRef}
+                          type="file"
+                          accept="image/jpeg,image/png,image/webp"
+                          capture="environment"
+                          className="sr-only"
+                          onChange={manejarSeleccionFoto}
+                          disabled={cargando}
+                        />
+                      </label>
+                      <span className="text-[11px] text-slate-500">JPG, PNG o WebP, maximo 5 MB</span>
+                    </div>
+
+                    {foto && (
+                      <div className="mt-3 flex items-center gap-3">
+                        <img
+                          src={vistaPreviaFoto}
+                          alt="Vista previa de la foto seleccionada"
+                          className="h-20 w-24 rounded-lg object-cover"
+                        />
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-xs font-semibold text-slate-700">{foto.name}</p>
+                          <p className="text-[11px] text-slate-500">{(foto.size / 1024 / 1024).toFixed(2)} MB</p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={quitarFoto}
+                          disabled={cargando}
+                          className="text-xs font-semibold text-red-600 hover:text-red-700 disabled:opacity-60"
+                        >
+                          Quitar
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )}
                 <div className="flex flex-col md:flex-row md:items-center gap-3">
                   <input
                     className="flex-1 px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-techo-secondary/30 focus:border-techo-secondary outline-none text-sm"
@@ -276,7 +397,7 @@ function Comunicaciones() {
                     className="px-5 py-3 rounded-xl bg-techo-secondary text-white text-sm font-semibold shadow-lg hover:shadow-xl transition-all disabled:opacity-60"
                     disabled={cargando}
                   >
-                    {cargando ? 'Enviando...' : 'Enviar mensaje'}
+                    {cargando ? 'Enviando...' : (foto ? 'Enviar foto' : 'Enviar mensaje')}
                   </button>
                 </div>
                 <label className="flex items-center gap-2 text-xs text-slate-500">
@@ -284,6 +405,7 @@ function Comunicaciones() {
                     type="checkbox"
                     checked={prioridadAlta}
                     onChange={(e) => setPrioridadAlta(e.target.checked)}
+                    disabled={Boolean(foto)}
                   />
                   Marcar como prioridad alta
                 </label>
@@ -299,6 +421,7 @@ function Comunicaciones() {
                           onChange={(e) => {
                             setEsEmergencia(e.target.checked);
                             if (e.target.checked) {
+                              quitarFoto();
                               setRegistrarHito(false);
                               setHitoFinalizado(false);
                             }
@@ -313,6 +436,7 @@ function Comunicaciones() {
                           onChange={(e) => {
                             setRegistrarHito(e.target.checked);
                             if (e.target.checked) {
+                              quitarFoto();
                               setEsEmergencia(false);
                               setPrioridadAlta(false);
                             }

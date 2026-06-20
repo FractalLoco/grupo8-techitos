@@ -1,6 +1,7 @@
 'use strict';
 import { MensajeRepository } from '../repositories/mensaje.repository.js';
 import { MiembroCuadrillaRepository } from '../repositories/miembro-cuadrilla.repository.js';
+import { CuadrillaRepository } from '../repositories/cuadrilla.repository.js';
 
 export class MensajeService {
   static toDTO(mensaje, remitenteNombreFallback = null) {
@@ -32,6 +33,10 @@ export class MensajeService {
   }
 
   static async usuarioEnCuadrilla(usuarioId, cuadrillaId) {
+    const cuadrilla = await CuadrillaRepository.buscarPorId(cuadrillaId);
+    if (!cuadrilla) return false;
+    if (cuadrilla.jefe_id === usuarioId) return true;
+
     const repo = MiembroCuadrillaRepository.getRepository();
     const existe = await repo.findOne({ where: { voluntario_id: usuarioId, cuadrilla_id: cuadrillaId } });
     return !!existe;

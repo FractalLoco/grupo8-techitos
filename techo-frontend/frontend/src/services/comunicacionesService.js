@@ -45,6 +45,31 @@ export async function enviarMensaje(payload) {
   return datos.mensaje;
 }
 
+export async function enviarFotoAvance(cuadrillaId, foto, contenido = '') {
+  const formulario = new FormData();
+  formulario.append('foto', foto);
+  if (contenido.trim()) formulario.append('contenido', contenido.trim());
+
+  const token = localStorage.getItem('token');
+  const respuesta = await fetch(
+    `${URL_BASE}/api/comunicaciones/chat/cuadrilla/${cuadrillaId}/foto`,
+    {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}` },
+      body: formulario,
+    },
+  );
+
+  const datos = await manejarRespuesta(respuesta, 'No se pudo enviar la foto de avance');
+  return datos.mensaje;
+}
+
+export function obtenerUrlArchivo(archivoUrl) {
+  if (!archivoUrl) return '';
+  if (/^https?:\/\//i.test(archivoUrl)) return archivoUrl;
+  return `${URL_BASE}${archivoUrl.startsWith('/') ? '' : '/'}${archivoUrl}`;
+}
+
 export async function enviarEmergencia(payload) {
   const respuesta = await fetch(`${URL_BASE}/api/comunicaciones/chat/emergencia`, {
     method: 'POST',
