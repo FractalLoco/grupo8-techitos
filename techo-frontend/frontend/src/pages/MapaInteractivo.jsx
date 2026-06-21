@@ -51,6 +51,14 @@ const iconoFamilia = L.divIcon({
   popupAnchor: [0, -14],
 });
 
+const iconoEmergencia = L.divIcon({
+  className: '',
+  html: `<div style="width:30px;height:30px;background:#dc2626;border:3px solid white;border-radius:50%;box-shadow:0 2px 6px rgba(0,0,0,0.4);display:flex;align-items:center;justify-content:center;color:white;font-size:13px;font-weight:bold;">E</div>`,
+  iconSize: [30, 30],
+  iconAnchor: [15, 15],
+  popupAnchor: [0, -18],
+});
+
 const ICONOS_OBRA = {
   verde: crearIcono('#22c55e'),
   amarillo: crearIcono('#eab308'),
@@ -234,10 +242,17 @@ function MapaInteractivo() {
   };
 
   // ── Calcular centro del mapa según datos cargados ───────────────────────────
+  const emergenciaActual = emergencias.find((e) => String(e.id) === String(emergenciaId));
+
   const centroMapa = (() => {
-    const emergencia = emergencias.find((e) => String(e.id) === String(emergenciaId));
-    if (emergencia?.lat && emergencia?.lng) return [emergencia.lat, emergencia.lng];
-    if (obras.length > 0 && obras[0].lat) return [obras[0].lat, obras[0].lng];
+    if (emergenciaActual?.lat != null && emergenciaActual?.lng != null) {
+      return [Number(emergenciaActual.lat), Number(emergenciaActual.lng)];
+    }
+
+    if (obras.length > 0 && obras[0].lat != null && obras[0].lng != null) {
+      return [Number(obras[0].lat), Number(obras[0].lng)];
+    }
+
     return CENTRO_DEFAULT;
   })();
 
@@ -360,6 +375,51 @@ function MapaInteractivo() {
 
               <CapturadorClic activo={modoCrearZona} onClic={handleClicMapa} />
 
+              {/* Marcador de la emergencia seleccionada */}
+              {emergenciaActual?.lat != null && emergenciaActual?.lng != null && (
+                <Marker
+                  key={`emergencia-${emergenciaActual.id}`}
+                  position={[Number(emergenciaActual.lat), Number(emergenciaActual.lng)]}
+                  icon={iconoEmergencia}
+                >
+                  <Popup maxWidth={280}>
+                    <div style={{ minWidth: 210 }}>
+                      <strong className="text-gray-800 text-sm block mb-1">
+                        {emergenciaActual.nombre}
+                      </strong>
+                      {emergenciaActual.direccion && (
+                        <p className="text-xs text-gray-600 mb-1 flex items-center gap-1">
+                          <FaMapMarkerAlt className="text-gray-400 flex-shrink-0" />
+                          {emergenciaActual.direccion}
+                        </p>
+                      )}
+                      {emergenciaActual.descripcion && (
+                        <p className="text-xs text-gray-500 mb-1">
+                          {emergenciaActual.descripcion}
+                        </p>
+                      )}
+                      <p className="text-xs text-gray-400 font-mono mb-2">
+                        {Number(emergenciaActual.lat).toFixed(5)}, {Number(emergenciaActual.lng).toFixed(5)}
+                      </p>
+                      <div className="flex gap-2 mt-2">
+                        <BtnMapa
+                          icono={<FaRoute />}
+                          label="Google Maps"
+                          onClick={() => abrirGoogleMaps(emergenciaActual.lat, emergenciaActual.lng)}
+                          color="#4285f4"
+                        />
+                        <BtnMapa
+                          icono={<FaMapMarkerAlt />}
+                          label="Waze"
+                          onClick={() => abrirWaze(emergenciaActual.lat, emergenciaActual.lng)}
+                          color="#33ccff"
+                        />
+                      </div>
+                    </div>
+                  </Popup>
+                </Marker>
+              )}
+
               {/* Marcadores de obras */}
               {mostrarObras &&
                 obrasFiltradas.map((obra) =>
@@ -435,15 +495,23 @@ function MapaInteractivo() {
                 <span className="w-3 h-3 rounded-full bg-indigo-500 inline-block flex-shrink-0"></span>
                 Familia afectada
               </span>
-              <span className="flex items-center gap-1.5 text-gray-600">
-                <span className="inline-block w-8 h-2 rounded-full flex-shrink-0" style={{ background: '#eab308', opacity: 0.7 }}></span>
-                Zona amarilla
-              </span>
-              <span className="flex items-center gap-1.5 text-gray-600">
-                <span className="inline-block w-8 h-2 rounded-full flex-shrink-0" style={{ background: '#ef4444', opacity: 0.7 }}></span>
-                Zona roja
-              </span>
-            </div>
+            ))}
+            <span className="flex items-center gap-1.5">
+              <span className="w-3 h-3 rounded-full bg-red-600 inline-block"></span>
+              Emergencia
+            </span>
+            <span className="flex items-center gap-1.5">
+              <span className="w-3 h-3 rounded-full bg-indigo-500 inline-block"></span>
+              Familia afectada
+            </span>
+            <span className="flex items-center gap-2">
+              <span className="inline-block w-10 h-2 rounded-full" style={{ background: '#eab308', opacity: 0.6 }}></span>
+              Zona amarilla (precaución)
+            </span>
+            <span className="flex items-center gap-2">
+              <span className="inline-block w-10 h-2 rounded-full" style={{ background: '#ef4444', opacity: 0.6 }}></span>
+              Zona roja (bloqueada)
+            </span>
           </div>
         )}
       </div>
