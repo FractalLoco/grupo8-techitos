@@ -12,6 +12,7 @@ import obraRoutes from './obra.routes.js';
 import notificacionRoutes from './notificacion.routes.js';
 import zonaPeligroRoutes from './zona-peligro.routes.js';
 import solicitudRoutes from './solicitud.routes.js';
+import reporteRoutes from './reporte.routes.js';
 
 const router = Router();
 
@@ -28,5 +29,6 @@ router.use('/obras', obraRoutes);
 router.use('/notificaciones', notificacionRoutes);
 router.use('/zonas-peligro', zonaPeligroRoutes);
 router.use('/solicitudes', solicitudRoutes);
+router.use('/reportes', reporteRoutes);
 
 export default router;
