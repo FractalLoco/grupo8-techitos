@@ -495,7 +495,7 @@ function MapaInteractivo() {
                 <span className="w-3 h-3 rounded-full bg-indigo-500 inline-block flex-shrink-0"></span>
                 Familia afectada
               </span>
-            ))}
+            </div>
             <span className="flex items-center gap-1.5">
               <span className="w-3 h-3 rounded-full bg-red-600 inline-block"></span>
               Emergencia
