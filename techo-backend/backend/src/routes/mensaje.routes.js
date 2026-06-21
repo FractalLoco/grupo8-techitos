@@ -1,15 +1,24 @@
 'use strict';
 import { Router } from 'express';
-import { enviarMensaje, listarMensajesCuadrilla, listarBroadcast } from '../controllers/mensaje.controller.js';
+import { enviarFotoCuadrilla, enviarMensaje, listarMensajesCuadrilla, listarBroadcast, listarCuadrillasAccesibles } from '../controllers/mensaje.controller.js';
 import { authMiddleware } from '../middleware/auth.middleware.js';
 import { roleMiddleware } from '../middleware/role.middleware.js';
 import { respuestaError } from '../utils/response.utils.js';
+import { procesarFotoChat } from '../middleware/foto-chat.middleware.js';
 
 const router = Router();
 
 router.post('/chat/enviar', authMiddleware, enviarMensaje);
 router.get('/chat/cuadrilla/:cuadrillaId', authMiddleware, listarMensajesCuadrilla);
 router.get('/chat/broadcast', authMiddleware, listarBroadcast);
+router.get('/cuadrillas', authMiddleware, listarCuadrillasAccesibles);
+router.post(
+  '/chat/cuadrilla/:cuadrillaId/foto',
+  authMiddleware,
+  roleMiddleware('jefe_cuadrilla'),
+  procesarFotoChat,
+  enviarFotoCuadrilla,
+);
 
 router.post('/chat/emergencia', authMiddleware, roleMiddleware('jefe_cuadrilla'), async (req, res) => {
   req.body = req.body || {};
