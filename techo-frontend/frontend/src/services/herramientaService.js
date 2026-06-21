@@ -21,3 +21,10 @@ export const actualizarEstadoHerramienta = (herramientaId, estado, observaciones
   axios
     .put(`${API}/${herramientaId}/estado`, { estado, observaciones }, headers())
     .then((r) => r.data);
+
+// Resumen de inventario de herramientas agrupado por cuadrilla para toda una emergencia
+export const obtenerInventarioTotal = () =>
+  axios.get(`${API}/inventario`, headers()).then((r) => r.data);
+
+export const obtenerResumenEmergencia = (emergenciaId) =>
+  axios.get(`${API}/emergencia/${emergenciaId}`, headers()).then((r) => r.data);

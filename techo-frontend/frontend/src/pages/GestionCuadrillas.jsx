@@ -41,6 +41,7 @@ import {
 import { listarObrasPorEmergencia } from '../services/obraService';
 import {
   listarHerramientas,
+  registrarHerramienta,
   registrarHerramientasMasivas,
   actualizarEstadoHerramienta,
 } from '../services/herramientaService';
@@ -54,6 +55,14 @@ const COLORES = {
 };
 
 const FASES = ['limpieza', 'montaje', 'terminaciones'];
+
+const ESTILOS_HERR = {
+  entregada:   { borde: 'border-techo-secondary', badge: 'bg-blue-100 text-blue-800',   label: 'Entregada' },
+  buena:       { borde: 'border-techo-success',   badge: 'bg-green-100 text-green-800', label: 'Buena' },
+  danada:      { borde: 'border-techo-accent',    badge: 'bg-orange-100 text-orange-800', label: 'Dañada' },
+  perdida:     { borde: 'border-techo-danger',    badge: 'bg-red-100 text-red-800',     label: 'Perdida' },
+  no_devuelta: { borde: 'border-purple-500',      badge: 'bg-purple-100 text-purple-800', label: 'No devuelta' },
+};
 
 function GestionCuadrillas() {
   const { usuario } = useAutenticacion();
@@ -85,6 +94,9 @@ function GestionCuadrillas() {
 
   const [herramientas, setHerramientas] = useState([]);
   const [nombresHerramientas, setNombresHerramientas] = useState('');
+  const [nombreHerramientaIndividual, setNombreHerramientaIndividual] = useState('');
+  const [modoReg, setModoReg] = useState('masivo');
+  const [filtroHerr, setFiltroHerr] = useState('todos');
   const [balance, setBalance] = useState(null);
 
   useEffect(() => {
@@ -284,6 +296,18 @@ function GestionCuadrillas() {
     }
   };
 
+  const handleRegistrarIndividual = async () => {
+    if (!nombreHerramientaIndividual.trim()) return;
+    try {
+      await registrarHerramienta(cuadrillaActiva.id, nombreHerramientaIndividual.trim());
+      mostrarMensaje('exito', 'Herramienta registrada');
+      setNombreHerramientaIndividual('');
+      cargarHerramientas(cuadrillaActiva.id);
+    } catch (err) {
+      mostrarMensaje('error', err.response?.data?.mensaje || err.message);
+    }
+  };
+
   const handleCambiarEstadoHerramienta = async (id, estado) => {
     try {
       await actualizarEstadoHerramienta(id, estado);
@@ -463,14 +487,15 @@ function GestionCuadrillas() {
                 </div>
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {cuadrillasVisibles.map((c) => {
+                  {cuadrillasVisibles.map((c, idx) => {
                     const ci = colorInfo(c.estadoColor);
                     const jefe = nombreJefe(c.jefe_id);
                     const obra = c.obra_asignada_id ? nombreObra(c.obra_asignada_id) : null;
                     return (
                       <div
                         key={c.id}
-                        className={`bg-white rounded-2xl border-l-4 ${ci.borde} shadow-sm flex flex-col gap-0 overflow-hidden`}
+                        style={{ animationDelay: `${idx * 50}ms` }}
+                        className={`animate-fadeInUp bg-white rounded-2xl border-l-4 ${ci.borde} shadow-sm flex flex-col gap-0 overflow-hidden hover:-translate-y-0.5 hover:shadow-md transition-all duration-200`}
                       >
                         {/* Encabezado tarjeta */}
                         <div className="px-4 pt-4 pb-3 flex items-start justify-between gap-2">
@@ -518,7 +543,6 @@ function GestionCuadrillas() {
                         {/* Progreso de fase */}
                         {c.fase && (
                           <div className="px-4 py-3 border-t border-gray-100">
-                            <p className="text-xs text-gray-400 mb-2">Progreso de trabajo</p>
                             <ProgresoFase fase={c.fase} />
                           </div>
                         )}
@@ -704,15 +728,11 @@ function GestionCuadrillas() {
                       }`}>{i + 1}</div>
                       <div>
                         <p className={`text-sm font-semibold capitalize ${faseSeleccionada === f ? 'text-techo-primary' : 'text-gray-700'}`}>{f}</p>
-                        <p className="text-xs text-gray-400">
-                          {f === 'limpieza' ? 'Remoción de escombros y limpieza del terreno' : f === 'montaje' ? 'Construcción y ensamble de la estructura' : 'Acabados finales y entrega'}
-                        </p>
                       </div>
                     </label>
                   ))}
                 </div>
               </div>
-              <p className="text-xs text-gray-400">El coordinador verá el cambio reflejado en el mapa inmediatamente.</p>
               <button type="submit" disabled={!faseSeleccionada} className="flex items-center justify-center gap-2 py-2.5 bg-techo-primary text-white rounded-xl hover:bg-techo-primaryDark transition text-sm font-semibold disabled:opacity-50 disabled:cursor-not-allowed">
                 <MdBuild /> Actualizar fase
               </button>
@@ -775,8 +795,44 @@ function GestionCuadrillas() {
           {/* Herramientas */}
           {panel === 'herramientas' && (
             <div className="flex flex-col gap-4">
-              <form onSubmit={handleRegistrarHerramientas} className="flex flex-col gap-2">
-                <Campo label="Herramientas a registrar (una por línea)">
+              {/* Tabs individual/masivo */}
+              <div className="flex gap-1 bg-gray-100 p-1 rounded-xl">
+                {['individual', 'masivo'].map((modo) => (
+                  <button
+                    key={modo}
+                    onClick={() => setModoReg(modo)}
+                    className={`flex-1 py-1.5 text-xs font-semibold rounded-lg transition capitalize ${
+                      modoReg === modo ? 'bg-techo-primary text-white shadow-sm' : 'text-gray-500 hover:text-gray-700'
+                    }`}
+                  >
+                    {modo}
+                  </button>
+                ))}
+              </div>
+
+              {/* Registro individual */}
+              {modoReg === 'individual' && (
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={nombreHerramientaIndividual}
+                    onChange={(e) => setNombreHerramientaIndividual(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && handleRegistrarIndividual()}
+                    placeholder="Nombre de la herramienta"
+                    className={estiloInput}
+                  />
+                  <button
+                    onClick={handleRegistrarIndividual}
+                    className="px-4 py-2 bg-techo-success text-white text-sm font-bold rounded-xl hover:bg-green-700 transition"
+                  >
+                    +
+                  </button>
+                </div>
+              )}
+
+              {/* Registro masivo */}
+              {modoReg === 'masivo' && (
+                <form onSubmit={handleRegistrarHerramientas} className="flex flex-col gap-2">
                   <textarea
                     rows={3}
                     className={estiloInput}
@@ -784,33 +840,54 @@ function GestionCuadrillas() {
                     value={nombresHerramientas}
                     onChange={(e) => setNombresHerramientas(e.target.value)}
                   />
-                </Campo>
-                <button type="submit" className="flex items-center justify-center gap-2 py-2.5 bg-techo-accent text-white rounded-xl hover:bg-orange-600 transition text-sm font-semibold">
-                  <FaWrench /> Registrar herramientas
-                </button>
-              </form>
+                  <button type="submit" className="flex items-center justify-center gap-2 py-2.5 bg-techo-accent text-white rounded-xl hover:bg-orange-600 transition text-sm font-semibold">
+                    <FaWrench /> Registrar todas
+                  </button>
+                </form>
+              )}
 
+              {/* Lista de herramientas con cards coloreadas */}
               {herramientas.length > 0 && (
-                <div className="flex flex-col gap-1.5 max-h-64 overflow-y-auto">
-                  <p className="text-xs font-semibold text-gray-500 mb-1">Herramientas registradas ({herramientas.length})</p>
-                  {herramientas.map((h) => (
-                    <div key={h.id} className="flex items-center justify-between bg-gray-50 rounded-xl px-3 py-2 text-sm gap-2">
-                      <span className="font-medium text-gray-700 truncate">{h.nombre}</span>
-                      <div className="flex gap-1 flex-shrink-0">
-                        {['buena', 'danada', 'perdida', 'no_devuelta'].map((est) => (
-                          <button
-                            key={est}
-                            onClick={() => handleCambiarEstadoHerramienta(h.id, est)}
-                            className={`px-2 py-0.5 rounded-lg text-xs font-semibold transition border ${
-                              h.estado === est ? estadoHerramientaActivo(est) : 'bg-white text-gray-400 border-gray-200 hover:border-gray-400'
-                            }`}
-                          >
-                            {etiquetaEstado(est)}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  ))}
+                <div className="flex flex-col gap-2">
+                  <div className="flex items-center justify-between">
+                    <p className="text-xs font-semibold text-gray-500">
+                      Herramientas registradas <span className="text-techo-primary font-bold">({herramientas.length})</span>
+                    </p>
+                    <select
+                      value={filtroHerr}
+                      onChange={(e) => setFiltroHerr(e.target.value)}
+                      className="border border-gray-200 rounded-lg px-2 py-0.5 text-xs focus:outline-none focus:ring-1 focus:ring-techo-secondary"
+                    >
+                      <option value="todos">Todos</option>
+                      {Object.entries(ESTILOS_HERR).map(([val, { label }]) => (
+                        <option key={val} value={val}>{label}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="flex flex-col gap-1.5 max-h-56 overflow-y-auto pr-1">
+                    {herramientas
+                      .filter((h) => filtroHerr === 'todos' || h.estado === filtroHerr)
+                      .map((h) => {
+                        const est = ESTILOS_HERR[h.estado] || ESTILOS_HERR.entregada;
+                        return (
+                          <div key={h.id} className={`border-l-4 ${est.borde} bg-gray-50 rounded-r-xl px-3 py-2 flex items-center justify-between gap-2`}>
+                            <span className="font-medium text-gray-700 text-sm truncate">{h.nombre}</span>
+                            <div className="flex items-center gap-1.5 flex-shrink-0">
+                              <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${est.badge}`}>{est.label}</span>
+                              <select
+                                value={h.estado}
+                                onChange={(e) => handleCambiarEstadoHerramienta(h.id, e.target.value)}
+                                className="border border-gray-200 rounded-lg px-1.5 py-0.5 text-xs focus:outline-none"
+                              >
+                                {Object.entries(ESTILOS_HERR).map(([val, { label }]) => (
+                                  <option key={val} value={val}>{label}</option>
+                                ))}
+                              </select>
+                            </div>
+                          </div>
+                        );
+                      })}
+                  </div>
                 </div>
               )}
 
