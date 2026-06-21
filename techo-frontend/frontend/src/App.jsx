@@ -20,6 +20,7 @@ import GestionCuadrillas from './pages/GestionCuadrillas';
 import MapaInteractivo from './pages/MapaInteractivo';
 import GestionHerramientas from './pages/GestionHerramientas';
 import GestionInventario from './pages/GestionInventario';
+import Reportes from './pages/Reportes';
 
 function Aplicacion() {
   return (
@@ -99,6 +100,15 @@ function Aplicacion() {
             element={
               <RutaProtegida rolesPermitidos={['coordinador']}>
                 <GestionUsuarios />
+              </RutaProtegida>
+            }
+          />
+
+          <Route
+            path="/reportes"
+            element={
+              <RutaProtegida rolesPermitidos={['coordinador']}>
+                <Reportes />
               </RutaProtegida>
             }
           />
