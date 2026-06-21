@@ -1,9 +1,6 @@
-import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import Navbar from '../components/Navbar';
 import { useAutenticacion } from '../context/AuthContext';
-
-const BASE_URL = 'http://localhost:3000/api';
 
 const etiquetaRol = {
   coordinador: 'Coordinador',
@@ -53,41 +50,8 @@ const coloresPorPath = {
   '/inventario':    'from-slate-500 to-slate-700',
 };
 
-const STAT_CONFIG = [
-  {
-    key: 'cuadrillas_activas',
-    titulo: 'Cuadrillas activas',
-    grad: 'from-techo-primary to-techo-primaryDark',
-    iconPath: 'M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z',
-  },
-  {
-    key: 'voluntarios_desplegados',
-    titulo: 'Voluntarios desplegados',
-    grad: 'from-techo-secondary to-cyan-700',
-    iconPath: 'M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z',
-  },
-  {
-    key: 'casas_finalizadas',
-    titulo: 'Obras finalizadas',
-    grad: 'from-techo-success to-emerald-700',
-    iconPath: 'M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z',
-  },
-];
-
 export default function Inicio() {
   const { usuario } = useAutenticacion();
-  const [stats, setStats] = useState(null);
-  const [cargando, setCargando] = useState(true);
-
-  useEffect(() => {
-    fetch(`${BASE_URL}/dashboard/publico`)
-      .then((r) => r.json())
-      .then((data) => {
-        if (data.estado === 'exitoso') setStats(data.datos);
-      })
-      .catch(() => {})
-      .finally(() => setCargando(false));
-  }, []);
 
   const accesos = accesosPorRol[usuario?.rol] || [];
   const primerNombre = usuario?.nombre?.split(' ')[0] || 'Panel de Control';
@@ -108,26 +72,6 @@ export default function Inicio() {
         </div>
 
         <div className="max-w-5xl mx-auto px-6 py-8">
-
-          {/* Indicadores de actividad */}
-          <div className="mb-10">
-            <h2 className="text-xs font-bold text-techo-primary uppercase tracking-widest mb-4 flex items-center gap-2">
-              <span className="w-3 h-0.5 bg-techo-secondary rounded-full inline-block" />
-              Actividad del sistema
-            </h2>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              {STAT_CONFIG.map((cfg, i) => (
-                <TarjetaStat
-                  key={cfg.key}
-                  titulo={cfg.titulo}
-                  valor={cargando ? '—' : stats?.[cfg.key] ?? 0}
-                  grad={cfg.grad}
-                  iconPath={cfg.iconPath}
-                  delay={i * 80}
-                />
-              ))}
-            </div>
-          </div>
 
           {/* Accesos rápidos */}
           <div>
@@ -178,30 +122,3 @@ export default function Inicio() {
   );
 }
 
-function TarjetaStat({ titulo, valor, grad, iconPath, delay }) {
-  return (
-    <div
-      style={{ animationDelay: `${delay}ms` }}
-      className={`animate-fadeInUp flex flex-col gap-3 bg-gradient-to-br ${grad} rounded-2xl p-5 shadow-md`}
-    >
-      <div className="w-9 h-9 rounded-xl bg-white/15 flex items-center justify-center">
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          className="text-white"
-          fill="none"
-          viewBox="0 0 24 24"
-          stroke="currentColor"
-          style={{ width: '18px', height: '18px' }}
-        >
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d={iconPath} />
-        </svg>
-      </div>
-      <div className="text-4xl font-black text-white animate-countPop tabular-nums leading-none">
-        {valor}
-      </div>
-      <div className="text-white/70 text-xs font-semibold uppercase tracking-wide">
-        {titulo}
-      </div>
-    </div>
-  );
-}

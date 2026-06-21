@@ -143,28 +143,62 @@ export const listarCuadrillasAccesibles = async (req, res) => {
 export const dashboardPublico = async (req, res) => {
   try {
     const AppDataSource = (await import('../config/database.js')).default;
-    const r = await AppDataSource.query("SELECT COUNT(*)::int AS count FROM mensajes WHERE tipo = 'finalizado'");
-    const casasFinalizadas = r[0] ? r[0].count : 0;
 
-    const voluntarios = await AppDataSource.query(
+    // Casas finalizadas: mensajes con tipo 'finalizado'
+    const resultadoCasas = await AppDataSource.query(
+      "SELECT COUNT(*)::int AS count FROM mensajes WHERE tipo = 'finalizado'"
+    );
+    const casasFinalizadas = resultadoCasas[0]?.count ?? 0;
+
+    // Voluntarios desplegados: miembros únicos en cuadrillas activas
+    const resultadoVoluntarios = await AppDataSource.query(
       `SELECT COUNT(DISTINCT mc.voluntario_id)::int AS count
        FROM miembros_cuadrilla mc
        JOIN usuarios u ON u.id = mc.voluntario_id
        JOIN cuadrillas c ON c.id = mc.cuadrilla_id
        WHERE u.rol = 'voluntario' AND c.estado IN ('activa', 'en_progreso')`
     );
-    const cuadrillasAct = await AppDataSource.query("SELECT COUNT(*)::int as count FROM cuadrillas WHERE estado IN ('activa', 'en_progreso')");
+    const voluntariosDesplegados = resultadoVoluntarios[0]?.count ?? 0;
+
+    // Cuadrillas activas
+    const resultadoCuadrillas = await AppDataSource.query(
+      "SELECT COUNT(*)::int AS count FROM cuadrillas WHERE estado IN ('activa', 'en_progreso')"
+    );
+    const cuadrillasActivas = resultadoCuadrillas[0]?.count ?? 0;
+
+    // Emergencias activas
+    const resultadoEmergencias = await AppDataSource.query(
+      "SELECT COUNT(*)::int AS count FROM emergencias WHERE estado = 'activa'"
+    );
+    const emergenciasActivas = resultadoEmergencias[0]?.count ?? 0;
+
+    // Última actualización: la fecha más reciente entre todas las tablas operativas
+    const resultadoFecha = await AppDataSource.query(`
+      SELECT GREATEST(
+        (SELECT MAX(creado_en) FROM mensajes),
+        (SELECT MAX(fecha_creacion) FROM cuadrillas),
+        (SELECT MAX(fecha_inicio) FROM emergencias),
+        (SELECT MAX(fecha_creacion) FROM obras),
+        (SELECT MAX(creado_en) FROM familias)
+      ) AS ultima_actualizacion
+    `);
+    const ultimaActualizacion = resultadoFecha[0]?.ultima_actualizacion ?? null;
+
+    // Aviso solo cuando nunca ha habido actividad
+    const aviso = ultimaActualizacion === null
+      ? 'Todavía no hay actualizaciones operativas registradas'
+      : null;
 
     const datos = {
-      casas_finalizadas: casasFinalizadas || 0,
-      voluntarios_desplegados: (voluntarios[0] && voluntarios[0].count) || 0,
-      cuadrillas_activas: (cuadrillasAct[0] && cuadrillasAct[0].count) || 0,
+      casas_finalizadas: casasFinalizadas,
+      voluntarios_desplegados: voluntariosDesplegados,
+      cuadrillas_activas: cuadrillasActivas,
+      emergencias_activas: emergenciasActivas,
+      ultima_actualizacion: ultimaActualizacion,
+      aviso,
     };
 
-    const reciente = await AppDataSource.query(`SELECT 1 FROM mensajes WHERE creado_en > NOW() - INTERVAL '24 hours' LIMIT 1`);
-    const aviso = (reciente && reciente.length === 0) ? 'Los datos pueden no estar actualizados' : null;
-
-    return respuestaExito(res, 200, 'Dashboard público', { ...datos, aviso });
+    return respuestaExito(res, 200, 'Dashboard público', datos);
   } catch (error) {
     console.error('error dashboardPublico:', error.message);
     return respuestaError(res, 500, 'Error interno');
