@@ -41,6 +41,27 @@ export const listarHerramientas = async (solicitud, respuesta) => {
   }
 };
 
+// Devuelvo el resumen de inventario de herramientas agrupado por cuadrilla para toda la emergencia.
+// Permite al coordinador ver de un vistazo el estado global sin consultar cuadrilla por cuadrilla.
+export const inventarioTotal = async (solicitud, respuesta) => {
+  try {
+    const datos = await HerramientaService.inventarioTotal();
+    return respuestaExito(respuesta, 200, 'Inventario total obtenido', datos);
+  } catch (error) {
+    return respuestaError(respuesta, 500, error.message);
+  }
+};
+
+export const resumenPorEmergencia = async (solicitud, respuesta) => {
+  try {
+    const { emergenciaId } = solicitud.params;
+    const datos = await HerramientaService.resumenPorEmergencia(parseInt(emergenciaId));
+    return respuestaExito(respuesta, 200, 'Resumen de inventario obtenido', datos);
+  } catch (error) {
+    return respuestaError(respuesta, 500, error.message);
+  }
+};
+
 // Actualizo el estado de una herramienta al momento de devolverla o reportarla.
 // El estado puede ser: buena, danada, perdida, no_devuelta.
 export const actualizarEstadoHerramienta = async (solicitud, respuesta) => {
