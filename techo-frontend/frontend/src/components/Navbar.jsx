@@ -1,7 +1,7 @@
 // Importo useState para controlar si el menú lateral está abierto o cerrado
 import { useState } from 'react';
 // Importo useNavigate para redirigir después del cierre de sesión y Link para los enlaces del menú
-import { useNavigate, Link, useLocation } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 // Accedo al usuario activo y a la función de cierre de sesión desde el contexto
 import { useAutenticacion } from '../context/AuthContext';
 
@@ -12,7 +12,6 @@ function Navbar() {
   const [menuAbierto, setMenuAbierto] = useState(false);
   const { usuario, cerrarSesion } = useAutenticacion();
   const navegar = useNavigate();
-  const ubicacion = useLocation();
 
   const alternarMenu = () => setMenuAbierto(!menuAbierto);
   // Cierro el menú al hacer clic en un enlace o en el overlay oscuro
@@ -40,12 +39,13 @@ function Navbar() {
     { label: 'Emergencias', path: '/emergencias', icon: 'M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z' },
     { label: 'Usuarios', path: '/usuarios', icon: 'M18 9a3 3 0 11-6 0 3 3 0 016 0zm-9 11a4 4 0 118 0H9zm-2-8a2 2 0 100-4 2 2 0 000 4z' },
     { label: 'Herramientas', path: '/herramientas', icon: 'M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z' },
+    { label: 'Inventario', path: '/inventario', icon: 'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01' },
   ];
 
   const esCoordinador = usuario?.rol === 'coordinador';
   const esJefe = usuario?.rol === 'jefe_cuadrilla';
   // Los voluntarios solo ven Inicio, Mapa y Comunicaciones; el jefe además ve Cuadrillas
-  const enlacesJefe = ['Inicio', 'Comunicaciones', 'Cuadrillas', 'Mapa'];
+  const enlacesJefe = ['Inicio', 'Comunicaciones', 'Cuadrillas', 'Mapa', 'Herramientas'];
   const enlacesVoluntario = ['Inicio', 'Comunicaciones', 'Mapa'];
 
   return (
@@ -62,25 +62,11 @@ function Navbar() {
           <span className="block w-6 h-[2px] bg-white rounded-sm"></span>
         </button>
 
-        {/* Botón rápido "Nueva cuadrilla" en la barra superior para coordinadores */}
+        {/* Muestro el nombre y rol del usuario en la esquina superior derecha */}
         {usuario && (
-          <div className="flex items-center gap-3">
-            {usuario.rol === 'coordinador' && (
-              <Link
-                to="/cuadrillas"
-                title="Ir a cuadrillas"
-                className="flex items-center gap-1.5 px-3 py-1.5 bg-techo-secondary hover:bg-blue-400 text-white rounded-lg text-xs font-semibold transition-all"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
-                </svg>
-                Cuadrillas
-              </Link>
-            )}
-            <div className="flex flex-col items-end">
-              <span className="text-white text-sm font-semibold">{usuario.nombre}</span>
-              <span className="text-white/60 text-xs">{etiquetaRol[usuario.rol] || usuario.rol}</span>
-            </div>
+          <div className="flex flex-col items-end">
+            <span className="text-white text-sm font-semibold">{usuario.nombre}</span>
+            <span className="text-white/60 text-xs">{etiquetaRol[usuario.rol] || usuario.rol}</span>
           </div>
         )}
       </nav>
@@ -110,7 +96,6 @@ function Navbar() {
             {/* El coordinador ve todas las secciones bajo la categoría "Administración" */}
             {esCoordinador && (
               <div className="mb-3">
-                <p className="text-white/40 text-xs font-semibold uppercase tracking-wider mb-2">Administración</p>
                 {enlaces.map((enlace) => (
                   <Link
                     key={enlace.path}
@@ -130,7 +115,6 @@ function Navbar() {
             {/* El jefe ve Inicio, Comunicaciones, Cuadrillas y Mapa */}
             {esJefe && (
               <div className="mb-3">
-                <p className="text-white/40 text-xs font-semibold uppercase tracking-wider mb-2">Menú</p>
                 {enlaces.filter((e) => enlacesJefe.includes(e.label)).map((enlace) => (
                   <Link key={enlace.path} to={enlace.path} onClick={cerrarMenu}
                     className="flex items-center gap-3 px-3 py-2.5 text-white/80 hover:text-white hover:bg-white/10 rounded-lg transition-all text-sm">
@@ -146,7 +130,6 @@ function Navbar() {
             {/* El voluntario solo ve Inicio, Comunicaciones y Mapa */}
             {!esCoordinador && !esJefe && (
               <div className="mb-3">
-                <p className="text-white/40 text-xs font-semibold uppercase tracking-wider mb-2">Menú</p>
                 {enlaces.filter((e) => enlacesVoluntario.includes(e.label)).map((enlace) => (
                   <Link key={enlace.path} to={enlace.path} onClick={cerrarMenu}
                     className="flex items-center gap-3 px-3 py-2.5 text-white/80 hover:text-white hover:bg-white/10 rounded-lg transition-all text-sm">
@@ -159,35 +142,18 @@ function Navbar() {
               </div>
             )}
 
-            {/* Acciones rápidas para coordinador */}
+            {/* Solo el coordinador puede registrar nuevos usuarios desde el menú */}
             {esCoordinador && (
-              <div className="mt-4 pt-3 border-t border-white/10 space-y-1">
-                <p className="text-white/40 text-xs font-semibold uppercase tracking-wider mb-2">Acciones rápidas</p>
-                <Link
-                  to="/cuadrillas"
-                  onClick={cerrarMenu}
-                  className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all text-sm font-semibold ${
-                    ubicacion.pathname === '/cuadrillas'
-                      ? 'bg-techo-secondary text-white'
-                      : 'bg-techo-secondary/20 text-techo-secondary hover:bg-techo-secondary hover:text-white'
-                  }`}
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 4v16m8-8H4" />
-                  </svg>
-                  Nueva cuadrilla
-                </Link>
-                <Link
-                  to="/auth/registro"
-                  onClick={cerrarMenu}
-                  className="flex items-center gap-3 px-3 py-2.5 text-white/60 hover:text-white hover:bg-white/10 rounded-lg transition-all text-sm"
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
-                  </svg>
-                  Registrar Usuario
-                </Link>
-              </div>
+              <Link
+                to="/auth/registro"
+                onClick={cerrarMenu}
+                className="flex items-center gap-3 px-3 py-2.5 text-techo-secondary hover:bg-white/10 rounded-lg transition-all text-sm"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
+                </svg>
+                Registrar Usuario
+              </Link>
             )}
           </nav>
         </div>
