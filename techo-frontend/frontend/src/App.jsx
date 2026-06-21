@@ -10,10 +10,13 @@ import Proximamente from './components/Próximamente';
 import Login from './pages/Login';
 import Registro from './pages/Registro';
 import Inicio from './pages/Inicio';
+import Comunicaciones from './pages/Comunicaciones';
 import SinPermiso from './pages/SinPermiso';
 import GestionEmergencias from './pages/GestionEmergencias';
 import NotFound from './pages/NotFound';
 import GestionUsuarios from './pages/GestionUsuarios';
+import GestionCuadrillas from './pages/GestionCuadrillas';
+import MapaInteractivo from './pages/MapaInteractivo';
 
 function Aplicacion() {
   return (
@@ -39,10 +42,38 @@ function Aplicacion() {
             }
           />
 
-          {/* Estas secciones aún están en desarrollo; uso Próximamente como placeholder */}
-          <Route path="/cuadrillas" element={<Proximamente titulo="Gestión de Cuadrillas" />} />
-          <Route path="/mapa" element={<Proximamente titulo="Mapa Interactivo" />} />
+          <Route
+            path="/comunicaciones"
+            element={
+              <RutaProtegida rolesPermitidos={['coordinador', 'jefe_cuadrilla', 'voluntario']}>
+                <Comunicaciones />
+              </RutaProtegida>
+            }
+          />
+
+          {/* Cuadrillas: coordinador ve todo, jefe ve la suya */}
+          <Route
+            path="/cuadrillas"
+            element={
+              <RutaProtegida rolesPermitidos={['coordinador', 'jefe_cuadrilla']}>
+                <GestionCuadrillas />
+              </RutaProtegida>
+            }
+          />
+
+          {/* Mapa interactivo con obras, familias y zonas de peligro */}
+          <Route
+            path="/mapa"
+            element={
+              <RutaProtegida rolesPermitidos={['coordinador', 'jefe_cuadrilla', 'voluntario']}>
+                <MapaInteractivo />
+              </RutaProtegida>
+            }
+          />
+
           <Route path="/emergencias" element={<GestionEmergencias />}/>
+
+          {/* Herramientas se gestiona desde el panel de cuadrillas; dejamos placeholder por si se amplía */}
           <Route path="/herramientas" element={<Proximamente titulo="Control de Herramientas" />} />
 
           <Route

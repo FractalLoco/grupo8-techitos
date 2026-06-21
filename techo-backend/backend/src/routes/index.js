@@ -6,6 +6,11 @@ import cuadrillaRoutes from './cuadrilla.routes.js';
 import emergenciaRoutes from './emergencia.routes.js';
 import herramientaRoutes from './herramienta.routes.js';
 import usuarioRoutes from './usuario.routes.js';
+import mensajeRoutes from './mensaje.routes.js';
+import dashboardRoutes from './dashboard.routes.js';
+import obraRoutes from './obra.routes.js';
+import notificacionRoutes from './notificacion.routes.js';
+import zonaPeligroRoutes from './zona-peligro.routes.js';
 
 const router = Router();
 
@@ -16,5 +21,10 @@ router.use('/cuadrillas', cuadrillaRoutes);
 router.use('/emergencias', emergenciaRoutes);
 router.use('/herramientas', herramientaRoutes);
 router.use('/usuarios', usuarioRoutes);
+router.use('/comunicaciones', mensajeRoutes);
+router.use('/dashboard', dashboardRoutes);
+router.use('/obras', obraRoutes);
+router.use('/notificaciones', notificacionRoutes);
+router.use('/zonas-peligro', zonaPeligroRoutes);
 
 export default router;

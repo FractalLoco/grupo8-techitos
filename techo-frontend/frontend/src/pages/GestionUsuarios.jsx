@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Navbar from "../components/Navbar";
 import {
   obtenerUsuarios,
@@ -10,6 +10,11 @@ import {
 function GestionUsuarios() {
   const [usuarios, setUsuarios] = useState([]);
   const [cargando, setCargando] = useState(true);
+  const [busqueda, setBusqueda] = useState("");
+  const [filtroRol, setFiltroRol] = useState("todos");
+  const [filtroEstado, setFiltroEstado] = useState("todos");
+  const [paginaActual, setPaginaActual] = useState(1);
+  const usuariosPorPagina = 5;
 
   const [formulario, setFormulario] = useState({
     nombre: "",
@@ -49,6 +54,57 @@ function GestionUsuarios() {
       ...formulario,
       [e.target.name]: e.target.value,
     });
+  };
+
+  const normalizarTexto = (texto) => String(texto || "").toLowerCase().trim();
+
+  const usuariosFiltrados = useMemo(() => {
+    const textoBusqueda = normalizarTexto(busqueda);
+
+    return usuarios.filter((usuario) => {
+      const coincideBusqueda =
+        normalizarTexto(usuario.nombre).includes(textoBusqueda) ||
+        normalizarTexto(usuario.correo).includes(textoBusqueda) ||
+        normalizarTexto(usuario.rut).includes(textoBusqueda) ||
+        normalizarTexto(usuario.rol).includes(textoBusqueda);
+
+      const coincideRol = filtroRol === "todos" || usuario.rol === filtroRol;
+
+      const coincideEstado =
+        filtroEstado === "todos" ||
+        (filtroEstado === "activo" && usuario.activo) ||
+        (filtroEstado === "desactivado" && !usuario.activo);
+
+      return coincideBusqueda && coincideRol && coincideEstado;
+    });
+  }, [usuarios, busqueda, filtroRol, filtroEstado]);
+
+  const totalPaginas = Math.max(
+    1,
+    Math.ceil(usuariosFiltrados.length / usuariosPorPagina)
+  );
+
+  const usuariosPaginados = useMemo(() => {
+    const inicio = (paginaActual - 1) * usuariosPorPagina;
+    const fin = inicio + usuariosPorPagina;
+
+    return usuariosFiltrados.slice(inicio, fin);
+  }, [usuariosFiltrados, paginaActual]);
+
+  useEffect(() => {
+    setPaginaActual(1);
+  }, [busqueda, filtroRol, filtroEstado]);
+
+  useEffect(() => {
+    if (paginaActual > totalPaginas) {
+      setPaginaActual(totalPaginas);
+    }
+  }, [paginaActual, totalPaginas]);
+
+  const limpiarFiltros = () => {
+    setBusqueda("");
+    setFiltroRol("todos");
+    setFiltroEstado("todos");
   };
 
   // Crear usuario con manejo de errores
@@ -148,44 +204,153 @@ function GestionUsuarios() {
         </form>
 
         <div className="bg-white rounded-xl shadow overflow-hidden">
-          <table className="w-full">
-            <thead className="bg-gray-200 text-left">
-              <tr>
-                <th className="p-3">Nombre</th>
-                <th className="p-3">Correo</th>
-                <th className="p-3">Rol</th>
-                <th className="p-3">Estado</th>
-                <th className="p-3">Acción</th>
-              </tr>
-            </thead>
+          <div className="p-4 border-b grid grid-cols-1 md:grid-cols-4 gap-3">
+            <input
+              type="text"
+              value={busqueda}
+              onChange={(e) => setBusqueda(e.target.value)}
+              placeholder="Buscar por nombre, correo, RUT o rol"
+              className="border rounded-lg px-4 py-2 md:col-span-2"
+            />
 
-            <tbody>
-              {!cargando &&
-                Array.isArray(usuarios) &&
-                usuarios.map((usuario) => (
-                  <tr key={obtenerId(usuario)} className="border-t">
-                    <td className="p-3">{usuario.nombre}</td>
+            <select
+              value={filtroRol}
+              onChange={(e) => setFiltroRol(e.target.value)}
+              className="border rounded-lg px-4 py-2"
+            >
+              <option value="todos">Todos los roles</option>
+              <option value="coordinador">Coordinador</option>
+              <option value="jefe_cuadrilla">Jefe de cuadrilla</option>
+              <option value="voluntario">Voluntario</option>
+            </select>
 
-                    <td className="p-3">{usuario.correo}</td>
+            <select
+              value={filtroEstado}
+              onChange={(e) => setFiltroEstado(e.target.value)}
+              className="border rounded-lg px-4 py-2"
+            >
+              <option value="todos">Todos los estados</option>
+              <option value="activo">Activos</option>
+              <option value="desactivado">Desactivados</option>
+            </select>
 
-                    <td className="p-3">{usuario.rol}</td>
+            <div className="md:col-span-4 flex flex-col md:flex-row md:items-center md:justify-between gap-3 text-sm text-gray-600">
+              <span>
+                Mostrando {usuariosPaginados.length} de {usuariosFiltrados.length} usuarios filtrados
+              </span>
 
-                    <td className="p-3">
-                      {usuario.activo ? "Activo" : "Desactivado"}
-                    </td>
+              <button
+                type="button"
+                onClick={limpiarFiltros}
+                className="border rounded-lg px-4 py-2 text-gray-700 hover:bg-gray-100"
+              >
+                Limpiar filtros
+              </button>
+            </div>
+          </div>
 
-                    <td className="p-3">
-                      <button
-                        onClick={() => cambiarEstado(usuario)}
-                        className="bg-slate-800 text-white px-3 py-1 rounded"
-                      >
-                        {usuario.activo ? "Desactivar" : "Activar"}
-                      </button>
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead className="bg-gray-200 text-left">
+                <tr>
+                  <th className="p-3">Nombre</th>
+                  <th className="p-3">Correo</th>
+                  <th className="p-3">Rol</th>
+                  <th className="p-3">Estado</th>
+                  <th className="p-3">Acción</th>
+                </tr>
+              </thead>
+
+              <tbody>
+                {cargando && (
+                  <tr>
+                    <td className="p-4 text-center text-gray-500" colSpan="5">
+                      Cargando usuarios...
                     </td>
                   </tr>
-                ))}
-            </tbody>
-          </table>
+                )}
+
+                {!cargando && usuariosPaginados.length === 0 && (
+                  <tr>
+                    <td className="p-4 text-center text-gray-500" colSpan="5">
+                      No se encontraron usuarios con los filtros seleccionados.
+                    </td>
+                  </tr>
+                )}
+
+                {!cargando &&
+                  Array.isArray(usuariosPaginados) &&
+                  usuariosPaginados.map((usuario) => (
+                    <tr key={obtenerId(usuario)} className="border-t">
+                      <td className="p-3">{usuario.nombre}</td>
+
+                      <td className="p-3">{usuario.correo}</td>
+
+                      <td className="p-3">{usuario.rol}</td>
+
+                      <td className="p-3">
+                        {usuario.activo ? "Activo" : "Desactivado"}
+                      </td>
+
+                      <td className="p-3">
+                        <button
+                          onClick={() => cambiarEstado(usuario)}
+                          className="bg-slate-800 text-white px-3 py-1 rounded"
+                        >
+                          {usuario.activo ? "Desactivar" : "Activar"}
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+              </tbody>
+            </table>
+          </div>
+
+          <div className="p-4 border-t flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+            <span className="text-sm text-gray-600">
+              Página {paginaActual} de {totalPaginas}
+            </span>
+
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setPaginaActual(1)}
+                disabled={paginaActual === 1}
+                className="border rounded-lg px-3 py-1 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Primera
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setPaginaActual((pagina) => Math.max(1, pagina - 1))}
+                disabled={paginaActual === 1}
+                className="border rounded-lg px-3 py-1 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Anterior
+              </button>
+
+              <button
+                type="button"
+                onClick={() =>
+                  setPaginaActual((pagina) => Math.min(totalPaginas, pagina + 1))
+                }
+                disabled={paginaActual === totalPaginas}
+                className="border rounded-lg px-3 py-1 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Siguiente
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setPaginaActual(totalPaginas)}
+                disabled={paginaActual === totalPaginas}
+                className="border rounded-lg px-3 py-1 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Última
+              </button>
+            </div>
+          </div>
         </div>
       </div>
     </div>

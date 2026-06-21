@@ -1,5 +1,6 @@
 'use strict';
 import { CuadrillaService } from '../services/cuadrilla.service.js';
+import { HerramientaService } from '../services/herramienta.service.js';
 import { respuestaExito, respuestaError } from '../utils/response.utils.js';
 
 // Creo una nueva cuadrilla validando que exista una emergencia activa y que el jefe tenga el rol correcto.
@@ -94,11 +95,13 @@ export const reasignarVoluntario = async (solicitud, respuesta) => {
   }
 };
 
-// Devuelvo las cuadrillas de una emergencia con su color de estado (verde/amarillo/rojo/gris) según el plazo.
+// Devuelvo las cuadrillas de una emergencia con su color de estado (verde/amarillo/rojo/gris).
+// Acepta ?color=verde|amarillo|rojo|gris para filtrar por prioridad desde el mapa del coordinador.
 export const obtenerCuadrillasConEstado = async (solicitud, respuesta) => {
   try {
     const { emergenciaId } = solicitud.params;
-    const cuadrillas = await CuadrillaService.obtenerCuadrillasConEstado(emergenciaId);
+    const { color } = solicitud.query;
+    const cuadrillas = await CuadrillaService.obtenerCuadrillasConEstado(emergenciaId, color || null);
     return respuestaExito(respuesta, 200, 'Cuadrillas obtenidas', { cuadrillas });
   } catch (error) {
     return respuestaError(respuesta, 500, error.message);
@@ -113,6 +116,17 @@ export const obtenerBalanceHerramientas = async (solicitud, respuesta) => {
     return respuestaExito(respuesta, 200, 'Balance de herramientas', { balance });
   } catch (error) {
     return respuestaError(respuesta, 500, error.message);
+  }
+};
+
+// Cierro el balance del día: si hay diferencias activo la alerta en el punto del mapa y notifico al coordinador.
+export const cerrarBalanceDia = async (solicitud, respuesta) => {
+  try {
+    const { cuadrillaId } = solicitud.params;
+    const balance = await HerramientaService.cerrarBalance(parseInt(cuadrillaId));
+    return respuestaExito(respuesta, 200, 'Balance del día cerrado', { balance });
+  } catch (error) {
+    return respuestaError(respuesta, 400, error.message);
   }
 };
 
