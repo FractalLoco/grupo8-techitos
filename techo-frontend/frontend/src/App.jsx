@@ -17,6 +17,8 @@ import NotFound from './pages/NotFound';
 import GestionUsuarios from './pages/GestionUsuarios';
 import GestionCuadrillas from './pages/GestionCuadrillas';
 import MapaInteractivo from './pages/MapaInteractivo';
+import GestionHerramientas from './pages/GestionHerramientas';
+import GestionInventario from './pages/GestionInventario';
 
 function Aplicacion() {
   return (
@@ -73,8 +75,23 @@ function Aplicacion() {
 
           <Route path="/emergencias" element={<GestionEmergencias />}/>
 
-          {/* Herramientas se gestiona desde el panel de cuadrillas; dejamos placeholder por si se amplía */}
-          <Route path="/herramientas" element={<Proximamente titulo="Control de Herramientas" />} />
+          <Route
+            path="/herramientas"
+            element={
+              <RutaProtegida rolesPermitidos={['coordinador', 'jefe_cuadrilla']}>
+                <GestionHerramientas />
+              </RutaProtegida>
+            }
+          />
+
+          <Route
+            path="/inventario"
+            element={
+              <RutaProtegida rolesPermitidos={['coordinador']}>
+                <GestionInventario />
+              </RutaProtegida>
+            }
+          />
 
           <Route
             path="/usuarios"
