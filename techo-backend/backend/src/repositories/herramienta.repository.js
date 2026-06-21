@@ -1,6 +1,7 @@
 'use strict';
 import AppDataSource from '../config/database.js';
 
+
 export class HerramientaRepository {
   static getRepository() {
     return AppDataSource.getRepository('Herramienta');
@@ -40,5 +41,73 @@ export class HerramientaRepository {
     };
     balance.conDiferencias = balance.danadas + balance.perdidas + balance.noDevueltas > 0;
     return balance;
+  }
+
+  // Genero un resumen de herramientas agrupado por cuadrilla para toda una emergencia.
+  // Permite al coordinador ver el inventario global sin consultar cuadrilla por cuadrilla.
+  static async inventarioTotal() {
+    const cuadrillas = await AppDataSource.getRepository('Cuadrilla').find();
+    const totales = { total: 0, entregadas: 0, buenas: 0, danadas: 0, perdidas: 0, no_devueltas: 0 };
+    const resumen = [];
+
+    for (const cuadrilla of cuadrillas) {
+      const herramientas = await this.listarPorCuadrilla(cuadrilla.id);
+      if (herramientas.length === 0) continue;
+      const entrada = {
+        cuadrilla_id: cuadrilla.id,
+        cuadrilla_nombre: cuadrilla.nombre,
+        total: herramientas.length,
+        entregadas:   herramientas.filter((h) => h.estado === 'entregada').length,
+        buenas:       herramientas.filter((h) => h.estado === 'buena').length,
+        danadas:      herramientas.filter((h) => h.estado === 'danada').length,
+        perdidas:     herramientas.filter((h) => h.estado === 'perdida').length,
+        no_devueltas: herramientas.filter((h) => h.estado === 'no_devuelta').length,
+      };
+      entrada.con_diferencias = entrada.danadas + entrada.perdidas + entrada.no_devueltas > 0;
+      totales.total        += entrada.total;
+      totales.entregadas   += entrada.entregadas;
+      totales.buenas       += entrada.buenas;
+      totales.danadas      += entrada.danadas;
+      totales.perdidas     += entrada.perdidas;
+      totales.no_devueltas += entrada.no_devueltas;
+      resumen.push(entrada);
+    }
+
+    return { resumen, totales };
+  }
+
+  static async resumenPorEmergencia(emergenciaId) {
+    const cuadrillas = await AppDataSource.getRepository('Cuadrilla').find({
+      where: { emergencia_id: emergenciaId },
+    });
+
+    const totales = { total: 0, entregadas: 0, buenas: 0, danadas: 0, perdidas: 0, no_devueltas: 0 };
+    const resumen = [];
+
+    for (const cuadrilla of cuadrillas) {
+      const herramientas = await this.listarPorCuadrilla(cuadrilla.id);
+      const entrada = {
+        cuadrilla_id: cuadrilla.id,
+        cuadrilla_nombre: cuadrilla.nombre,
+        total: herramientas.length,
+        entregadas: herramientas.filter((h) => h.estado === 'entregada').length,
+        buenas: herramientas.filter((h) => h.estado === 'buena').length,
+        danadas: herramientas.filter((h) => h.estado === 'danada').length,
+        perdidas: herramientas.filter((h) => h.estado === 'perdida').length,
+        no_devueltas: herramientas.filter((h) => h.estado === 'no_devuelta').length,
+      };
+      entrada.con_diferencias = entrada.danadas + entrada.perdidas + entrada.no_devueltas > 0;
+
+      totales.total += entrada.total;
+      totales.entregadas += entrada.entregadas;
+      totales.buenas += entrada.buenas;
+      totales.danadas += entrada.danadas;
+      totales.perdidas += entrada.perdidas;
+      totales.no_devueltas += entrada.no_devueltas;
+
+      resumen.push(entrada);
+    }
+
+    return { resumen, totales };
   }
 }
