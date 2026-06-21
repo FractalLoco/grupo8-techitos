@@ -34,3 +34,43 @@ export const generarReporteEmergencia = async (req, res) => {
     return respuestaError(res, 500, 'No se pudo generar el reporte PDF');
   }
 };
+
+const responderErrorReporte = (res, error, contexto) => {
+  if (error instanceof ReporteServiceError) {
+    return respuestaError(res, error.statusCode, error.message, error.datos);
+  }
+  console.error(contexto, error.message);
+  return respuestaError(res, 500, 'Error interno al consultar reportes');
+};
+
+export const listarReportes = async (req, res) => {
+  try {
+    const reportes = await ReporteService.listarReportes(req.query.emergencia_id);
+    return respuestaExito(res, 200, 'Reportes obtenidos', { reportes });
+  } catch (error) {
+    return responderErrorReporte(res, error, 'error listarReportes:');
+  }
+};
+
+export const obtenerDetalleReporte = async (req, res) => {
+  try {
+    const reporte = await ReporteService.obtenerDetalleReporte(req.params.id);
+    return respuestaExito(res, 200, 'Detalle de reporte obtenido', { reporte });
+  } catch (error) {
+    return responderErrorReporte(res, error, 'error obtenerDetalleReporte:');
+  }
+};
+
+export const descargarReporte = async (req, res) => {
+  try {
+    const archivo = await ReporteService.obtenerArchivoReporte(req.params.id);
+    return res.download(archivo.ruta, archivo.nombreArchivo, (error) => {
+      if (error && !res.headersSent) {
+        console.error('error descargarReporte:', error.message);
+        respuestaError(res, 500, 'No se pudo descargar el reporte');
+      }
+    });
+  } catch (error) {
+    return responderErrorReporte(res, error, 'error descargarReporte:');
+  }
+};

@@ -6,70 +6,51 @@ export class ReporteRepository {
     return AppDataSource.getRepository('Reporte');
   }
 
-  // Creo un nuevo reporte y lo guardo en la base de datos
   static async crear(datos) {
     const repo = this.getRepository();
-    const reporte = repo.create(datos);
-    return repo.save(reporte);
+    return repo.save(repo.create(datos));
   }
 
-  // Busco un reporte por su ID con los datos del usuario que lo generó y la emergencia
+  static consultaPublica(incluirSnapshot = false) {
+    const campos = [
+      'reporte.id',
+      'reporte.emergencia_id',
+      'reporte.generado_por',
+      'reporte.nombre_archivo',
+      'reporte.archivo_url',
+      'reporte.generado_en',
+      'emergencia.id',
+      'emergencia.nombre',
+      'emergencia.estado',
+      'generadoPor.id',
+      'generadoPor.nombre',
+      'generadoPor.rol',
+    ];
+    if (incluirSnapshot) campos.push('reporte.datos_snapshot');
+
+    return this.getRepository()
+      .createQueryBuilder('reporte')
+      .leftJoin('reporte.emergencia', 'emergencia')
+      .leftJoin('reporte.generadoPor', 'generadoPor')
+      .select(campos);
+  }
+
   static async buscarPorId(id) {
-    return this.getRepository().findOne({
-      where: { id: Number(id) },
-      relations: {
-        generadoPor: true,
-        emergencia: true,
-      },
-      // Solo devuelvo campos públicos del usuario, nunca la contraseña
-      select: {
-        generadoPor: {
-          id: true,
-          nombre: true,
-          rut: true,
-          correo: true,
-          rol: true,
-        },
-      },
-    });
+    return this.consultaPublica(true)
+      .where('reporte.id = :id', { id: Number(id) })
+      .getOne();
   }
 
-  // Devuelvo todos los reportes ordenados del más reciente al más antiguo
   static async listarTodos() {
-    return this.getRepository().find({
-      order: { generado_en: 'DESC' },
-      relations: {
-        generadoPor: true,
-      },
-      select: {
-        generadoPor: {
-          id: true,
-          nombre: true,
-          rut: true,
-          correo: true,
-          rol: true,
-        },
-      },
-    });
+    return this.consultaPublica(false)
+      .orderBy('reporte.generado_en', 'DESC')
+      .getMany();
   }
 
-  // Devuelvo los reportes de una emergencia específica, del más reciente al más antiguo
   static async listarPorEmergencia(emergenciaId) {
-    return this.getRepository().find({
-      where: { emergencia_id: Number(emergenciaId) },
-      order: { generado_en: 'DESC' },
-      relations: {
-        generadoPor: true,
-      },
-      select: {
-        generadoPor: {
-          id: true,
-          nombre: true,
-          rut: true,
-          correo: true,
-          rol: true,
-        },
-      },
-    });
+    return this.consultaPublica(false)
+      .where('reporte.emergencia_id = :emergenciaId', { emergenciaId: Number(emergenciaId) })
+      .orderBy('reporte.generado_en', 'DESC')
+      .getMany();
   }
 }

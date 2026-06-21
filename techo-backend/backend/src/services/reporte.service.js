@@ -3,7 +3,7 @@ import AppDataSource from '../config/database.js';
 import { ReporteRepository } from '../repositories/reporte.repository.js';
 import { generarPdfReporte } from './reporte-pdf.service.js';
 import { randomUUID } from 'node:crypto';
-import { mkdir, unlink } from 'node:fs/promises';
+import { mkdir, stat, unlink } from 'node:fs/promises';
 import path from 'node:path';
 
 const ESTADOS_CUADRILLA_ACTIVA = new Set(['activa', 'en_progreso']);
@@ -11,6 +11,22 @@ const TIPOS_HITO = new Set(['avance', 'finalizado']);
 const NO_REGISTRADO = 'No registrado';
 
 const DIRECTORIO_REPORTES = path.resolve(process.cwd(), 'uploads', 'reportes');
+
+export const resolverRutaReporteSegura = (nombreArchivo) => {
+  if (
+    typeof nombreArchivo !== 'string'
+    || path.basename(nombreArchivo) !== nombreArchivo
+    || !nombreArchivo.toLowerCase().endsWith('.pdf')
+  ) {
+    throw new ReporteServiceError('Nombre de archivo de reporte invalido', 400);
+  }
+
+  const ruta = path.resolve(DIRECTORIO_REPORTES, nombreArchivo);
+  if (path.dirname(ruta) !== DIRECTORIO_REPORTES) {
+    throw new ReporteServiceError('Ruta de reporte invalida', 400);
+  }
+  return ruta;
+};
 
 export class ReporteServiceError extends Error {
   constructor(mensaje, statusCode = 400, datos = null) {
@@ -393,5 +409,67 @@ export class ReporteService {
       if (error instanceof ReporteServiceError) throw error;
       throw new ReporteServiceError('No se pudo generar el reporte PDF', 500);
     }
+  }
+
+  static reporteListadoDTO(reporte) {
+    return {
+      id: reporte.id,
+      emergencia_id: reporte.emergencia_id,
+      emergencia: reporte.emergencia
+        ? { id: reporte.emergencia.id, nombre: reporte.emergencia.nombre, estado: reporte.emergencia.estado }
+        : null,
+      generado_por: reporte.generadoPor
+        ? { id: reporte.generadoPor.id, nombre: reporte.generadoPor.nombre, rol: reporte.generadoPor.rol }
+        : null,
+      nombre_archivo: reporte.nombre_archivo,
+      generado_en: reporte.generado_en,
+    };
+  }
+
+  static async listarReportes(emergenciaId = null) {
+    let reportes;
+    if (emergenciaId !== null && emergenciaId !== undefined && emergenciaId !== '') {
+      const id = Number(emergenciaId);
+      if (!Number.isInteger(id) || id <= 0) {
+        throw new ReporteServiceError('El ID de la emergencia no es valido', 400);
+      }
+      reportes = await ReporteRepository.listarPorEmergencia(id);
+    } else {
+      reportes = await ReporteRepository.listarTodos();
+    }
+    return reportes.map((reporte) => this.reporteListadoDTO(reporte));
+  }
+
+  static async obtenerDetalleReporte(reporteId) {
+    const id = Number(reporteId);
+    if (!Number.isInteger(id) || id <= 0) {
+      throw new ReporteServiceError('El ID del reporte no es valido', 400);
+    }
+    const reporte = await ReporteRepository.buscarPorId(id);
+    if (!reporte) throw new ReporteServiceError('Reporte no encontrado', 404);
+
+    return {
+      ...this.reporteListadoDTO(reporte),
+      datos_snapshot: reporte.datos_snapshot,
+    };
+  }
+
+  static async obtenerArchivoReporte(reporteId) {
+    const id = Number(reporteId);
+    if (!Number.isInteger(id) || id <= 0) {
+      throw new ReporteServiceError('El ID del reporte no es valido', 400);
+    }
+    const reporte = await ReporteRepository.buscarPorId(id);
+    if (!reporte) throw new ReporteServiceError('Reporte no encontrado', 404);
+
+    const ruta = resolverRutaReporteSegura(reporte.nombre_archivo);
+    try {
+      const informacion = await stat(ruta);
+      if (!informacion.isFile()) throw new Error('No es un archivo');
+    } catch {
+      throw new ReporteServiceError('El archivo del reporte no existe', 404);
+    }
+
+    return { ruta, nombreArchivo: reporte.nombre_archivo };
   }
 }
