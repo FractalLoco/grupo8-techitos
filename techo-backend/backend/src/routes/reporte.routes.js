@@ -1,6 +1,6 @@
 'use strict';
 import { Router } from 'express';
-import { validarDatosEmergencia } from '../controllers/reporte.controller.js';
+import { generarReporteEmergencia, validarDatosEmergencia } from '../controllers/reporte.controller.js';
 import { authMiddleware } from '../middleware/auth.middleware.js';
 import { roleMiddleware } from '../middleware/role.middleware.js';
 
@@ -11,6 +11,13 @@ router.get(
   authMiddleware,
   roleMiddleware('coordinador'),
   validarDatosEmergencia,
+);
+
+router.post(
+  '/emergencia/:emergenciaId',
+  authMiddleware,
+  roleMiddleware('coordinador'),
+  generarReporteEmergencia,
 );
 
 export default router;

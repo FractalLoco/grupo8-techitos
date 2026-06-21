@@ -1,15 +1,23 @@
 'use strict';
 import AppDataSource from '../config/database.js';
+import { ReporteRepository } from '../repositories/reporte.repository.js';
+import { generarPdfReporte } from './reporte-pdf.service.js';
+import { randomUUID } from 'node:crypto';
+import { mkdir, unlink } from 'node:fs/promises';
+import path from 'node:path';
 
 const ESTADOS_CUADRILLA_ACTIVA = new Set(['activa', 'en_progreso']);
 const TIPOS_HITO = new Set(['avance', 'finalizado']);
 const NO_REGISTRADO = 'No registrado';
 
+const DIRECTORIO_REPORTES = path.resolve(process.cwd(), 'uploads', 'reportes');
+
 export class ReporteServiceError extends Error {
-  constructor(mensaje, statusCode = 400) {
+  constructor(mensaje, statusCode = 400, datos = null) {
     super(mensaje);
     this.name = 'ReporteServiceError';
     this.statusCode = statusCode;
+    this.datos = datos;
   }
 }
 
@@ -345,5 +353,45 @@ export class ReporteService {
   static async construirSnapshot(emergenciaId, fechaGeneracion = new Date()) {
     const datos = await this.obtenerDatosOperativos(emergenciaId);
     return construirSnapshotReporte(datos, fechaGeneracion);
+  }
+
+  static async generarReporte(emergenciaId, usuarioId, confirmarConAdvertencias = false) {
+    const snapshot = await this.construirSnapshot(emergenciaId);
+    if (snapshot.advertencias.length > 0 && confirmarConAdvertencias !== true) {
+      throw new ReporteServiceError(
+        'La emergencia tiene advertencias pendientes de confirmacion',
+        409,
+        { advertencias: snapshot.advertencias },
+      );
+    }
+
+    const idEmergencia = Number(emergenciaId);
+    const nombreArchivo = `reporte-emergencia-${idEmergencia}-${Date.now()}-${randomUUID()}.pdf`;
+    const rutaArchivo = path.join(DIRECTORIO_REPORTES, nombreArchivo);
+    const archivoUrl = `/uploads/reportes/${nombreArchivo}`;
+
+    await mkdir(DIRECTORIO_REPORTES, { recursive: true });
+    try {
+      await generarPdfReporte(snapshot, rutaArchivo);
+      const reporte = await ReporteRepository.crear({
+        emergencia_id: idEmergencia,
+        generado_por: Number(usuarioId),
+        nombre_archivo: nombreArchivo,
+        archivo_url: archivoUrl,
+        datos_snapshot: snapshot,
+      });
+
+      return {
+        id: reporte.id,
+        emergencia_id: reporte.emergencia_id,
+        nombre_archivo: reporte.nombre_archivo,
+        generado_en: reporte.generado_en,
+        advertencias: snapshot.advertencias,
+      };
+    } catch (error) {
+      await unlink(rutaArchivo).catch(() => {});
+      if (error instanceof ReporteServiceError) throw error;
+      throw new ReporteServiceError('No se pudo generar el reporte PDF', 500);
+    }
   }
 }
