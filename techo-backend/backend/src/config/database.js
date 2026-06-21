@@ -16,6 +16,7 @@ import { ObraEntity } from '../entity/obra.entity.js';
 import { NotificacionEntity } from '../entity/notificacion.entity.js';
 import { ZonaPeligroEntity } from '../entity/zona-peligro.entity.js';
 import { SolicitudEntity } from '../entity/solicitud.entity.js';
+import { ReporteEntity } from '../entity/reporte.entity.js';
 
 dotenv.config();
 
@@ -44,6 +45,7 @@ const AppDataSource = new DataSource({
     NotificacionEntity,
     ZonaPeligroEntity,
     SolicitudEntity,
+    ReporteEntity,
   ],
 });
 
