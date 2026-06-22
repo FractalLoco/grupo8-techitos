@@ -16,6 +16,7 @@ const accesosPorRol = {
     { label: 'Emergencias', path: '/emergencias', desc: 'Administrar emergencias activas y familias afectadas' },
     { label: 'Comunicaciones', path: '/comunicaciones', desc: 'Mensajes de cuadrilla y anuncios generales' },
     { label: 'Usuarios', path: '/usuarios', desc: 'Activar cuentas y gestionar roles del equipo' },
+    { label: 'Reportes', path: '/reportes', desc: 'Generar reportes PDF con snapshot de datos de emergencia' },
   ],
   jefe_cuadrilla: [
     { label: 'Mi Cuadrilla', path: '/cuadrillas', desc: 'Ver el estado de tu cuadrilla, actualizar fase y enviar alertas' },
@@ -38,6 +39,7 @@ const iconosPorPath = {
   '/comunicaciones':'M8 10h8m-8 4h5m-6 6h12a2 2 0 002-2v-6a2 2 0 00-2-2h-1l-3-3H7a2 2 0 00-2 2v9a2 2 0 002 2z',
   '/usuarios':      'M18 9a3 3 0 11-6 0 3 3 0 016 0zm-9 11a4 4 0 118 0H9zm-2-8a2 2 0 100-4 2 2 0 000 4z',
   '/inventario':    'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2',
+  '/reportes':      'M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z',
 };
 
 const coloresPorPath = {
@@ -48,6 +50,7 @@ const coloresPorPath = {
   '/comunicaciones':'from-purple-600 to-indigo-700',
   '/usuarios':      'from-techo-success to-emerald-700',
   '/inventario':    'from-slate-500 to-slate-700',
+  '/reportes':      'from-techo-accent to-amber-600',
 };
 
 export default function Inicio() {

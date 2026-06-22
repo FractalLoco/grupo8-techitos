@@ -18,7 +18,7 @@ const app = express();
 app.use(cors());
 // Permito recibir cuerpos de solicitud en formato JSON
 app.use(express.json());
-app.use('/uploads', express.static(path.resolve(process.cwd(), 'uploads')));
+app.use('/uploads/chat', express.static(path.resolve(process.cwd(), 'uploads', 'chat')));
 
 // Registro todas las rutas bajo el prefijo /api
 app.use('/api', routes);

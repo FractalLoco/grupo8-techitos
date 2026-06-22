@@ -215,8 +215,6 @@ function Comunicaciones() {
 
     setFoto(archivo);
     setEsEmergencia(false);
-    setRegistrarHito(false);
-    setHitoFinalizado(false);
     setPrioridadAlta(false);
   };
 
@@ -242,10 +240,14 @@ function Comunicaciones() {
 
     try {
       if (foto) {
-        const mensajeNuevo = await enviarFotoAvance(Number(cuadrillaId), foto, contenido);
+        const tipoHito = registrarHito ? (hitoFinalizado ? 'finalizado' : 'avance') : null;
+        const mensajeNuevo = await enviarFotoAvance(Number(cuadrillaId), foto, contenido, tipoHito);
         setMensajes((previo) => [...previo, mensajeNuevo]);
         setContenido('');
         quitarFoto();
+        setRegistrarHito(false);
+        setHitoFinalizado(false);
+        setPrioridadAlta(false);
         return;
       }
 
@@ -437,7 +439,7 @@ function Comunicaciones() {
                             </span>
                           )}
                         </div>
-                        {mensaje.tipo === 'imagen' && mensaje.archivo_url && (
+                        {mensaje.archivo_url && (
                           <a
                             href={obtenerUrlArchivo(mensaje.archivo_url)}
                             target="_blank"
@@ -447,18 +449,20 @@ function Comunicaciones() {
                           >
                             <img
                               src={obtenerUrlArchivo(mensaje.archivo_url)}
-                              alt={mensaje.contenido || 'Foto de avance de la cuadrilla'}
+                              alt={mensaje.contenido || (mensaje.tipo === 'finalizado'
+                                ? 'Foto de finalizacion de la obra'
+                                : 'Foto de avance de la cuadrilla')}
                               className="max-h-80 w-full rounded-xl object-cover"
                               loading="lazy"
                             />
                           </a>
                         )}
                         {mensaje.contenido && (
-                          <p className={`text-sm leading-relaxed ${mensaje.tipo === 'imagen' ? 'mt-2' : ''}`}>
+                          <p className={`text-sm leading-relaxed ${mensaje.archivo_url ? 'mt-2' : ''}`}>
                             {mensaje.contenido}
                           </p>
                         )}
-                        {!mensaje.contenido && mensaje.tipo !== 'imagen' && (
+                        {!mensaje.contenido && !mensaje.archivo_url && (
                           <p className="text-sm leading-relaxed">Mensaje sin contenido</p>
                         )}
                         <p className={`text-[11px] mt-2 ${esPropio ? 'text-white/70' : 'text-slate-400'}`}>
@@ -477,7 +481,7 @@ function Comunicaciones() {
                   <div className="rounded-xl border border-slate-200 bg-white/80 p-3">
                     <div className="flex flex-wrap items-center gap-3">
                       <label className="cursor-pointer rounded-lg bg-slate-100 px-4 py-2 text-xs font-semibold text-techo-primary hover:bg-slate-200">
-                        Seleccionar foto de avance
+                        Adjuntar foto
                         <input
                           ref={inputFotoRef}
                           type="file"
@@ -526,7 +530,15 @@ function Comunicaciones() {
                     className="px-5 py-3 rounded-xl bg-techo-secondary text-white text-sm font-semibold shadow-lg hover:shadow-xl transition-all disabled:opacity-60"
                     disabled={cargando}
                   >
-                    {cargando ? 'Enviando...' : (foto ? 'Enviar foto' : 'Enviar mensaje')}
+                    {cargando
+                      ? 'Enviando...'
+                      : foto && registrarHito
+                        ? (hitoFinalizado ? 'Finalizar con foto' : 'Registrar hito con foto')
+                        : foto
+                          ? 'Enviar foto'
+                          : registrarHito
+                            ? (hitoFinalizado ? 'Finalizar obra' : 'Registrar hito')
+                            : 'Enviar mensaje'}
                   </button>
                 </div>
                 <label className="flex items-center gap-2 text-xs text-slate-500">
@@ -565,7 +577,6 @@ function Comunicaciones() {
                           onChange={(e) => {
                             setRegistrarHito(e.target.checked);
                             if (e.target.checked) {
-                              quitarFoto();
                               setEsEmergencia(false);
                               setPrioridadAlta(false);
                             }
@@ -583,9 +594,6 @@ function Comunicaciones() {
                         Finalizado
                       </label>
                     </div>
-                    <p className="text-[11px] text-slate-500">
-                      Si marcas un hito, el botón enviará esa acción sin abrir otro campo.
-                    </p>
                   </div>
                 )}
               </form>
