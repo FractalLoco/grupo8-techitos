@@ -349,8 +349,8 @@ export class ReporteService {
         `SELECT m.*, u.nombre AS remitente_nombre
          FROM mensajes m
          JOIN usuarios u ON u.id = m.remitente_id
-         JOIN cuadrillas c ON c.id = m.cuadrilla_id
-         WHERE c.emergencia_id = $1
+         LEFT JOIN cuadrillas c ON c.id = m.cuadrilla_id
+         WHERE (c.emergencia_id = $1 OR m.cuadrilla_id IS NULL)
            AND m.tipo IN ('avance', 'finalizado', 'emergencia')
          ORDER BY m.creado_en`,
         [id],
@@ -401,7 +401,9 @@ export class ReporteService {
         id: reporte.id,
         emergencia_id: reporte.emergencia_id,
         nombre_archivo: reporte.nombre_archivo,
+        archivo_url: reporte.archivo_url,
         generado_en: reporte.generado_en,
+        datos_snapshot: snapshot,
         advertencias: snapshot.advertencias,
       };
     } catch (error) {

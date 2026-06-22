@@ -168,11 +168,6 @@ const agregarIncidentes = (doc, snapshot) => {
   ));
 };
 
-const agregarVoluntarios = (doc, snapshot) => {
-  tituloSeccion(doc, 'Voluntarios movilizados');
-  listaSimple(doc, snapshot.voluntarios, (voluntario) => voluntario.nombre);
-};
-
 const agregarAdvertencias = (doc, snapshot) => {
   tituloSeccion(doc, 'Advertencias al generar');
   if (snapshot.advertencias.length === 0) {
@@ -229,7 +224,6 @@ export const generarPdfReporte = (snapshot, rutaArchivo) => new Promise((resolve
   agregarObras(doc, snapshot);
   agregarHerramientas(doc, snapshot);
   agregarIncidentes(doc, snapshot);
-  agregarVoluntarios(doc, snapshot);
   agregarAdvertencias(doc, snapshot);
   agregarEncabezadosYPies(doc, snapshot);
   doc.end();
