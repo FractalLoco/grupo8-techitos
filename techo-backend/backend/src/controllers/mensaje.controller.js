@@ -72,6 +72,14 @@ export const enviarFotoCuadrilla = async (req, res) => {
       return respuestaError(res, 400, 'Formato no permitido. Usa JPG, PNG o WebP');
     }
 
+    const tipoHitoRecibido = typeof req.body.tipo_hito === 'string'
+      ? req.body.tipo_hito.toLowerCase()
+      : null;
+    if (tipoHitoRecibido && !['avance', 'finalizado'].includes(tipoHitoRecibido)) {
+      return respuestaError(res, 400, 'Tipo de hito invalido. Usa avance o finalizado');
+    }
+    const tipoHito = tipoHitoRecibido;
+
     await mkdir(DIRECTORIO_FOTOS, { recursive: true });
     const nombreArchivo = `${randomUUID()}.${extension}`;
     rutaGuardada = path.join(DIRECTORIO_FOTOS, nombreArchivo);
@@ -84,14 +92,19 @@ export const enviarFotoCuadrilla = async (req, res) => {
     const mensaje = await MensajeService.enviarMensaje({
       cuadrilla_id: cuadrillaId,
       remitente_id: req.usuario.id,
-      tipo: 'imagen',
+      tipo: tipoHito || 'imagen',
       contenido,
       archivo_url: archivoUrl,
       prioridad: false,
     });
 
     rutaGuardada = null;
-    return respuestaExito(res, 201, 'Foto de avance enviada', {
+    const mensajeRespuesta = tipoHito === 'finalizado'
+      ? 'Finalizacion registrada con foto'
+      : tipoHito === 'avance'
+        ? 'Hito de avance registrado con foto'
+        : 'Foto de avance enviada';
+    return respuestaExito(res, 201, mensajeRespuesta, {
       mensaje: MensajeService.toDTO(mensaje, req.usuario?.nombre || null),
     });
   } catch (error) {

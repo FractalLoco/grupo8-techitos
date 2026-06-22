@@ -45,10 +45,11 @@ export async function enviarMensaje(payload) {
   return datos.mensaje;
 }
 
-export async function enviarFotoAvance(cuadrillaId, foto, contenido = '') {
+export async function enviarFotoAvance(cuadrillaId, foto, contenido = '', tipoHito = null) {
   const formulario = new FormData();
   formulario.append('foto', foto);
   if (contenido.trim()) formulario.append('contenido', contenido.trim());
+  if (tipoHito) formulario.append('tipo_hito', tipoHito);
 
   const token = localStorage.getItem('token');
   const respuesta = await fetch(

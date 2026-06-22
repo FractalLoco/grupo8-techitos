@@ -235,6 +235,7 @@ export const construirSnapshotReporte = (datos, fechaGeneracion = new Date()) =>
           contenido: valorRegistrado(mensaje.contenido),
           fecha: mensaje.creado_en,
           remitente: mensaje.remitente_nombre,
+          archivo_url: mensaje.archivo_url || null,
         })),
       alertas: {
         emergencia: cuadrilla.alerta_emergencia
@@ -301,6 +302,7 @@ export const construirSnapshotReporte = (datos, fechaGeneracion = new Date()) =>
         descripcion: valorRegistrado(mensaje.contenido),
         fecha: mensaje.creado_en,
         remitente: mensaje.remitente_nombre,
+        archivo_url: mensaje.archivo_url || null,
       })),
     voluntarios: [...voluntarios.values()],
     advertencias,

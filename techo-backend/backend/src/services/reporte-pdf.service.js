@@ -1,12 +1,16 @@
 'use strict';
 import PDFDocument from 'pdfkit';
 import { createWriteStream } from 'node:fs';
+import { readFile } from 'node:fs/promises';
+import path from 'node:path';
+import sharp from 'sharp';
 
 const COLOR_PRIMARIO = '#163B63';
 const COLOR_SECUNDARIO = '#1597BB';
 const COLOR_TEXTO = '#263746';
 const COLOR_SUAVE = '#EEF4F7';
 const COLOR_ALERTA = '#A86700';
+const DIRECTORIO_FOTOS_CHAT = path.resolve(process.cwd(), 'uploads', 'chat');
 
 const fechaLegible = (valor) => {
   if (!valor || valor === 'No registrado') return 'No registrado';
@@ -109,7 +113,31 @@ const agregarResumen = (doc, snapshot) => {
   doc.y = y + 68;
 };
 
-const agregarCuadrillas = (doc, snapshot) => {
+const agregarFoto = async (doc, archivoUrl) => {
+  if (!archivoUrl) return;
+  try {
+    if (!archivoUrl.startsWith('/uploads/chat/')) throw new Error('Ruta de foto no permitida');
+    const nombreArchivo = path.basename(archivoUrl);
+    const ruta = path.resolve(DIRECTORIO_FOTOS_CHAT, nombreArchivo);
+    if (path.dirname(ruta) !== DIRECTORIO_FOTOS_CHAT) throw new Error('Ruta de foto no permitida');
+
+    let buffer = await readFile(ruta);
+    if (path.extname(nombreArchivo).toLowerCase() === '.webp') {
+      buffer = await sharp(buffer).png().toBuffer();
+    }
+    const anchoMax = 200;
+    const altoMax = 150;
+    asegurarEspacio(doc, altoMax + 20);
+    doc.image(buffer, doc.page.margins.left + 20, doc.y, { fit: [anchoMax, altoMax], align: 'center' });
+    doc.y += altoMax + 10;
+  } catch (error) {
+    asegurarEspacio(doc, 25);
+    doc.font('Helvetica-Oblique').fontSize(8).fillColor(COLOR_ALERTA)
+      .text(`Evidencia fotografica no disponible (${error.message})`, { indent: 8 });
+  }
+};
+
+const agregarCuadrillas = async (doc, snapshot) => {
   tituloSeccion(doc, 'Cuadrillas e integrantes');
   if (snapshot.cuadrillas.length === 0) {
     listaSimple(doc, [], () => '');
@@ -126,6 +154,22 @@ const agregarCuadrillas = (doc, snapshot) => {
     filaDato(doc, 'Cumplimiento de plazo', cuadrilla.cumplimiento_plazo);
     doc.font('Helvetica-Bold').fontSize(9).fillColor(COLOR_PRIMARIO).text('Integrantes:');
     listaSimple(doc, cuadrilla.integrantes, (item) => `${item.nombre} (${item.rol}) - ${item.habilidades}`);
+
+    // Hitos con fotos
+    if (cuadrilla.hitos && cuadrilla.hitos.length > 0) {
+      doc.moveDown(0.3);
+      doc.font('Helvetica-Bold').fontSize(9).fillColor(COLOR_PRIMARIO).text('Avances:');
+      for (const hito of cuadrilla.hitos) {
+        asegurarEspacio(doc, 40);
+        doc.font('Helvetica-Oblique').fontSize(8).fillColor('#637381')
+          .text(`${fechaLegible(hito.fecha)} — ${hito.remitente}`, { indent: 8 });
+        doc.font('Helvetica').fontSize(9).fillColor(COLOR_TEXTO)
+          .text(hito.contenido, { indent: 8, paragraphGap: 2 });
+        if (hito.archivo_url) {
+          await agregarFoto(doc, hito.archivo_url);
+        }
+      }
+    }
     doc.moveDown(0.5);
   }
 };
@@ -161,11 +205,24 @@ const agregarHerramientas = (doc, snapshot) => {
   }
 };
 
-const agregarIncidentes = (doc, snapshot) => {
+const agregarIncidentes = async (doc, snapshot) => {
   tituloSeccion(doc, 'Incidentes y alertas');
-  listaSimple(doc, snapshot.incidentes, (incidente) => (
-    `${fechaLegible(incidente.fecha)} - Cuadrilla #${incidente.cuadrilla_id} - ${incidente.descripcion} - Reportado por ${incidente.remitente}`
-  ));
+  if (snapshot.incidentes.length === 0) {
+    doc.font('Helvetica-Oblique').fontSize(9).fillColor('#637381').text('Sin incidentes registrados.');
+    return;
+  }
+  for (const incidente of snapshot.incidentes) {
+    asegurarEspacio(doc, 40);
+    doc.font('Helvetica').fontSize(9).fillColor(COLOR_TEXTO);
+    doc.text(`- ${fechaLegible(incidente.fecha)} — Cuadrilla #${incidente.cuadrilla_id}`, { indent: 8 });
+    doc.font('Helvetica-Oblique').fontSize(8).fillColor('#637381')
+      .text(`  Reportado por: ${incidente.remitente}`, { indent: 8 });
+    doc.font('Helvetica').fontSize(9).fillColor(COLOR_TEXTO)
+      .text(`  ${incidente.descripcion}`, { indent: 8, paragraphGap: 2 });
+    if (incidente.archivo_url) {
+      await agregarFoto(doc, incidente.archivo_url);
+    }
+  }
 };
 
 const agregarAdvertencias = (doc, snapshot) => {
@@ -200,7 +257,7 @@ const agregarEncabezadosYPies = (doc, snapshot) => {
   }
 };
 
-export const generarPdfReporte = (snapshot, rutaArchivo) => new Promise((resolve, reject) => {
+export const generarPdfReporte = async (snapshot, rutaArchivo) => {
   const doc = new PDFDocument({
     size: 'A4',
     margins: { top: 58, right: 54, bottom: 54, left: 54 },
@@ -211,20 +268,29 @@ export const generarPdfReporte = (snapshot, rutaArchivo) => new Promise((resolve
       Subject: 'Consolidado operativo de emergencia',
     },
   });
-  const salida = createWriteStream(rutaArchivo, { flags: 'wx' });
-  salida.on('finish', () => resolve(rutaArchivo));
-  salida.on('error', reject);
-  doc.on('error', reject);
-  doc.pipe(salida);
 
-  agregarPortada(doc, snapshot);
-  agregarResumen(doc, snapshot);
-  agregarCuadrillas(doc, snapshot);
-  agregarFamilias(doc, snapshot);
-  agregarObras(doc, snapshot);
-  agregarHerramientas(doc, snapshot);
-  agregarIncidentes(doc, snapshot);
-  agregarAdvertencias(doc, snapshot);
-  agregarEncabezadosYPies(doc, snapshot);
-  doc.end();
-});
+  return new Promise((resolve, reject) => {
+    const salida = createWriteStream(rutaArchivo, { flags: 'wx' });
+    salida.on('finish', () => resolve(rutaArchivo));
+    salida.on('error', reject);
+    doc.on('error', reject);
+    doc.pipe(salida);
+
+    (async () => {
+      try {
+        await agregarPortada(doc, snapshot);
+        await agregarResumen(doc, snapshot);
+        await agregarCuadrillas(doc, snapshot);
+        await agregarFamilias(doc, snapshot);
+        await agregarObras(doc, snapshot);
+        await agregarHerramientas(doc, snapshot);
+        await agregarIncidentes(doc, snapshot);
+        await agregarAdvertencias(doc, snapshot);
+        agregarEncabezadosYPies(doc, snapshot);
+        doc.end();
+      } catch (err) {
+        reject(err);
+      }
+    })();
+  });
+};
