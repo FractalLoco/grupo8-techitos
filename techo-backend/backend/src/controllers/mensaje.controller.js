@@ -169,38 +169,9 @@ export const dashboardPublico = async (req, res) => {
        FROM miembros_cuadrilla mc
        JOIN usuarios u ON u.id = mc.voluntario_id
        JOIN cuadrillas c ON c.id = mc.cuadrilla_id
-       WHERE u.rol = 'voluntario' AND c.estado IN ('activa', 'en_progreso')`
+       WHERE u.rol = 'voluntario' AND c.estado = 'activa'`
     );
-    const voluntariosDesplegados = resultadoVoluntarios[0]?.count ?? 0;
-
-    // Cuadrillas activas
-    const resultadoCuadrillas = await AppDataSource.query(
-      "SELECT COUNT(*)::int AS count FROM cuadrillas WHERE estado IN ('activa', 'en_progreso')"
-    );
-    const cuadrillasActivas = resultadoCuadrillas[0]?.count ?? 0;
-
-    // Emergencias activas
-    const resultadoEmergencias = await AppDataSource.query(
-      "SELECT COUNT(*)::int AS count FROM emergencias WHERE estado = 'activa'"
-    );
-    const emergenciasActivas = resultadoEmergencias[0]?.count ?? 0;
-
-    // Última actualización: la fecha más reciente entre todas las tablas operativas
-    const resultadoFecha = await AppDataSource.query(`
-      SELECT GREATEST(
-        (SELECT MAX(creado_en) FROM mensajes),
-        (SELECT MAX(fecha_creacion) FROM cuadrillas),
-        (SELECT MAX(fecha_inicio) FROM emergencias),
-        (SELECT MAX(fecha_creacion) FROM obras),
-        (SELECT MAX(creado_en) FROM familias)
-      ) AS ultima_actualizacion
-    `);
-    const ultimaActualizacion = resultadoFecha[0]?.ultima_actualizacion ?? null;
-
-    // Aviso solo cuando nunca ha habido actividad
-    const aviso = ultimaActualizacion === null
-      ? 'Todavía no hay actualizaciones operativas registradas'
-      : null;
+    const cuadrillasAct = await AppDataSource.query("SELECT COUNT(*)::int as count FROM cuadrillas WHERE estado = 'activa'");
 
     const datos = {
       casas_finalizadas: casasFinalizadas,
