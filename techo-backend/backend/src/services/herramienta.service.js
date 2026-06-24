@@ -56,6 +56,15 @@ export class HerramientaService {
     return { ...balance, alerta_activada: balance.conDiferencias };
   }
 
+  // Devuelvo el resumen de inventario de herramientas agrupado por cuadrilla para toda la emergencia
+  static async inventarioTotal() {
+    return HerramientaRepository.inventarioTotal();
+  }
+
+  static async resumenPorEmergencia(emergenciaId) {
+    return HerramientaRepository.resumenPorEmergencia(emergenciaId);
+  }
+
   // Registro múltiples herramientas en lote para agilizar el proceso de preparación de la cuadrilla
   static async registrarHerramientasMasivas(cuadrillaId, nombres) {
     const resultados = [];

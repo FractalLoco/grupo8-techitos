@@ -7,6 +7,7 @@ import dotenv from 'dotenv';
 import { initDatabase } from './config/database.js';
 // Importo el enrutador principal que agrupa todas las rutas de la API
 import routes from './routes/index.js';
+import path from 'node:path';
 
 // Cargo las variables de entorno desde el archivo .env
 dotenv.config();
@@ -17,6 +18,7 @@ const app = express();
 app.use(cors());
 // Permito recibir cuerpos de solicitud en formato JSON
 app.use(express.json());
+app.use('/uploads/chat', express.static(path.resolve(process.cwd(), 'uploads', 'chat')));
 
 // Registro todas las rutas bajo el prefijo /api
 app.use('/api', routes);

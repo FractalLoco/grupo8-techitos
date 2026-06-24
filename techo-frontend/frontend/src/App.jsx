@@ -1,5 +1,5 @@
 // Importo los componentes de React Router para manejar la navegación entre páginas
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route } from 'react-router-dom';
 // Envuelvo toda la app con el proveedor de autenticación para que cualquier componente acceda al usuario
 import { ProveedorAutenticacion } from './context/AuthContext';
 // Importo el guardián de rutas que bloquea el acceso según autenticación y rol
@@ -7,6 +7,7 @@ import RutaProtegida from './components/RutaProtegida';
 // Importo el componente genérico para páginas aún en construcción
 import Proximamente from './components/Próximamente';
 // Importo todas las páginas de la aplicación
+import Presentacion from './pages/Presentacion';
 import Login from './pages/Login';
 import Registro from './pages/Registro';
 import Inicio from './pages/Inicio';
@@ -17,6 +18,9 @@ import NotFound from './pages/NotFound';
 import GestionUsuarios from './pages/GestionUsuarios';
 import GestionCuadrillas from './pages/GestionCuadrillas';
 import MapaInteractivo from './pages/MapaInteractivo';
+import GestionHerramientas from './pages/GestionHerramientas';
+import GestionInventario from './pages/GestionInventario';
+import Reportes from './pages/Reportes';
 
 function Aplicacion() {
   return (
@@ -25,8 +29,8 @@ function Aplicacion() {
     <ProveedorAutenticacion>
       <BrowserRouter>
         <Routes>
-          {/* Redirijo la raíz directamente al login para que nadie aterrice en una página vacía */}
-          <Route path="/" element={<Navigate to="/auth/iniciar-sesion" replace />} />
+          {/* Ruta raíz: página de presentación pública */}
+          <Route path="/" element={<Presentacion />} />
 
           {/* Rutas públicas: no requieren sesión iniciada */}
           <Route path="/auth/iniciar-sesion" element={<Login />} />
@@ -73,14 +77,38 @@ function Aplicacion() {
 
           <Route path="/emergencias" element={<GestionEmergencias />}/>
 
-          {/* Herramientas se gestiona desde el panel de cuadrillas; dejamos placeholder por si se amplía */}
-          <Route path="/herramientas" element={<Proximamente titulo="Control de Herramientas" />} />
+          <Route
+            path="/herramientas"
+            element={
+              <RutaProtegida rolesPermitidos={['coordinador', 'jefe_cuadrilla']}>
+                <GestionHerramientas />
+              </RutaProtegida>
+            }
+          />
+
+          <Route
+            path="/inventario"
+            element={
+              <RutaProtegida rolesPermitidos={['coordinador']}>
+                <GestionInventario />
+              </RutaProtegida>
+            }
+          />
 
           <Route
             path="/usuarios"
             element={
               <RutaProtegida rolesPermitidos={['coordinador']}>
                 <GestionUsuarios />
+              </RutaProtegida>
+            }
+          />
+
+          <Route
+            path="/reportes"
+            element={
+              <RutaProtegida rolesPermitidos={['coordinador']}>
+                <Reportes />
               </RutaProtegida>
             }
           />

@@ -213,9 +213,12 @@ function Registro() {
               </button>
             </form>
 
-            <div className="mt-5 text-center">
-              <Link to="/auth/iniciar-sesion" className="text-techo-secondary hover:text-techo-secondary/80 text-sm font-medium">
+            <div className="mt-5 text-center space-y-2">
+              <Link to="/auth/iniciar-sesion" className="block text-techo-secondary hover:text-techo-secondary/80 text-sm font-medium">
                 ¿Ya tienes cuenta? Inicia sesión
+              </Link>
+              <Link to="/" className="block text-xs text-gray-300 hover:text-techo-primary transition-colors">
+                ← Volver a la presentación
               </Link>
             </div>
           </div>

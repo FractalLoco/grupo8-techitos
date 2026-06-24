@@ -262,15 +262,15 @@ function MapaInteractivo() {
       <div className="pt-[76px] flex flex-col" style={{ height: 'calc(100vh - 60px)' }}>
 
         {/* ── Barra superior de controles ──────────────────────────────────── */}
-        <div className="bg-white border-b border-gray-200 px-4 py-3 flex flex-wrap items-center gap-3 z-10 shadow-sm">
-          <div className="flex items-center gap-2">
+        <div className="bg-white border-b border-gray-200 px-4 py-3 flex flex-wrap items-center gap-3 z-10 shadow-md">
+          <div className="flex items-center gap-2 pr-3 border-r border-gray-200">
             <MdMap className="text-xl text-techo-primary" />
-            <span className="font-bold text-gray-800 text-sm">Mapa Interactivo</span>
+            <span className="font-bold text-techo-primary text-sm tracking-tight">Mapa Interactivo</span>
           </div>
 
           {/* Selector de emergencia */}
           <select
-            className="border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-techo-primary min-w-[200px]"
+            className="border border-gray-300 rounded-xl px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-techo-secondary min-w-[200px] bg-gray-50"
             value={emergenciaId}
             onChange={(e) => setEmergenciaId(e.target.value)}
           >
@@ -282,14 +282,14 @@ function MapaInteractivo() {
 
           {/* Filtro por color de estado */}
           {emergenciaId && (
-            <div className="flex items-center gap-1.5 flex-wrap">
-              <MdFilterList className="text-gray-500" />
+            <div className="flex items-center gap-1.5 flex-wrap pl-2 border-l border-gray-200">
+              <MdFilterList className="text-gray-400 text-base" />
               {Object.entries(COLORES_ESTADO).map(([k, v]) => (
                 <button
                   key={k}
                   onClick={() => setFiltroColor(filtroColor === k ? '' : k)}
-                  style={{ borderColor: filtroColor === k ? v.hex : undefined, backgroundColor: filtroColor === k ? v.hex + '20' : undefined }}
-                  className={`px-2 py-0.5 rounded-full text-xs font-semibold border transition-all ${filtroColor === k ? 'border-current' : 'border-gray-300 text-gray-500 hover:border-gray-400'}`}
+                  style={{ borderColor: filtroColor === k ? v.hex : undefined, backgroundColor: filtroColor === k ? v.hex + '22' : undefined, color: filtroColor === k ? v.hex : undefined }}
+                  className={`px-2.5 py-0.5 rounded-full text-xs font-semibold border transition-all ${filtroColor === k ? '' : 'border-gray-200 text-gray-500 hover:border-gray-400 bg-gray-50'}`}
                   title={v.label}
                 >
                   <span className="inline-block w-2 h-2 rounded-full mr-1" style={{ background: v.hex }}></span>
@@ -301,19 +301,23 @@ function MapaInteractivo() {
 
           {/* Toggles de capas */}
           {emergenciaId && (
-            <div className="flex items-center gap-2 ml-auto">
+            <div className="flex items-center gap-2 ml-auto pl-2 border-l border-gray-200">
               <ToggleLayer activo={mostrarObras} onClick={() => setMostrarObras(!mostrarObras)} label="Obras" icono={<MdOutlineConstruction />} />
               <ToggleLayer activo={mostrarFamilias} onClick={() => setMostrarFamilias(!mostrarFamilias)} label="Familias" icono={<MdHome />} />
               <ToggleLayer activo={mostrarZonas} onClick={() => setMostrarZonas(!mostrarZonas)} label="Zonas" icono={<MdWarning />} />
               {esCoordinador && (
                 <button
                   onClick={() => setModoCrearZona(!modoCrearZona)}
-                  className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all ${modoCrearZona ? 'bg-orange-500 text-white border-orange-500' : 'bg-white text-orange-600 border-orange-400 hover:bg-orange-50'}`}
+                  className={`flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs font-semibold border transition-all ${modoCrearZona ? 'bg-techo-accent text-white border-techo-accent shadow-sm' : 'bg-white text-orange-600 border-orange-300 hover:bg-orange-50'}`}
                 >
                   <MdAdd /> Zona peligro
                 </button>
               )}
-              <button onClick={cargarDatos} className="flex items-center gap-1 px-2.5 py-1.5 bg-gray-100 hover:bg-gray-200 rounded-lg text-xs text-gray-600 transition border border-gray-200">
+              <button
+                onClick={cargarDatos}
+                className="flex items-center gap-1 px-2.5 py-1.5 bg-gray-100 hover:bg-gray-200 rounded-xl text-xs text-gray-600 transition border border-gray-200"
+                title="Recargar datos"
+              >
                 <MdRefresh />
               </button>
             </div>
@@ -322,29 +326,39 @@ function MapaInteractivo() {
 
         {/* Toast */}
         {mensaje && (
-          <div className={`absolute top-[90px] left-1/2 -translate-x-1/2 z-[9999] flex items-center gap-2 px-4 py-2.5 rounded-lg shadow-lg text-sm font-medium ${mensaje.tipo === 'exito' ? 'bg-green-600 text-white' : 'bg-red-600 text-white'}`}>
-            {mensaje.tipo === 'exito' ? <MdCheckCircle /> : <MdError />}
+          <div className={`absolute top-[92px] left-1/2 -translate-x-1/2 z-[9999] flex items-center gap-2 px-5 py-2.5 rounded-xl shadow-xl text-sm font-semibold ${mensaje.tipo === 'exito' ? 'bg-techo-success text-white' : 'bg-techo-danger text-white'}`}>
+            {mensaje.tipo === 'exito' ? <MdCheckCircle className="text-lg" /> : <MdError className="text-lg" />}
             {mensaje.texto}
           </div>
         )}
 
-        {/* Aviso de modo colocar zona */}
+        {/* Banner: modo colocar zona */}
         {modoCrearZona && (
-          <div className="absolute top-[110px] left-1/2 -translate-x-1/2 z-[9998] bg-orange-500 text-white px-4 py-2 rounded-full text-sm font-semibold shadow-lg flex items-center gap-2">
-            <MdMyLocation /> Haz clic en el mapa para colocar la zona de peligro
+          <div className="absolute top-[112px] left-1/2 -translate-x-1/2 z-[9998] bg-techo-accent text-white px-5 py-2.5 rounded-full text-sm font-semibold shadow-xl flex items-center gap-2">
+            <MdMyLocation className="animate-pulse text-base" />
+            Haz clic en el mapa para colocar la zona de peligro
+            <button
+              onClick={() => setModoCrearZona(false)}
+              className="ml-1 hover:bg-white/20 rounded-full p-0.5 transition"
+              title="Cancelar"
+            >
+              <MdClose className="text-sm" />
+            </button>
           </div>
         )}
 
         {/* ── Mapa Leaflet ─────────────────────────────────────────────────── */}
         <div className="flex-1 relative">
           {!emergenciaId ? (
-            <div className="flex flex-col items-center justify-center h-full text-gray-400">
-              <MdMap className="text-6xl mb-3 opacity-30" />
-              <p className="text-base">Selecciona una emergencia para ver el mapa</p>
+            <div className="flex flex-col items-center justify-center h-full text-gray-400 gap-3">
+              <MdMap className="text-7xl opacity-20" />
+              <p className="text-base font-medium text-gray-500">Selecciona una emergencia</p>
+              <p className="text-sm text-gray-400">para visualizar el mapa con obras, familias y zonas</p>
             </div>
           ) : cargando ? (
-            <div className="flex items-center justify-center h-full text-gray-400">
-              <span className="animate-spin text-3xl mr-3">↻</span> Cargando datos...
+            <div className="flex flex-col items-center justify-center h-full text-gray-400 gap-3">
+              <div className="w-10 h-10 border-2 border-techo-secondary border-t-transparent rounded-full animate-spin" />
+              <span className="text-sm">Cargando datos del mapa...</span>
             </div>
           ) : (
             <MapContainer
@@ -464,14 +478,24 @@ function MapaInteractivo() {
 
         {/* ── Leyenda ──────────────────────────────────────────────────────── */}
         {emergenciaId && (
-          <div className="bg-white border-t border-gray-200 px-4 py-2 flex flex-wrap items-center gap-4 text-xs text-gray-600">
-            <strong className="text-gray-700">Leyenda:</strong>
-            {Object.entries(COLORES_ESTADO).map(([k, v]) => (
-              <span key={k} className="flex items-center gap-1.5">
-                <span className="w-3 h-3 rounded-full inline-block" style={{ background: v.hex }}></span>
-                {v.label}
+          <div className="bg-white border-t border-gray-200 px-4 py-2.5 flex flex-wrap items-center gap-x-5 gap-y-1.5 text-xs">
+            <span className="font-bold text-techo-primary text-xs uppercase tracking-wide pr-3 border-r border-gray-200">Leyenda</span>
+
+            <div className="flex items-center gap-3 flex-wrap pr-3 border-r border-gray-200">
+              {Object.entries(COLORES_ESTADO).map(([k, v]) => (
+                <span key={k} className="flex items-center gap-1.5 text-gray-600">
+                  <span className="w-3 h-3 rounded-full inline-block flex-shrink-0" style={{ background: v.hex }}></span>
+                  {v.label}
+                </span>
+              ))}
+            </div>
+
+            <div className="flex items-center gap-3 flex-wrap">
+              <span className="flex items-center gap-1.5 text-gray-600">
+                <span className="w-3 h-3 rounded-full bg-indigo-500 inline-block flex-shrink-0"></span>
+                Familia afectada
               </span>
-            ))}
+            </div>
             <span className="flex items-center gap-1.5">
               <span className="w-3 h-3 rounded-full bg-red-600 inline-block"></span>
               Emergencia
@@ -702,7 +726,7 @@ function ToggleLayer({ activo, onClick, label, icono }) {
   return (
     <button
       onClick={onClick}
-      className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold border transition-all ${activo ? 'bg-techo-primary text-white border-techo-primary' : 'bg-white text-gray-500 border-gray-300 hover:border-techo-primary'}`}
+      className={`flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-semibold border transition-all ${activo ? 'bg-techo-primary text-white border-techo-primary shadow-sm' : 'bg-gray-50 text-gray-500 border-gray-200 hover:border-techo-primary hover:text-techo-primary'}`}
     >
       {icono} {label}
     </button>
