@@ -169,9 +169,9 @@ export const dashboardPublico = async (req, res) => {
        FROM miembros_cuadrilla mc
        JOIN usuarios u ON u.id = mc.voluntario_id
        JOIN cuadrillas c ON c.id = mc.cuadrilla_id
-       WHERE u.rol = 'voluntario' AND c.estado = 'activa'`
+       WHERE u.rol = 'voluntario' AND c.activo = true`
     );
-    const cuadrillasAct = await AppDataSource.query("SELECT COUNT(*)::int as count FROM cuadrillas WHERE estado = 'activa'");
+    const cuadrillasAct = await AppDataSource.query("SELECT COUNT(*)::int as count FROM cuadrillas WHERE activo = true");
 
     const datos = {
       casas_finalizadas: casasFinalizadas,
