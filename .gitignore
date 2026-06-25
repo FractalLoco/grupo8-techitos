@@ -1,6 +1,5 @@
 # Dependencias
 node_modules/
-.claude
 .env
 .env.local
 .env.*.local
@@ -31,3 +30,10 @@ out/
 techo-backend.zip
 techo-frontend.zip
 seed.sql
+
+# Archivos subidos por usuarios
+techo-backend/backend/uploads/*
+!techo-backend/backend/uploads/.gitkeep
+techo-backend/backend/uploads/reportes/*
+!techo-backend/backend/uploads/reportes/.gitkeep
+techo-backend/backend/tmp/
