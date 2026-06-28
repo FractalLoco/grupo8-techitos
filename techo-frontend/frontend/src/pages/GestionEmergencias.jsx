@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Navbar from "../components/Navbar";
 
 import {
@@ -12,6 +12,13 @@ import {
 
 function GestionEmergencias() {
   const [emergencias, setEmergencias] = useState([]);
+  const [cargando, setCargando] = useState(true);
+  const [mensajeExito, setMensajeExito] = useState("");
+  const [mensajeError, setMensajeError] = useState("");
+  const [busquedaEmergencia, setBusquedaEmergencia] = useState("");
+  const [filtroEstadoEmergencia, setFiltroEstadoEmergencia] = useState("todos");
+  const [paginaActualEmergencias, setPaginaActualEmergencias] = useState(1);
+  const emergenciasPorPagina = 5;
 
   const [formulario, setFormulario] = useState({
     nombre: "",
@@ -40,8 +47,23 @@ function GestionEmergencias() {
   const normalizarListaFamilias = (data) =>
     data?.datos?.familias || data?.familias || data?.data || [];
 
+  const normalizarTexto = (texto) => String(texto || "").toLowerCase().trim();
+
+  const mostrarMensajeExito = (mensaje) => {
+    setMensajeError("");
+    setMensajeExito(mensaje);
+    setTimeout(() => setMensajeExito(""), 3500);
+  };
+
+  const mostrarMensajeError = (mensaje) => {
+    setMensajeExito("");
+    setMensajeError(mensaje);
+    setTimeout(() => setMensajeError(""), 5000);
+  };
+
   async function cargarEmergencias() {
     try {
+      setCargando(true);
       const data = await obtenerEmergencias();
       const lista = data?.datos?.emergencias || data?.datos || data || [];
 
@@ -53,6 +75,9 @@ function GestionEmergencias() {
     } catch (error) {
       console.error(error);
       setEmergencias([]);
+      mostrarMensajeError("No se pudieron cargar las emergencias.");
+    } finally {
+      setCargando(false);
     }
   }
 
@@ -66,12 +91,58 @@ function GestionEmergencias() {
     } catch (error) {
       console.error(error);
       setFamilias([]);
+      mostrarMensajeError("No se pudieron cargar las familias de la emergencia.");
     }
   };
 
   useEffect(() => {
     cargarEmergencias();
   }, []);
+
+  const emergenciasFiltradas = useMemo(() => {
+    const textoBusqueda = normalizarTexto(busquedaEmergencia);
+
+    return emergencias.filter((emergencia) => {
+      const coincideBusqueda =
+        normalizarTexto(emergencia.nombre).includes(textoBusqueda) ||
+        normalizarTexto(emergencia.descripcion).includes(textoBusqueda) ||
+        normalizarTexto(emergencia.direccion).includes(textoBusqueda) ||
+        normalizarTexto(emergencia.estado).includes(textoBusqueda);
+
+      const coincideEstado =
+        filtroEstadoEmergencia === "todos" ||
+        emergencia.estado === filtroEstadoEmergencia;
+
+      return coincideBusqueda && coincideEstado;
+    });
+  }, [emergencias, busquedaEmergencia, filtroEstadoEmergencia]);
+
+  const totalPaginasEmergencias = Math.max(
+    1,
+    Math.ceil(emergenciasFiltradas.length / emergenciasPorPagina)
+  );
+
+  const emergenciasPaginadas = useMemo(() => {
+    const inicio = (paginaActualEmergencias - 1) * emergenciasPorPagina;
+    const fin = inicio + emergenciasPorPagina;
+
+    return emergenciasFiltradas.slice(inicio, fin);
+  }, [emergenciasFiltradas, paginaActualEmergencias]);
+
+  useEffect(() => {
+    setPaginaActualEmergencias(1);
+  }, [busquedaEmergencia, filtroEstadoEmergencia]);
+
+  useEffect(() => {
+    if (paginaActualEmergencias > totalPaginasEmergencias) {
+      setPaginaActualEmergencias(totalPaginasEmergencias);
+    }
+  }, [paginaActualEmergencias, totalPaginasEmergencias]);
+
+  const limpiarFiltrosEmergencias = () => {
+    setBusquedaEmergencia("");
+    setFiltroEstadoEmergencia("todos");
+  };
 
   const manejarCambio = (e) => {
     setFormulario({
@@ -126,17 +197,22 @@ function GestionEmergencias() {
 
       if (editandoId) {
         await actualizarEmergencia(editandoId, datos);
+        mostrarMensajeExito("Emergencia actualizada correctamente.");
       } else {
         await crearEmergencia({
           ...datos,
           estado: "activa",
         });
+        mostrarMensajeExito("Emergencia creada correctamente.");
       }
 
       limpiarFormulario();
-      cargarEmergencias();
+      await cargarEmergencias();
     } catch (error) {
       console.error(error.response?.data || error);
+      mostrarMensajeError(
+        error.response?.data?.mensaje || "No se pudo guardar la emergencia."
+      );
     }
   };
 
@@ -159,9 +235,13 @@ function GestionEmergencias() {
   const finalizarEmergencia = async (id) => {
     try {
       await cerrarEmergencia(id);
-      cargarEmergencias();
+      mostrarMensajeExito("Emergencia cerrada correctamente.");
+      await cargarEmergencias();
     } catch (error) {
       console.error(error.response?.data || error);
+      mostrarMensajeError(
+        error.response?.data?.mensaje || "No se pudo cerrar la emergencia."
+      );
     }
   };
 
@@ -196,8 +276,12 @@ function GestionEmergencias() {
       await registrarFamilia(obtenerId(emergenciaSeleccionada), datosFamilia);
       await cargarFamilias(emergenciaSeleccionada);
       cerrarModalFamilia();
+      mostrarMensajeExito("Familia registrada correctamente.");
     } catch (error) {
       console.error(error.response?.data || error);
+      mostrarMensajeError(
+        error.response?.data?.mensaje || "No se pudo registrar la familia."
+      );
     }
   };
 
@@ -207,6 +291,18 @@ function GestionEmergencias() {
 
       <div className="pt-24 px-6 max-w-7xl mx-auto">
         <h1 className="text-3xl font-bold mb-6">Gestión de Emergencias</h1>
+
+        {mensajeExito && (
+          <div className="mb-4 rounded-lg border border-green-300 bg-green-50 px-4 py-3 text-green-700">
+            {mensajeExito}
+          </div>
+        )}
+
+        {mensajeError && (
+          <div className="mb-4 rounded-lg border border-red-300 bg-red-50 px-4 py-3 text-red-700">
+            {mensajeError}
+          </div>
+        )}
 
         <form
           onSubmit={manejarSubmit}
@@ -261,71 +357,188 @@ function GestionEmergencias() {
             required
           />
 
-          <button className="bg-red-600 text-white py-2 rounded-lg col-span-full">
-            {editandoId ? "Actualizar emergencia" : "Crear emergencia"}
-          </button>
+          <div className="col-span-full flex flex-col md:flex-row gap-3">
+            <button className="bg-red-600 text-white py-2 px-4 rounded-lg flex-1">
+              {editandoId ? "Actualizar emergencia" : "Crear emergencia"}
+            </button>
+
+            {editandoId && (
+              <button
+                type="button"
+                onClick={limpiarFormulario}
+                className="bg-gray-200 text-gray-700 py-2 px-4 rounded-lg"
+              >
+                Cancelar edición
+              </button>
+            )}
+          </div>
         </form>
 
         <div className="bg-white rounded-xl shadow overflow-hidden">
-          <table className="w-full">
-            <thead className="bg-gray-200">
-              <tr>
-                <th className="p-3 text-left">Nombre</th>
-                <th className="p-3 text-left">Dirección</th>
-                <th className="p-3 text-left">Estado</th>
-                <th className="p-3 text-left">Acciones</th>
-              </tr>
-            </thead>
+          <div className="p-4 border-b grid grid-cols-1 md:grid-cols-4 gap-3">
+            <input
+              type="text"
+              value={busquedaEmergencia}
+              onChange={(e) => setBusquedaEmergencia(e.target.value)}
+              placeholder="Buscar por nombre, dirección, descripción o estado"
+              className="border rounded-lg px-4 py-2 md:col-span-2"
+            />
 
-            <tbody>
-              {Array.isArray(emergencias) &&
-                emergencias.map((emergencia) => (
-                  <tr key={obtenerId(emergencia)} className="border-t">
-                    <td className="p-3">{emergencia.nombre}</td>
-                    <td className="p-3 text-gray-600">
-                      {emergencia.direccion || "Sin dirección"}
-                    </td>
-                    <td className="p-3">{emergencia.estado}</td>
+            <select
+              value={filtroEstadoEmergencia}
+              onChange={(e) => setFiltroEstadoEmergencia(e.target.value)}
+              className="border rounded-lg px-4 py-2"
+            >
+              <option value="todos">Todos los estados</option>
+              <option value="activa">Activas</option>
+              <option value="finalizada">Finalizadas</option>
+            </select>
 
-                    <td className="p-3 flex flex-wrap gap-2">
-                      {emergencia.estado === "activa" && (
-                        <>
-                          <button
-                            onClick={() => editarEmergencia(emergencia)}
-                            className="bg-blue-600 text-white px-3 py-1 rounded"
-                          >
-                            Editar
-                          </button>
+            <button
+              type="button"
+              onClick={limpiarFiltrosEmergencias}
+              className="border rounded-lg px-4 py-2 text-gray-700 hover:bg-gray-100"
+            >
+              Limpiar filtros
+            </button>
 
-                          <button
-                            onClick={() => cargarFamilias(emergencia)}
-                            className="bg-green-600 text-white px-3 py-1 rounded"
-                          >
-                            Ver familias
-                          </button>
+            <div className="md:col-span-4 text-sm text-gray-600">
+              Mostrando {emergenciasPaginadas.length} de {emergenciasFiltradas.length} emergencias filtradas
+            </div>
+          </div>
 
-                          <button
-                            onClick={() => abrirModalFamilia(emergencia)}
-                            className="bg-emerald-600 text-white px-3 py-1 rounded"
-                          >
-                            Agregar familia
-                          </button>
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead className="bg-gray-200">
+                <tr>
+                  <th className="p-3 text-left">Nombre</th>
+                  <th className="p-3 text-left">Dirección</th>
+                  <th className="p-3 text-left">Estado</th>
+                  <th className="p-3 text-left">Acciones</th>
+                </tr>
+              </thead>
 
-                          <button
-                            onClick={() =>
-                              finalizarEmergencia(obtenerId(emergencia))
-                            }
-                            className="bg-slate-800 text-white px-3 py-1 rounded"
-                          >
-                            Cerrar
-                          </button>
-                        </>
-                      )}
+              <tbody>
+                {cargando && (
+                  <tr>
+                    <td className="p-4 text-center text-gray-500" colSpan="4">
+                      Cargando emergencias...
                     </td>
                   </tr>
-                ))}
-            </tbody>
-          </table>
+                )}
+
+                {!cargando && emergenciasPaginadas.length === 0 && (
+                  <tr>
+                    <td className="p-4 text-center text-gray-500" colSpan="4">
+                      No se encontraron emergencias con los filtros seleccionados.
+                    </td>
+                  </tr>
+                )}
+
+                {!cargando &&
+                  Array.isArray(emergenciasPaginadas) &&
+                  emergenciasPaginadas.map((emergencia) => (
+                    <tr key={obtenerId(emergencia)} className="border-t">
+                      <td className="p-3">{emergencia.nombre}</td>
+                      <td className="p-3 text-gray-600">
+                        {emergencia.direccion || "Sin dirección"}
+                      </td>
+                      <td className="p-3 capitalize">{emergencia.estado}</td>
+
+                      <td className="p-3 flex flex-wrap gap-2">
+                        {emergencia.estado === "activa" ? (
+                          <>
+                            <button
+                              onClick={() => editarEmergencia(emergencia)}
+                              className="bg-blue-600 text-white px-3 py-1 rounded"
+                            >
+                              Editar
+                            </button>
+
+                            <button
+                              onClick={() => cargarFamilias(emergencia)}
+                              className="bg-green-600 text-white px-3 py-1 rounded"
+                            >
+                              Ver familias
+                            </button>
+
+                            <button
+                              onClick={() => abrirModalFamilia(emergencia)}
+                              className="bg-emerald-600 text-white px-3 py-1 rounded"
+                            >
+                              Agregar familia
+                            </button>
+
+                            <button
+                              onClick={() =>
+                                finalizarEmergencia(obtenerId(emergencia))
+                              }
+                              className="bg-slate-800 text-white px-3 py-1 rounded"
+                            >
+                              Cerrar
+                            </button>
+                          </>
+                        ) : (
+                          <span className="text-gray-500 text-sm">
+                            Emergencia finalizada
+                          </span>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+              </tbody>
+            </table>
+          </div>
+
+          <div className="p-4 border-t flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+            <span className="text-sm text-gray-600">
+              Página {paginaActualEmergencias} de {totalPaginasEmergencias}
+            </span>
+
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setPaginaActualEmergencias(1)}
+                disabled={paginaActualEmergencias === 1}
+                className="border rounded-lg px-3 py-1 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Primera
+              </button>
+
+              <button
+                type="button"
+                onClick={() =>
+                  setPaginaActualEmergencias((pagina) => Math.max(1, pagina - 1))
+                }
+                disabled={paginaActualEmergencias === 1}
+                className="border rounded-lg px-3 py-1 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Anterior
+              </button>
+
+              <button
+                type="button"
+                onClick={() =>
+                  setPaginaActualEmergencias((pagina) =>
+                    Math.min(totalPaginasEmergencias, pagina + 1)
+                  )
+                }
+                disabled={paginaActualEmergencias === totalPaginasEmergencias}
+                className="border rounded-lg px-3 py-1 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Siguiente
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setPaginaActualEmergencias(totalPaginasEmergencias)}
+                disabled={paginaActualEmergencias === totalPaginasEmergencias}
+                className="border rounded-lg px-3 py-1 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Última
+              </button>
+            </div>
+          </div>
         </div>
 
         <div className="mt-8 bg-white rounded-xl shadow p-4">
@@ -341,27 +554,29 @@ function GestionEmergencias() {
               No hay familias registradas para esta emergencia
             </p>
           ) : (
-            <table className="w-full">
-              <thead className="bg-gray-200">
-                <tr>
-                  <th className="p-3 text-left">Nombre</th>
-                  <th className="p-3 text-left">Dirección</th>
-                  <th className="p-3 text-left">Miembros</th>
-                  <th className="p-3 text-left">Prioridad</th>
-                </tr>
-              </thead>
-
-              <tbody>
-                {familias.map((familia) => (
-                  <tr key={familia.id} className="border-t">
-                    <td className="p-3">{familia.nombre_cabeza_familia}</td>
-                    <td className="p-3">{familia.direccion || "Sin dirección"}</td>
-                    <td className="p-3">{familia.miembros}</td>
-                    <td className="p-3 capitalize">{familia.prioridad}</td>
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead className="bg-gray-200">
+                  <tr>
+                    <th className="p-3 text-left">Nombre</th>
+                    <th className="p-3 text-left">Dirección</th>
+                    <th className="p-3 text-left">Miembros</th>
+                    <th className="p-3 text-left">Prioridad</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+
+                <tbody>
+                  {familias.map((familia) => (
+                    <tr key={familia.id} className="border-t">
+                      <td className="p-3">{familia.nombre_cabeza_familia}</td>
+                      <td className="p-3">{familia.direccion || "Sin dirección"}</td>
+                      <td className="p-3">{familia.miembros}</td>
+                      <td className="p-3 capitalize">{familia.prioridad}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           )}
         </div>
       </div>

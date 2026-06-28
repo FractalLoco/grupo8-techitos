@@ -10,6 +10,8 @@ import {
 function GestionUsuarios() {
   const [usuarios, setUsuarios] = useState([]);
   const [cargando, setCargando] = useState(true);
+  const [mensajeExito, setMensajeExito] = useState("");
+  const [mensajeError, setMensajeError] = useState("");
   const [busqueda, setBusqueda] = useState("");
   const [filtroRol, setFiltroRol] = useState("todos");
   const [filtroEstado, setFiltroEstado] = useState("todos");
@@ -26,6 +28,18 @@ function GestionUsuarios() {
   // Obtiene id compatible con MongoDB o SQL
   const obtenerId = (usuario) => usuario._id || usuario.id;
 
+  const mostrarMensajeExito = (mensaje) => {
+    setMensajeError("");
+    setMensajeExito(mensaje);
+    setTimeout(() => setMensajeExito(""), 3500);
+  };
+
+  const mostrarMensajeError = (mensaje) => {
+    setMensajeExito("");
+    setMensajeError(mensaje);
+    setTimeout(() => setMensajeError(""), 5000);
+  };
+
   const cargarUsuarios = async () => {
     try {
       setCargando(true);
@@ -40,6 +54,7 @@ function GestionUsuarios() {
     } catch (error) {
       console.error(error);
       setUsuarios([]);
+      mostrarMensajeError("No se pudieron cargar los usuarios.");
     } finally {
       setCargando(false);
     }
@@ -121,9 +136,11 @@ function GestionUsuarios() {
         rol: "voluntario",
       });
 
-      cargarUsuarios();
+      mostrarMensajeExito("Usuario creado correctamente.");
+      await cargarUsuarios();
     } catch (error) {
       console.error(error);
+      mostrarMensajeError(error.message || "No se pudo crear el usuario.");
     }
   };
 
@@ -134,13 +151,16 @@ function GestionUsuarios() {
 
       if (usuario.activo) {
         await desactivarUsuario(id);
+        mostrarMensajeExito("Usuario desactivado correctamente.");
       } else {
         await activarUsuario(id);
+        mostrarMensajeExito("Usuario activado correctamente.");
       }
 
-      cargarUsuarios();
+      await cargarUsuarios();
     } catch (error) {
       console.error(error);
+      mostrarMensajeError("No se pudo cambiar el estado del usuario.");
     }
   };
 
@@ -150,6 +170,18 @@ function GestionUsuarios() {
 
       <div className="pt-24 px-6 max-w-6xl mx-auto">
         <h1 className="text-3xl font-bold mb-6">Gestión de Usuarios</h1>
+
+        {mensajeExito && (
+          <div className="mb-4 rounded-lg border border-green-300 bg-green-50 px-4 py-3 text-green-700">
+            {mensajeExito}
+          </div>
+        )}
+
+        {mensajeError && (
+          <div className="mb-4 rounded-lg border border-red-300 bg-red-50 px-4 py-3 text-red-700">
+            {mensajeError}
+          </div>
+        )}
 
         <form
           onSubmit={manejarSubmit}
