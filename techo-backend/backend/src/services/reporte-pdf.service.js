@@ -225,16 +225,6 @@ const agregarIncidentes = async (doc, snapshot) => {
   }
 };
 
-const agregarAdvertencias = (doc, snapshot) => {
-  tituloSeccion(doc, 'Advertencias al generar');
-  if (snapshot.advertencias.length === 0) {
-    doc.font('Helvetica').fontSize(9).fillColor('#287A4B').text('No se detectaron advertencias.');
-    return;
-  }
-  doc.fillColor(COLOR_ALERTA);
-  listaSimple(doc, snapshot.advertencias, (advertencia) => advertencia.descripcion);
-};
-
 const agregarEncabezadosYPies = (doc, snapshot) => {
   const rango = doc.bufferedPageRange();
   for (let indice = 0; indice < rango.count; indice += 1) {
@@ -285,7 +275,6 @@ export const generarPdfReporte = async (snapshot, rutaArchivo) => {
         await agregarObras(doc, snapshot);
         await agregarHerramientas(doc, snapshot);
         await agregarIncidentes(doc, snapshot);
-        await agregarAdvertencias(doc, snapshot);
         agregarEncabezadosYPies(doc, snapshot);
         doc.end();
       } catch (err) {

@@ -25,20 +25,35 @@ export const enviarMensaje = async (req, res) => {
     }
     const { tipo = 'texto', contenido = null, prioridad = false } = body;
 
+    // Determinar el tipo de mensaje y permisos
+    const esBroadcast = !cuadrilla_id;
+    const esAlertaEmergencia = tipo === 'emergencia';
+    let nombreCuadrilla = null;
+
     if (cuadrilla_id) {
       const isCoordinador = req.usuario.rol === 'coordinador';
       if (!isCoordinador) {
         const esta = await MensajeService.usuarioEnCuadrilla(remitente_id, cuadrilla_id);
         if (!esta) return respuestaError(res, 403, 'No perteneces a esa cuadrilla');
       }
+      const cuadrilla = await CuadrillaRepository.buscarPorId(cuadrilla_id);
+      nombreCuadrilla = cuadrilla?.nombre || null;
     } else {
-      // Si no hay cuadrilla_id, es un broadcast. Solo permitido para coordinadores.
+      // Broadcast solo para coordinadores
       if (req.usuario.rol !== 'coordinador') {
         return respuestaError(res, 403, 'No tienes permiso para enviar mensajes broadcast');
       }
     }
 
-    const mensaje = await MensajeService.enviarMensaje({ cuadrilla_id, remitente_id, tipo, contenido, prioridad });
+    const mensaje = await MensajeService.enviarMensajeConNotificaciones(
+      { cuadrilla_id, remitente_id, tipo, contenido, prioridad },
+      {
+        esBroadcast,
+        esAlertaEmergencia,
+        nombreCuadrilla,
+        remitenteRol: req.usuario.rol,
+      },
+    );
     const mensajeDTO = MensajeService.toDTO(mensaje, req.usuario?.nombre || null);
     return respuestaExito(res, 201, 'Mensaje enviado', { mensaje: mensajeDTO });
   } catch (error) {
@@ -89,14 +104,22 @@ export const enviarFotoCuadrilla = async (req, res) => {
       ? req.body.contenido.trim() || null
       : null;
     const archivoUrl = `/uploads/chat/${nombreArchivo}`;
-    const mensaje = await MensajeService.enviarMensaje({
-      cuadrilla_id: cuadrillaId,
-      remitente_id: req.usuario.id,
-      tipo: tipoHito || 'imagen',
-      contenido,
-      archivo_url: archivoUrl,
-      prioridad: false,
-    });
+    const mensaje = await MensajeService.enviarMensajeConNotificaciones(
+      {
+        cuadrilla_id: cuadrillaId,
+        remitente_id: req.usuario.id,
+        tipo: tipoHito || 'imagen',
+        contenido,
+        archivo_url: archivoUrl,
+        prioridad: false,
+      },
+      {
+        esBroadcast: false,
+        esAlertaEmergencia: false,
+        nombreCuadrilla: cuadrilla.nombre,
+        remitenteRol: req.usuario.rol,
+      },
+    );
 
     rutaGuardada = null;
     const mensajeRespuesta = tipoHito === 'finalizado'
@@ -169,9 +192,34 @@ export const dashboardPublico = async (req, res) => {
        FROM miembros_cuadrilla mc
        JOIN usuarios u ON u.id = mc.voluntario_id
        JOIN cuadrillas c ON c.id = mc.cuadrilla_id
-       WHERE u.rol = 'voluntario' AND c.activo = true`
+       WHERE u.rol = 'voluntario'
+         AND c.estado IN ('activa', 'en_progreso')`
     );
-    const cuadrillasAct = await AppDataSource.query("SELECT COUNT(*)::int as count FROM cuadrillas WHERE activo = true");
+    const voluntariosDesplegados = resultadoVoluntarios[0]?.count ?? 0;
+
+    const resultadoCuadrillas = await AppDataSource.query(
+      "SELECT COUNT(*)::int AS count FROM cuadrillas WHERE estado IN ('activa', 'en_progreso')"
+    );
+    const cuadrillasActivas = resultadoCuadrillas[0]?.count ?? 0;
+
+    const resultadoEmergencias = await AppDataSource.query(
+      "SELECT COUNT(*)::int AS count FROM emergencias WHERE estado = 'activa'"
+    );
+    const emergenciasActivas = resultadoEmergencias[0]?.count ?? 0;
+
+    const resultadoFecha = await AppDataSource.query(`
+      SELECT GREATEST(
+        (SELECT MAX(creado_en) FROM mensajes),
+        (SELECT MAX(fecha_creacion) FROM cuadrillas),
+        (SELECT MAX(fecha_inicio) FROM emergencias),
+        (SELECT MAX(fecha_creacion) FROM obras),
+        (SELECT MAX(creado_en) FROM familias)
+      ) AS ultima_actualizacion
+    `);
+    const ultimaActualizacion = resultadoFecha[0]?.ultima_actualizacion ?? null;
+    const aviso = ultimaActualizacion === null
+      ? 'Todavia no hay actualizaciones operativas registradas'
+      : null;
 
     const datos = {
       casas_finalizadas: casasFinalizadas,

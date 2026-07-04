@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import Navbar from '../components/Navbar';
 import { useAutenticacion } from '../context/AuthContext';
 import {
@@ -25,9 +26,13 @@ const FORMATO_FECHA = new Intl.DateTimeFormat('es-CL', {
 
 function Comunicaciones() {
   const { usuario } = useAutenticacion();
-  const [canal, setCanal] = useState('broadcast');
+  const [searchParams] = useSearchParams();
+  // Leer parámetros de navegación desde notificaciones
+  const canalInicial = searchParams.get('canal') === 'cuadrilla' ? 'cuadrilla' : 'broadcast';
+  const cuadrillaInicial = searchParams.get('cuadrillaId') || '';
+  const [canal, setCanal] = useState(canalInicial);
   const [cuadrillas, setCuadrillas] = useState([]);
-  const [cuadrillaId, setCuadrillaId] = useState('');
+  const [cuadrillaId, setCuadrillaId] = useState(cuadrillaInicial);
   const [cargandoCuadrillas, setCargandoCuadrillas] = useState(true);
   const [prioridadAlta, setPrioridadAlta] = useState(false);
   const [mensajes, setMensajes] = useState([]);
