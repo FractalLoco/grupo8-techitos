@@ -31,23 +31,48 @@ function Reportes() {
   const [cargandoReportes, setCargandoReportes] = useState(false);
   const [descargandoId, setDescargandoId] = useState(null);
 
-  // Snapshot
-  const [snapshot, setSnapshot] = useState(null);
+  // Detalles consolidados del reporte generado
+  const [detalles, setDetalles] = useState(null);
 
   useEffect(() => {
     cargarEmergencias();
   }, []);
 
   useEffect(() => {
-    if (emergenciaId) {
-      setValidacion(null);
-      setReporteGenerado(null);
-      setErrorGeneracion(null);
-      setSnapshot(null);
-      cargarReportes(emergenciaId);
-    } else {
+    let seleccionVigente = true;
+
+    setValidacion(null);
+    setReporteGenerado(null);
+    setErrorGeneracion(null);
+    setDetalles(null);
+
+    if (!emergenciaId) {
       setReportes([]);
+      setValidando(false);
+      return () => {
+        seleccionVigente = false;
+      };
     }
+
+    cargarReportes(emergenciaId);
+    setValidando(true);
+
+    validarEmergencia(emergenciaId)
+      .then((resultado) => {
+        if (seleccionVigente) setValidacion(resultado);
+      })
+      .catch((error) => {
+        if (seleccionVigente) {
+          setValidacion({ completo: false, advertencias: [], error: error.message });
+        }
+      })
+      .finally(() => {
+        if (seleccionVigente) setValidando(false);
+      });
+
+    return () => {
+      seleccionVigente = false;
+    };
   }, [emergenciaId]);
 
   async function cargarEmergencias() {
@@ -76,31 +101,16 @@ function Reportes() {
     }
   }
 
-  async function manejarValidar() {
-    if (!emergenciaId) return;
-    setValidando(true);
-    setValidacion(null);
-    setErrorGeneracion(null);
-    try {
-      const resultado = await validarEmergencia(emergenciaId);
-      setValidacion(resultado);
-    } catch (error) {
-      setValidacion({ completo: false, advertencias: [], error: error.message });
-    } finally {
-      setValidando(false);
-    }
-  }
-
   async function manejarGenerar(confirmar = false) {
     if (!emergenciaId) return;
     setGenerando(true);
     setErrorGeneracion(null);
     setReporteGenerado(null);
-    setSnapshot(null);
+    setDetalles(null);
     try {
       const resultado = await generarReporte(emergenciaId, confirmar);
       setReporteGenerado(resultado.reporte || resultado);
-      setSnapshot(resultado.reporte?.datos_snapshot || null);
+      setDetalles(resultado.reporte?.datos_snapshot || null);
       setMostrarConfirmacion(false);
       await cargarReportes(emergenciaId);
     } catch (error) {
@@ -165,11 +175,11 @@ function Reportes() {
             <label className="block text-xs font-bold text-techo-primary uppercase tracking-widest mb-3">
               Seleccionar emergencia
             </label>
-            <div className="flex flex-col sm:flex-row gap-3">
+            <div>
               <select
                 value={emergenciaId}
                 onChange={(e) => setEmergenciaId(e.target.value)}
-                className="flex-1 px-4 py-2.5 border border-gray-200 rounded-xl text-sm bg-white focus:outline-none focus:ring-2 focus:ring-techo-secondary focus:border-transparent"
+                className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm bg-white focus:outline-none focus:ring-2 focus:ring-techo-secondary focus:border-transparent"
                 disabled={cargandoEmergencias}
               >
                 <option value="">{cargandoEmergencias ? 'Cargando...' : '— Selecciona una emergencia —'}</option>
@@ -179,19 +189,16 @@ function Reportes() {
                   </option>
                 ))}
               </select>
-
-              <button
-                onClick={manejarValidar}
-                disabled={!emergenciaId || validando}
-                className="px-6 py-2.5 bg-techo-secondary text-white text-sm font-semibold rounded-xl hover:bg-techo-secondary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-all whitespace-nowrap"
-              >
-                {validando ? 'Validando...' : 'Validar información'}
-              </button>
             </div>
 
             {emergenciaSeleccionada && (
               <p className="mt-3 text-xs text-gray-400">
                 {emergenciaSeleccionada.descripcion || 'Sin descripción'}
+              </p>
+            )}
+            {validando && (
+              <p className="mt-3 text-xs font-medium text-techo-secondary">
+                Validando información...
               </p>
             )}
           </section>
@@ -351,43 +358,34 @@ function Reportes() {
             </section>
           )}
 
-          {/* Snapshot */}
-          {snapshot && (
+          {/* Detalles */}
+          {detalles && (
             <section className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm">
               <h2 className="text-xs font-bold text-techo-primary uppercase tracking-widest mb-4">
-                Vista del snapshot
+                Detalles del reporte
               </h2>
               <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 mb-4">
                 <div className="bg-techo-light rounded-xl p-3 text-center">
-                  <p className="text-2xl font-black text-techo-primary">{snapshot.indicadores?.cuadrillas_desplegadas ?? 0}</p>
+                  <p className="text-2xl font-black text-techo-primary">{detalles.indicadores?.cuadrillas_desplegadas ?? 0}</p>
                   <p className="text-xs text-gray-500 mt-1">Cuadrillas</p>
                 </div>
                 <div className="bg-techo-light rounded-xl p-3 text-center">
-                  <p className="text-2xl font-black text-techo-primary">{snapshot.indicadores?.voluntarios_desplegados ?? 0}</p>
+                  <p className="text-2xl font-black text-techo-primary">{detalles.indicadores?.voluntarios_desplegados ?? 0}</p>
                   <p className="text-xs text-gray-500 mt-1">Voluntarios</p>
                 </div>
                 <div className="bg-techo-light rounded-xl p-3 text-center">
-                  <p className="text-2xl font-black text-techo-primary">{snapshot.indicadores?.familias_registradas ?? 0}</p>
+                  <p className="text-2xl font-black text-techo-primary">{detalles.indicadores?.familias_registradas ?? 0}</p>
                   <p className="text-xs text-gray-500 mt-1">Familias</p>
                 </div>
                 <div className="bg-techo-light rounded-xl p-3 text-center">
-                  <p className="text-2xl font-black text-techo-primary">{snapshot.indicadores?.personas_beneficiadas ?? 0}</p>
+                  <p className="text-2xl font-black text-techo-primary">{detalles.indicadores?.personas_beneficiadas ?? 0}</p>
                   <p className="text-xs text-gray-500 mt-1">Beneficiados</p>
                 </div>
                 <div className="bg-techo-light rounded-xl p-3 text-center">
-                  <p className="text-2xl font-black text-techo-primary">{snapshot.indicadores?.obras_finalizadas ?? 0}</p>
+                  <p className="text-2xl font-black text-techo-primary">{detalles.indicadores?.obras_finalizadas ?? 0}</p>
                   <p className="text-xs text-gray-500 mt-1">Obras finalizadas</p>
                 </div>
               </div>
-
-              <details className="group">
-                <summary className="text-xs font-semibold text-techo-secondary cursor-pointer hover:text-techo-primary transition-colors">
-                  Ver detalle completo del snapshot
-                </summary>
-                <pre className="mt-3 p-3 bg-gray-50 rounded-xl text-xs text-gray-600 overflow-auto max-h-80 border border-gray-100">
-                  {JSON.stringify(snapshot, null, 2)}
-                </pre>
-              </details>
             </section>
           )}
 

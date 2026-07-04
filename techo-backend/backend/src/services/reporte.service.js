@@ -12,6 +12,42 @@ const NO_REGISTRADO = 'No registrado';
 
 const DIRECTORIO_REPORTES = path.resolve(process.cwd(), 'uploads', 'reportes');
 
+const normalizarNombreArchivo = (valor) => {
+  const nombre = String(valor || 'emergencia')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-zA-Z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .toLowerCase()
+    .slice(0, 80);
+  return nombre || 'emergencia';
+};
+
+const fechaParaNombreArchivo = (fecha) => {
+  const partes = new Intl.DateTimeFormat('en-CA', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false,
+    timeZone: 'America/Santiago',
+  }).formatToParts(fecha);
+  const valor = (tipo) => partes.find((parte) => parte.type === tipo)?.value;
+  return `${valor('year')}-${valor('month')}-${valor('day')}_${valor('hour')}-${valor('minute')}-${valor('second')}`;
+};
+
+export const crearNombreArchivoReporte = (
+  nombreEmergencia,
+  fechaGeneracion,
+  identificador = randomUUID(),
+) => {
+  const emergencia = normalizarNombreArchivo(nombreEmergencia);
+  const fecha = fechaParaNombreArchivo(fechaGeneracion);
+  return `Reporte-${emergencia}-${fecha}-${identificador.slice(0, 8)}.pdf`;
+};
+
 export const resolverRutaReporteSegura = (nombreArchivo) => {
   if (
     typeof nombreArchivo !== 'string'
@@ -384,7 +420,10 @@ export class ReporteService {
     }
 
     const idEmergencia = Number(emergenciaId);
-    const nombreArchivo = `reporte-emergencia-${idEmergencia}-${Date.now()}-${randomUUID()}.pdf`;
+    const nombreArchivo = crearNombreArchivoReporte(
+      snapshot.emergencia.nombre,
+      new Date(snapshot.generado_en),
+    );
     const rutaArchivo = path.join(DIRECTORIO_REPORTES, nombreArchivo);
     const archivoUrl = `/uploads/reportes/${nombreArchivo}`;
 
