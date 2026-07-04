@@ -1,17 +1,123 @@
 // Importo useState para controlar si el menú lateral está abierto o cerrado
-import { useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 // Importo useNavigate para redirigir después del cierre de sesión y Link para los enlaces del menú
 import { useNavigate, Link } from 'react-router-dom';
 // Accedo al usuario activo y a la función de cierre de sesión desde el contexto
 import { useAutenticacion } from '../context/AuthContext';
+import {
+  contarNoLeidas,
+  listarNotificaciones,
+  marcarLeida,
+  marcarTodasLeidas,
+} from '../services/notificacionService';
 
 // Navbar fija en la parte superior con menú lateral deslizante.
 // Muestra opciones de navegación distintas según el rol del usuario autenticado.
 function Navbar() {
   // Controlo la visibilidad del menú lateral con este booleano
   const [menuAbierto, setMenuAbierto] = useState(false);
+  const [noLeidas, setNoLeidas] = useState(0);
+  const [panelNotificacionesAbierto, setPanelNotificacionesAbierto] = useState(false);
+  const [notificaciones, setNotificaciones] = useState([]);
+  const [cargandoNotificaciones, setCargandoNotificaciones] = useState(false);
+  const [errorNotificaciones, setErrorNotificaciones] = useState('');
+  const panelNotificacionesRef = useRef(null);
   const { usuario, cerrarSesion } = useAutenticacion();
   const navegar = useNavigate();
+
+  const cargarNotificaciones = useCallback(async () => {
+    if (!usuario) return;
+
+    try {
+      setErrorNotificaciones('');
+      const resultado = await listarNotificaciones();
+      const lista = resultado?.notificaciones || resultado || [];
+      setNotificaciones(Array.isArray(lista) ? lista : []);
+    } catch (error) {
+      setErrorNotificaciones(error.message || 'No se pudieron cargar las notificaciones');
+    } finally {
+      setCargandoNotificaciones(false);
+    }
+  }, [usuario]);
+
+  // Polling de notificaciones no leídas cada 5 segundos
+  useEffect(() => {
+    if (!usuario) return;
+
+    const actualizar = async () => {
+      try {
+        const total = await contarNoLeidas();
+        setNoLeidas(total);
+      } catch {
+        // Silencioso
+      }
+    };
+
+    actualizar();
+    const intervalo = setInterval(actualizar, 5000);
+    return () => clearInterval(intervalo);
+  }, [usuario]);
+
+  useEffect(() => {
+    if (!panelNotificacionesAbierto) return;
+
+    setCargandoNotificaciones(true);
+    cargarNotificaciones();
+    const intervalo = setInterval(cargarNotificaciones, 5000);
+
+    const cerrarAlPulsarFuera = (evento) => {
+      if (!panelNotificacionesRef.current?.contains(evento.target)) {
+        setPanelNotificacionesAbierto(false);
+      }
+    };
+    const cerrarConEscape = (evento) => {
+      if (evento.key === 'Escape') setPanelNotificacionesAbierto(false);
+    };
+
+    document.addEventListener('mousedown', cerrarAlPulsarFuera);
+    document.addEventListener('keydown', cerrarConEscape);
+    return () => {
+      clearInterval(intervalo);
+      document.removeEventListener('mousedown', cerrarAlPulsarFuera);
+      document.removeEventListener('keydown', cerrarConEscape);
+    };
+  }, [panelNotificacionesAbierto, cargarNotificaciones]);
+
+  const manejarNotificacion = async (notificacion) => {
+    if (notificacion.leida) return;
+
+    try {
+      await marcarLeida(notificacion.id);
+      setNotificaciones((actuales) =>
+        actuales.map((item) => (
+          item.id === notificacion.id ? { ...item, leida: true } : item
+        ))
+      );
+      setNoLeidas((total) => Math.max(0, total - 1));
+    } catch (error) {
+      setErrorNotificaciones(error.message || 'No se pudo marcar la notificacion');
+    }
+  };
+
+  const manejarMarcarTodas = async () => {
+    try {
+      await marcarTodasLeidas();
+      setNotificaciones((actuales) => actuales.map((item) => ({ ...item, leida: true })));
+      setNoLeidas(0);
+    } catch (error) {
+      setErrorNotificaciones(error.message || 'No se pudieron marcar las notificaciones');
+    }
+  };
+
+  const formatearFechaNotificacion = (fecha) => {
+    if (!fecha) return '';
+    return new Intl.DateTimeFormat('es-CL', {
+      day: '2-digit',
+      month: 'short',
+      hour: '2-digit',
+      minute: '2-digit',
+    }).format(new Date(fecha));
+  };
 
   const alternarMenu = () => setMenuAbierto(!menuAbierto);
   // Cierro el menú al hacer clic en un enlace o en el overlay oscuro
@@ -63,16 +169,122 @@ function Navbar() {
           <span className="block w-6 h-[2px] bg-white rounded-sm"></span>
         </button>
 
-        {/* Muestro el nombre y rol del usuario en la esquina superior derecha */}
-        {usuario && (
+        {/* Campana de notificaciones */}
+        <div className="flex items-center gap-4">
+          <button
+            type="button"
+            onMouseDown={(evento) => evento.stopPropagation()}
+            onClick={() => setPanelNotificacionesAbierto((abierto) => !abierto)}
+            className="relative text-white/80 hover:text-white transition-colors"
+            aria-label={`Notificaciones${noLeidas > 0 ? `, ${noLeidas} sin leer` : ''}`}
+            aria-expanded={panelNotificacionesAbierto}
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+            </svg>
+            {noLeidas > 0 && (
+              <span className="absolute -top-1.5 -right-1.5 bg-red-500 text-white text-[10px] font-bold rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1 shadow">
+                {noLeidas > 99 ? '99+' : noLeidas}
+              </span>
+            )}
+          </button>
+
+          {/* Muestro el nombre y rol del usuario en la esquina superior derecha */}
           <div className="flex flex-col items-end">
             <span className="text-white text-sm font-semibold">{usuario.nombre}</span>
             <span className="text-white/60 text-xs">{etiquetaRol[usuario.rol] || usuario.rol}</span>
           </div>
-        )}
+        </div>
       </nav>
 
       {/* Overlay oscuro — z-[2000] para tapar el mapa y todo su contenido cuando el menú está abierto */}
+      {panelNotificacionesAbierto && (
+        <section
+          ref={panelNotificacionesRef}
+          className="fixed top-[68px] right-2 sm:right-6 z-[3100] w-[calc(100vw-1rem)] sm:w-[380px] max-h-[70vh] overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-2xl"
+          aria-label="Panel de notificaciones"
+        >
+          <div className="flex items-center justify-between border-b border-gray-100 px-4 py-3">
+            <div>
+              <h2 className="text-sm font-bold text-techo-primary">Notificaciones</h2>
+              <p className="text-xs text-gray-400">{noLeidas} sin leer</p>
+            </div>
+            <div className="flex items-center gap-3">
+              {noLeidas > 0 && (
+                <button
+                  type="button"
+                  onClick={manejarMarcarTodas}
+                  className="text-xs font-semibold text-techo-secondary hover:text-techo-primary"
+                >
+                  Marcar todas
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={() => setPanelNotificacionesAbierto(false)}
+                className="rounded-lg p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-700"
+                aria-label="Cerrar notificaciones"
+              >
+                <span aria-hidden="true">X</span>
+              </button>
+            </div>
+          </div>
+
+          <div className="max-h-[calc(70vh-65px)] overflow-y-auto">
+            {cargandoNotificaciones && notificaciones.length === 0 && (
+              <p className="px-4 py-8 text-center text-sm text-gray-400">
+                Cargando notificaciones...
+              </p>
+            )}
+
+            {errorNotificaciones && (
+              <div className="m-3 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
+                {errorNotificaciones}
+              </div>
+            )}
+
+            {!cargandoNotificaciones && notificaciones.length === 0 && !errorNotificaciones && (
+              <p className="px-4 py-8 text-center text-sm text-gray-400">
+                No tienes notificaciones.
+              </p>
+            )}
+
+            {notificaciones.map((notificacion) => (
+              <button
+                type="button"
+                key={notificacion.id}
+                onClick={() => manejarNotificacion(notificacion)}
+                className={`block w-full border-b border-gray-100 px-4 py-3 text-left transition-colors last:border-b-0 ${
+                  notificacion.leida ? 'bg-white hover:bg-gray-50' : 'bg-blue-50/70 hover:bg-blue-50'
+                }`}
+              >
+                <div className="flex items-start gap-3">
+                  <span
+                    className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${
+                      notificacion.leida ? 'bg-gray-300' : 'bg-techo-secondary'
+                    }`}
+                    aria-hidden="true"
+                  />
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-start justify-between gap-2">
+                      <p className="text-sm font-semibold text-gray-800">
+                        {notificacion.titulo}
+                      </p>
+                      <time className="shrink-0 text-[10px] text-gray-400">
+                        {formatearFechaNotificacion(notificacion.creado_en)}
+                      </time>
+                    </div>
+                    <p className="mt-1 whitespace-pre-wrap break-words text-xs leading-relaxed text-gray-600">
+                      {notificacion.mensaje}
+                    </p>
+                  </div>
+                </div>
+              </button>
+            ))}
+          </div>
+        </section>
+      )}
+
       {menuAbierto && (
         <div className="fixed inset-0 bg-black/40 z-[2000]" onClick={cerrarMenu} />
       )}

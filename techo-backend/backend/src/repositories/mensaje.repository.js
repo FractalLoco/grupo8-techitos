@@ -12,6 +12,13 @@ export class MensajeRepository {
     return repo.save(m);
   }
 
+  // Crea un mensaje usando un queryRunner para participar en una transacción
+  static async crearConQueryRunner(datos, queryRunner) {
+    const repo = queryRunner.manager.getRepository('Mensaje');
+    const m = repo.create(datos);
+    return repo.save(m);
+  }
+
   static async listarPorCuadrilla(cuadrillaId, limite = 200) {
     return this.getRepository().find({
       where: { cuadrilla_id: cuadrillaId },
