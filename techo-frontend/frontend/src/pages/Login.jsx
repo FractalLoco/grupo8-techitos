@@ -62,12 +62,11 @@ function Login() {
 
         <div className="text-center mb-8">
           <img
-            src="/logo.svg"
+            src="/logo-techo-color-oficial.svg"
             alt="TECHO Chile"
-            className="w-16 mx-auto mb-4"
+            className="mx-auto mb-5 w-36 sm:w-44"
             onError={(e) => (e.target.style.display = 'none')}
           />
-          <p className="text-xs font-semibold tracking-widest text-primary uppercase mb-1">TECHO Chile</p>
           <h1 className="text-2xl font-bold text-primary">Iniciar Sesión</h1>
           <p className="text-sm text-outline mt-1">Ingresa tus credenciales para continuar</p>
         </div>
@@ -148,7 +147,7 @@ function Login() {
         </div>
 
         <p className="text-center text-outline-variant text-xs mt-6">
-          TECHO Chile — Dashboard Multifuncional
+          TECHO Chile
         </p>
       </div>
     </div>

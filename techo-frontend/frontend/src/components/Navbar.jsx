@@ -52,7 +52,7 @@ export default function Navbar() {
           className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2"
           aria-label="Ir al inicio"
         >
-          <img src="/logo.svg" alt="TECHO, un techo para Chile" className="h-11 w-auto max-w-[180px]" />
+          <img src="/logo-techo-blanco-oficial.png" alt="TECHO" className="h-11 w-auto max-w-[180px] object-contain" />
         </Link>
         <div className="hidden min-w-0 text-right sm:block">
           <p className="max-w-44 truncate text-sm font-semibold">{usuario?.nombre || 'Usuario'}</p>
