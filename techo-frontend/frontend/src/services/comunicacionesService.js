@@ -1,3 +1,5 @@
+import { io } from 'socket.io-client';
+
 const URL_BASE = import.meta.env.VITE_URL_BACKEND || 'http://localhost:3000';
 
 function obtenerHeaders() {
@@ -89,6 +91,77 @@ export async function obtenerCuadrillasAccesibles() {
 
   const datos = await manejarRespuesta(respuesta, 'No se pudieron cargar las cuadrillas');
   return datos.cuadrillas || [];
+}
+
+export function conectarChatTiempoReal(token) {
+  return io(URL_BASE, {
+    auth: { token },
+    transports: ['websocket', 'polling'],
+    reconnection: true,
+    reconnectionAttempts: Infinity,
+  });
+}
+
+export async function enviarFotoCanalCoordinador(canal, foto, contenido = '') {
+  const formulario = new FormData();
+  formulario.append('foto', foto);
+  if (contenido.trim()) formulario.append('contenido', contenido.trim());
+
+  const token = localStorage.getItem('token');
+  const respuesta = await fetch(`${URL_BASE}/api/comunicaciones/chat/${canal}/foto`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}` },
+    body: formulario,
+  });
+
+  const datos = await manejarRespuesta(respuesta, 'No se pudo enviar la foto');
+  return datos.mensaje;
+}
+
+export async function obtenerChatCoordinadores() {
+  const respuesta = await fetch(`${URL_BASE}/api/comunicaciones/chat/coordinadores`, {
+    headers: obtenerHeaders(),
+  });
+  const datos = await manejarRespuesta(respuesta, 'No se pudo cargar el chat de coordinadores');
+  return datos.mensajes || [];
+}
+
+export async function enviarMensajeCoordinadores(contenido, prioridad = false) {
+  const respuesta = await fetch(`${URL_BASE}/api/comunicaciones/chat/coordinadores`, {
+    method: 'POST',
+    headers: obtenerHeaders(),
+    body: JSON.stringify({ contenido, prioridad }),
+  });
+  const datos = await manejarRespuesta(respuesta, 'No se pudo enviar el mensaje');
+  return datos.mensaje;
+}
+
+export async function obtenerChatJefes() {
+  const respuesta = await fetch(`${URL_BASE}/api/comunicaciones/chat/jefes`, {
+    headers: obtenerHeaders(),
+  });
+  const datos = await manejarRespuesta(respuesta, 'No se pudo cargar el chat de jefes');
+  return datos.mensajes || [];
+}
+
+export async function enviarMensajeJefes(contenido) {
+  const respuesta = await fetch(`${URL_BASE}/api/comunicaciones/chat/jefes`, {
+    method: 'POST',
+    headers: obtenerHeaders(),
+    body: JSON.stringify({ contenido }),
+  });
+  const datos = await manejarRespuesta(respuesta, 'No se pudo enviar el mensaje');
+  return datos.mensaje;
+}
+
+export async function obtenerIntegrantesCuadrilla(cuadrillaId) {
+  const respuesta = await fetch(
+    `${URL_BASE}/api/comunicaciones/cuadrillas/${cuadrillaId}/integrantes`,
+    { headers: obtenerHeaders() },
+  );
+
+  const datos = await manejarRespuesta(respuesta, 'No se pudieron cargar los integrantes');
+  return datos.integrantes || [];
 }
 
 export async function marcarAvance(cuadrillaId, hito, contenido = '') {
