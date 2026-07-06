@@ -174,7 +174,7 @@ export default function Inicio() {
             {primerNombre}
           </h1>
           <img
-            src="/logo.svg"
+            src="/logo-techo-blanco-oficial.png"
             alt="TECHO, un techo para Chile"
             className="absolute left-1/2 top-1/2 h-9 w-auto max-w-[120px] -translate-x-1/2 -translate-y-1/2 sm:h-14 sm:max-w-[190px]"
           />

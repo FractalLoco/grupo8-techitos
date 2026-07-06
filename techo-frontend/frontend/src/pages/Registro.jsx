@@ -88,7 +88,7 @@ function Registro() {
         <div className="relative z-10 text-center text-white animate-fadeIn">
           <div className="mb-8 animate-float">
             <img
-              src="/logo.svg"
+              src="/logo-techo-blanco-oficial.png"
               alt="TECHO Chile"
               className="w-48 mx-auto drop-shadow-2xl"
               onError={(e) => (e.target.style.display = 'none')}
@@ -107,7 +107,7 @@ function Registro() {
           {/* Logo solo en móvil */}
           <div className="lg:hidden text-center mb-8">
             <img
-              src="/logo.svg"
+              src="/logo-techo-blanco-oficial.png"
               alt="TECHO Chile"
               className="w-32 mx-auto"
               onError={(e) => (e.target.style.display = 'none')}
