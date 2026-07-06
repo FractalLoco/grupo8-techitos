@@ -57,27 +57,26 @@ function Login() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-techo-light px-4">
+    <div className="min-h-screen flex items-center justify-center bg-surface-container-low px-4">
       <div className="w-full max-w-sm">
 
         <div className="text-center mb-8">
           <img
-            src="/logo.svg"
+            src="/logo-techo-color-oficial.svg"
             alt="TECHO Chile"
-            className="w-16 mx-auto mb-4"
+            className="mx-auto mb-5 w-36 sm:w-44"
             onError={(e) => (e.target.style.display = 'none')}
           />
-          <p className="text-xs font-semibold tracking-widest text-techo-secondary uppercase mb-1">TECHO Chile</p>
-          <h1 className="text-2xl font-bold text-techo-primary">Iniciar Sesión</h1>
-          <p className="text-sm text-gray-400 mt-1">Ingresa tus credenciales para continuar</p>
+          <h1 className="text-2xl font-bold text-primary">Iniciar Sesión</h1>
+          <p className="text-sm text-outline mt-1">Ingresa tus credenciales para continuar</p>
         </div>
 
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-8">
+        <div className="bg-white rounded-xl shadow-sm border border-outline-variant/60 p-8">
           <form onSubmit={manejarInicioSesion} className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-gray-600 mb-1.5">RUT</label>
+              <label className="block text-sm font-medium text-on-surface-variant mb-1.5">RUT</label>
               <input
-                className="w-full px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-techo-primary/20 focus:border-techo-primary outline-none transition-all"
+                className="w-full px-3 py-2.5 border border-outline-variant rounded-lg text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all"
                 type="text"
                 placeholder="12345678-9"
                 value={rut}
@@ -87,10 +86,10 @@ function Login() {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-600 mb-1.5">Contraseña</label>
+              <label className="block text-sm font-medium text-on-surface-variant mb-1.5">Contraseña</label>
               <div className="relative">
                 <input
-                  className="w-full px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-techo-primary/20 focus:border-techo-primary outline-none transition-all pr-10"
+                  className="w-full px-3 py-2.5 border border-outline-variant rounded-lg text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all pr-10"
                   type={mostrarContrasena ? 'text' : 'password'}
                   placeholder="••••••••"
                   value={contrasena}
@@ -99,7 +98,7 @@ function Login() {
                 />
                 <button
                   type="button"
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-300 hover:text-gray-500 transition-colors"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-outline-variant hover:text-on-surface-variant transition-colors"
                   onClick={() => setMostrarContrasena(!mostrarContrasena)}
                 >
                   {mostrarContrasena ? (
@@ -117,11 +116,11 @@ function Login() {
             </div>
 
             {mensajeError && (
-              <p className="text-red-500 text-xs text-center">{mensajeError}</p>
+              <p className="text-error text-xs text-center">{mensajeError}</p>
             )}
 
             <button
-              className="w-full bg-techo-primary hover:bg-techo-primary/90 text-white py-2.5 rounded-lg text-sm font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed mt-2"
+              className="w-full bg-primary hover:bg-primary/90 text-white py-2.5 rounded-lg text-sm font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed mt-2"
               type="submit"
               disabled={cargando}
             >
@@ -138,17 +137,17 @@ function Login() {
           </form>
 
           <div className="mt-5 text-center space-y-2">
-            <Link to="/auth/registro" className="block text-xs text-gray-400 hover:text-techo-primary transition-colors">
+            <Link to="/auth/registro" className="block text-xs text-outline hover:text-primary transition-colors">
               ¿No tienes cuenta? Regístrate aquí
             </Link>
-            <Link to="/" className="block text-xs text-gray-300 hover:text-techo-primary transition-colors">
+            <Link to="/" className="block text-xs text-outline-variant hover:text-primary transition-colors">
               ← Volver a la presentación
             </Link>
           </div>
         </div>
 
-        <p className="text-center text-gray-300 text-xs mt-6">
-          TECHO Chile — Dashboard Multifuncional
+        <p className="text-center text-outline-variant text-xs mt-6">
+          TECHO Chile
         </p>
       </div>
     </div>

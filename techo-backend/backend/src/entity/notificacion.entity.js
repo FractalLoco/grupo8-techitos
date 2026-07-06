@@ -40,6 +40,11 @@ export const NotificacionEntity = new EntitySchema({
       type: 'int',
       nullable: true,
     },
+    // Para navegar al chat de la cuadrilla desde la notificación
+    cuadrilla_id: {
+      type: 'int',
+      nullable: true,
+    },
     creado_en: {
       type: 'timestamp',
       createDate: true,
@@ -47,7 +52,7 @@ export const NotificacionEntity = new EntitySchema({
     },
   },
   checks: [
-    { expression: `"tipo" IN ('asignacion_obra', 'alerta_emergencia', 'alerta_herramienta', 'reasignacion')` },
+    { expression: `"tipo" IN ('asignacion_obra', 'alerta_emergencia', 'alerta_herramienta', 'reasignacion', 'broadcast', 'mensaje_cuadrilla')` },
   ],
   relations: {
     usuario: {

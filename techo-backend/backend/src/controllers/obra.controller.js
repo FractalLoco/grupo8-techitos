@@ -12,6 +12,16 @@ export const crearObra = async (solicitud, respuesta) => {
   }
 };
 
+// Se listan todas las obras del sistema para una vista global del mapa (sin filtrar por emergencia)
+export const listarTodasObras = async (solicitud, respuesta) => {
+  try {
+    const obras = await ObraService.listarTodas();
+    return respuestaExito(respuesta, 200, 'Obras obtenidas', { obras });
+  } catch (error) {
+    return respuestaError(respuesta, 500, error.message);
+  }
+};
+
 // Se listan todas las obras de una emergencia para mostrarlas como puntos en el mapa
 export const listarObrasPorEmergencia = async (solicitud, respuesta) => {
   try {

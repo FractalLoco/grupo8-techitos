@@ -1,21 +1,50 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import Navbar from '../components/Navbar';
-import { useAutenticacion } from '../context/AuthContext';
+import { forwardRef, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import {
-  obtenerBroadcast,
-  obtenerCuadrillasAccesibles,
-  obtenerMensajesCuadrilla,
-  enviarMensaje,
+  MdAdd,
+  MdAnnouncement,
+  MdAttachFile,
+  MdBolt,
+  MdCameraAlt,
+  MdCheckCircle,
+  MdClose,
+  MdFlag,
+  MdGroup,
+  MdImage,
+  MdInfo,
+  MdInfoOutline,
+  MdMenu,
+  MdPriorityHigh,
+  MdSearch,
+  MdSend,
+  MdWarning,
+} from 'react-icons/md';
+import { useAutenticacion } from '../context/AuthContext';
+import Navbar from '../components/Navbar';
+import {
   enviarEmergencia,
+  enviarArchivoChat,
+  enviarFotoCanalCoordinador,
   enviarFotoAvance,
+  enviarMensaje,
   marcarAvance,
+  obtenerBroadcast,
+  obtenerChatCoordinadores,
+  obtenerChatJefes,
+  obtenerCuadrillasAccesibles,
+  obtenerIntegrantesCuadrilla,
+  obtenerMensajesCuadrilla,
   obtenerUrlArchivo,
+  enviarMensajeCoordinadores,
+  enviarMensajeJefes,
+  conectarChatTiempoReal,
 } from '../services/comunicacionesService';
 
-const TIPOS_FOTO_PERMITIDOS = ['image/jpeg', 'image/png', 'image/webp'];
+const TIPOS_FOTO = ['image/jpeg', 'image/png', 'image/webp'];
 const MAX_FOTO_BYTES = 5 * 1024 * 1024;
-const INTERVALO_AUTO_REFRESH = 5000;
-
+const MAX_ARCHIVO_BYTES = 10 * 1024 * 1024;
+const EXTENSIONES_ARCHIVO = ['pdf', 'docx', 'xlsx', 'txt', 'csv', 'zip'];
+const INTERVALO_POLLING = 5000;
 const FORMATO_FECHA = new Intl.DateTimeFormat('es-CL', {
   day: '2-digit',
   month: 'short',
@@ -23,625 +52,765 @@ const FORMATO_FECHA = new Intl.DateTimeFormat('es-CL', {
   minute: '2-digit',
 });
 
+function SidebarComunicaciones({
+  abierto, usuario, canal, cuadrillaId, cuadrillas, cargandoCuadrillas,
+  onCerrar, onSeleccionarBroadcast, onSeleccionarCoordinadores, onSeleccionarJefes,
+  onSeleccionarCuadrilla,
+}) {
+  const [busquedaCuadrilla, setBusquedaCuadrilla] = useState('');
+  const cuadrillasFiltradas = cuadrillas.filter((cuadrilla) => {
+    const termino = busquedaCuadrilla.trim().toLocaleLowerCase('es');
+    if (!termino) return true;
+    return [cuadrilla.nombre, cuadrilla.estado]
+      .filter(Boolean)
+      .some((valor) => String(valor).toLocaleLowerCase('es').includes(termino));
+  });
+  return (
+    <>
+      {abierto && <button type="button" className="fixed inset-0 z-[3900] bg-slate-950/55 xl:hidden" onClick={onCerrar} aria-label="Cerrar canales" />}
+      <aside className={`fixed inset-y-0 left-0 z-[4000] flex w-[278px] flex-col bg-gradient-to-b from-techo-primaryDark to-techo-primary text-white shadow-2xl transition-transform xl:static xl:z-auto xl:translate-x-0 ${abierto ? 'translate-x-0' : '-translate-x-full'}`}>
+        <div className="flex min-h-[72px] items-center justify-between border-b border-white/10 px-5">
+          <div><p className="text-[10px] font-bold uppercase tracking-[0.22em] text-techo-secondary">TECHO</p><h2 className="text-lg font-bold">Comunicaciones</h2></div>
+          <button type="button" onClick={onCerrar} className="flex h-11 w-11 items-center justify-center rounded-xl hover:bg-white/10 xl:hidden" aria-label="Cerrar canales"><MdClose size={24} /></button>
+        </div>
+        <div className="flex-1 overflow-y-auto px-3 py-4">
+          <p className="mb-2 px-3 text-[10px] font-bold uppercase tracking-widest text-white/45">Canales</p>
+          <button type="button" onClick={onSeleccionarBroadcast} className={`mb-4 flex min-h-11 w-full items-center gap-3 rounded-xl px-3 text-sm font-semibold ${canal === 'broadcast' ? 'bg-techo-secondary' : 'text-white/75 hover:bg-white/10'}`}><MdAnnouncement size={20} /> Avisos generales</button>
+          {usuario?.rol === 'coordinador' && (
+            <button type="button" onClick={onSeleccionarCoordinadores} className={`mb-4 flex min-h-11 w-full items-center gap-3 rounded-xl px-3 text-sm font-semibold ${canal === 'coordinadores' ? 'bg-techo-secondary' : 'text-white/75 hover:bg-white/10'}`}><MdGroup size={20} /> Chat de coordinadores</button>
+          )}
+          {['coordinador', 'jefe_cuadrilla'].includes(usuario?.rol) && (
+            <button type="button" onClick={onSeleccionarJefes} className={`mb-4 flex min-h-11 w-full items-center gap-3 rounded-xl px-3 text-sm font-semibold ${canal === 'jefes' ? 'bg-techo-secondary' : 'text-white/75 hover:bg-white/10'}`}><MdGroup size={20} /> Chat de jefes</button>
+          )}
+          <p className="mb-2 px-3 text-[10px] font-bold uppercase tracking-widest text-white/45">Cuadrillas</p>
+          <label className="mb-3 flex min-h-11 items-center gap-2 rounded-xl border border-white/10 bg-white/10 px-3 focus-within:border-techo-secondary focus-within:ring-2 focus-within:ring-techo-secondary/30">
+            <MdSearch size={20} className="shrink-0 text-white/55" aria-hidden="true" />
+            <input
+              type="search"
+              value={busquedaCuadrilla}
+              onChange={(evento) => setBusquedaCuadrilla(evento.target.value)}
+              placeholder="Buscar cuadrilla..."
+              className="min-w-0 flex-1 bg-transparent text-sm text-white outline-none placeholder:text-white/40"
+              aria-label="Buscar cuadrilla"
+            />
+          </label>
+          {cargandoCuadrillas ? <p className="px-3 py-4 text-xs text-white/50">Cargando cuadrillas...</p>
+            : cuadrillas.length === 0 ? <p className="px-3 py-4 text-xs text-white/50">No tienes cuadrillas activas disponibles.</p>
+              : cuadrillasFiltradas.length === 0 ? <p className="px-3 py-4 text-xs text-white/50">No se encontraron cuadrillas.</p>
+              : cuadrillasFiltradas.map((cuadrilla) => {
+                const activa = canal === 'cuadrilla' && Number(cuadrillaId) === cuadrilla.id;
+                return (
+                  <button type="button" key={cuadrilla.id} onClick={() => onSeleccionarCuadrilla(cuadrilla.id)} className={`mb-1 flex min-h-12 w-full items-center gap-3 rounded-xl px-3 text-left ${activa ? 'bg-white/15' : 'text-white/70 hover:bg-white/10'}`}>
+                    <span className={`flex h-9 w-9 items-center justify-center rounded-xl ${activa ? 'bg-techo-secondary' : 'bg-white/10'}`}><MdGroup size={19} /></span>
+                    <span className="min-w-0"><span className="block truncate text-sm font-semibold">{cuadrilla.nombre}</span><span className="block text-[10px] capitalize text-white/45">{cuadrilla.estado || 'Activa'}</span></span>
+                  </button>
+                );
+              })}
+        </div>
+        <div className="space-y-3 border-t border-white/10 p-4">
+          <div className="flex items-center gap-3 rounded-xl bg-black/10 p-3">
+            <span className="flex h-10 w-10 items-center justify-center rounded-full bg-techo-secondary font-bold">{(usuario?.nombre || 'U')[0].toUpperCase()}</span>
+            <span className="min-w-0"><span className="block truncate text-sm font-semibold">{usuario?.nombre || 'Usuario'}</span><span className="block text-[10px] capitalize text-white/50">{usuario?.rol?.replace('_', ' ')}</span></span>
+          </div>
+        </div>
+      </aside>
+    </>
+  );
+}
+
+function EncabezadoCanal({ canal, cuadrilla, onAbrirCanales, onAbrirInformacion }) {
+  const descripcion = canal === 'broadcast'
+    ? 'Avisos generales para todos los usuarios activos'
+    : canal === 'coordinadores'
+      ? 'Canal privado exclusivo para coordinadores'
+      : canal === 'jefes'
+        ? 'Canal privado de jefes, visible para coordinación'
+      : [cuadrilla?.estado, cuadrilla?.fase].filter(Boolean).join(' · ') || 'Canal privado de cuadrilla';
+  return (
+    <header className="flex min-h-[72px] items-center gap-3 border-b border-slate-200 px-3 sm:px-5">
+      <button type="button" onClick={onAbrirCanales} className="flex h-11 w-11 items-center justify-center rounded-xl hover:bg-slate-100 xl:hidden" aria-label="Abrir canales"><MdMenu size={24} /></button>
+      <div className="min-w-0 flex-1"><h1 className="truncate text-lg font-bold text-techo-primary">{canal === 'broadcast' ? 'Avisos generales' : canal === 'coordinadores' ? 'Chat de coordinadores' : canal === 'jefes' ? 'Chat de jefes' : cuadrilla?.nombre || 'Cuadrilla'}</h1><p className="truncate text-xs capitalize text-slate-500">{descripcion}</p></div>
+      <button type="button" onClick={onAbrirInformacion} className="flex h-11 w-11 items-center justify-center rounded-xl hover:bg-slate-100 2xl:hidden" aria-label="Abrir información"><MdInfoOutline size={23} /></button>
+    </header>
+  );
+}
+
+const ESTILO_TIPO = {
+  avance: ['Avance', 'border-emerald-200 bg-emerald-50', 'bg-emerald-100 text-emerald-700', MdCheckCircle],
+  finalizado: ['Finalizado', 'border-green-300 bg-green-50', 'bg-green-600 text-white', MdCheckCircle],
+  emergencia: ['Emergencia', 'border-red-300 bg-red-50 ring-1 ring-red-200', 'bg-red-600 text-white', MdWarning],
+  imagen: ['Fotografía', 'border-slate-200 bg-white', 'bg-sky-100 text-sky-700', MdImage],
+  archivo: ['Archivo', 'border-slate-200 bg-white', 'bg-slate-100 text-slate-700', MdAttachFile],
+};
+
+function TarjetaMensaje({ mensaje, usuario, canal, onAbrirImagen }) {
+  const propio = mensaje.remitente_id === usuario?.id;
+  const config = ESTILO_TIPO[mensaje.tipo];
+  const Icono = config?.[3] || MdAnnouncement;
+  const url = obtenerUrlArchivo(mensaje.archivo_url);
+  const esImagen = Boolean(url && /\.(jpe?g|png|webp)(?:\?|$)/i.test(url));
+  const nombreArchivo = decodeURIComponent(url ? url.split('/').pop() : '')
+    .replace(/^[0-9a-f-]{36}--/i, '');
+  return (
+    <article className={`flex ${propio ? 'justify-end' : 'justify-start'}`}>
+      <div className={`max-w-[88%] rounded-2xl border px-4 py-3 shadow-sm sm:max-w-[76%] ${propio ? 'border-techo-primary bg-techo-primary text-white' : config?.[1] || (canal === 'broadcast' ? 'border-sky-200 bg-sky-50' : 'border-slate-200 bg-white')}`}>
+        <div className="mb-2 flex flex-wrap items-center gap-2">
+          <strong className="text-xs">{propio ? 'Tú' : mensaje.remitente_nombre || `Usuario ${mensaje.remitente_id || ''}`}</strong>
+          {(config || ['broadcast', 'coordinadores', 'jefes'].includes(canal)) && <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold uppercase ${config?.[2] || 'bg-sky-100 text-sky-700'}`}><Icono size={13} />{config?.[0] || (canal === 'coordinadores' ? 'Coordinadores' : canal === 'jefes' ? 'Jefes' : 'Aviso general')}</span>}
+          {(mensaje.prioridad === true && mensaje.tipo !== 'emergencia') && <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold uppercase text-amber-800">Prioridad alta</span>}
+        </div>
+        {esImagen && <button type="button" onClick={() => onAbrirImagen({ url, alt: mensaje.contenido || 'Evidencia fotográfica' })} className="block w-full overflow-hidden rounded-xl" aria-label="Abrir fotografía"><img src={url} alt={mensaje.contenido || 'Evidencia fotográfica'} className="max-h-80 w-full object-cover" loading="lazy" /></button>}
+        {url && !esImagen && (
+          <a href={url} target="_blank" rel="noreferrer" className={`flex items-center gap-3 rounded-xl border p-3 ${propio ? 'border-white/25 bg-white/10 text-white' : 'border-slate-200 bg-slate-50 text-techo-primary'}`}>
+            <MdAttachFile size={24} className="shrink-0" />
+            <span className="min-w-0"><span className="block truncate text-sm font-semibold">{nombreArchivo || 'Archivo adjunto'}</span><span className="block text-[11px] opacity-70">Abrir o descargar archivo</span></span>
+          </a>
+        )}
+        {mensaje.contenido && <p className={`whitespace-pre-wrap break-words text-sm ${url ? 'mt-3' : ''}`}>{mensaje.contenido}</p>}
+        <time className={`mt-2 block text-[11px] ${propio ? 'text-white/65' : 'text-slate-400'}`}>{mensaje.creado_en ? FORMATO_FECHA.format(new Date(mensaje.creado_en)) : 'Reciente'}</time>
+      </div>
+    </article>
+  );
+}
+
+const ListaMensajes = forwardRef(({ mensajes, usuario, canal, onAbrirImagen, onScroll, cargando }, ref) => (
+  <div ref={ref} onScroll={onScroll} className="flex-1 space-y-4 overflow-y-auto bg-slate-50/70 px-4 py-5 sm:px-6">
+    {cargando && mensajes.length === 0 ? <div className="flex h-full items-center justify-center"><span className="h-9 w-9 animate-spin rounded-full border-4 border-sky-100 border-t-techo-secondary" /></div>
+      : mensajes.length === 0 ? <div className="flex h-full flex-col items-center justify-center text-slate-400"><MdInfo size={28} /><p className="mt-2 font-semibold">Todavía no hay mensajes</p></div>
+        : mensajes.map((mensaje) => <TarjetaMensaje key={mensaje.id || `${mensaje.remitente_id}-${mensaje.creado_en}`} mensaje={mensaje} usuario={usuario} canal={canal} onAbrirImagen={onAbrirImagen} />)}
+  </div>
+));
+
+function CompositorMensaje({
+  usuario, canal, contenido, onContenido, onEnviar, cargando, prioridadAlta, onPrioridad,
+  esEmergencia, registrarHito, hitoFinalizado, onAccion, foto, vistaPreviaFoto,
+  inputFotoRef, onSeleccionFoto, onQuitarFoto,
+  archivo, inputArchivoRef, onSeleccionArchivo, onQuitarArchivo,
+}) {
+  const [mostrarAcciones, setMostrarAcciones] = useState(false);
+  const esJefe = usuario?.rol === 'jefe_cuadrilla' && canal === 'cuadrilla';
+  const esCoordinador = usuario?.rol === 'coordinador';
+  const puedeAdjuntarFoto = canal === 'cuadrilla'
+    || (esCoordinador && ['broadcast', 'coordinadores'].includes(canal))
+    || (usuario?.rol === 'jefe_cuadrilla' && canal === 'jefes');
+  if (canal === 'broadcast' && !esCoordinador) {
+    return <div className="border-t bg-slate-50 p-4 text-center text-sm text-slate-500">Solo coordinación puede publicar avisos generales.</div>;
+  }
+  if (canal === 'jefes' && esCoordinador) {
+    return <div className="border-t bg-slate-50 p-4 text-center text-sm text-slate-500">Este canal es de solo lectura para coordinación.</div>;
+  }
+  const acciones = esJefe && (
+    <>
+      <button type="button" onClick={() => onAccion('avance')} className="flex min-h-11 items-center gap-2 rounded-xl px-3 text-xs font-semibold text-emerald-700 hover:bg-emerald-50"><MdBolt size={20} /> Avance</button>
+      <button type="button" onClick={() => onAccion('finalizado')} className="flex min-h-11 items-center gap-2 rounded-xl px-3 text-xs font-semibold text-green-700 hover:bg-green-50"><MdFlag size={20} /> Finalización</button>
+      <button type="button" onClick={() => onAccion('emergencia')} className="flex min-h-11 items-center gap-2 rounded-xl px-3 text-xs font-semibold text-red-700 hover:bg-red-50"><MdPriorityHigh size={20} /> Emergencia</button>
+    </>
+  );
+  const modo = esEmergencia ? 'Emergencia' : registrarHito ? (hitoFinalizado ? 'Finalización' : 'Avance') : '';
+  return (
+    <form onSubmit={onEnviar} className="border-t border-slate-200 bg-white p-3 sm:p-4">
+      {foto && <div className="mb-3 flex items-center gap-3 rounded-xl border border-sky-200 bg-sky-50 p-3"><img src={vistaPreviaFoto} alt="Vista previa" className="h-16 w-20 rounded-lg object-cover" /><div className="min-w-0 flex-1"><p className="truncate text-xs font-bold">{foto.name}</p><p className="text-[11px] text-slate-500">{(foto.size / 1024 / 1024).toFixed(2)} MB</p></div><button type="button" onClick={onQuitarFoto} className="h-11 w-11 text-red-600" aria-label="Quitar fotografía"><MdClose size={21} /></button></div>}
+      {archivo && <div className="mb-3 flex items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 p-3"><MdAttachFile size={26} className="shrink-0 text-techo-primary" /><div className="min-w-0 flex-1"><p className="truncate text-xs font-bold">{archivo.name}</p><p className="text-[11px] text-slate-500">{(archivo.size / 1024 / 1024).toFixed(2)} MB</p></div><button type="button" onClick={onQuitarArchivo} className="h-11 w-11 text-red-600" aria-label="Quitar archivo"><MdClose size={21} /></button></div>}
+      {(modo || prioridadAlta) && <div className="mb-2 flex gap-2">{modo && <button type="button" onClick={() => onAccion('normal')} className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-bold text-emerald-700">{modo} · Quitar</button>}{prioridadAlta && <button type="button" onClick={() => onPrioridad(false)} className="rounded-full bg-amber-100 px-3 py-1 text-xs font-bold text-amber-800">Prioridad alta · Quitar</button>}</div>}
+      <div className="flex items-end gap-2">
+        {esJefe && <button type="button" onClick={() => setMostrarAcciones(!mostrarAcciones)} className="flex h-11 w-11 items-center justify-center rounded-xl bg-slate-100 md:hidden" aria-label="Mostrar acciones"><MdAdd size={25} /></button>}
+        {puedeAdjuntarFoto && <label className="flex h-11 w-11 shrink-0 cursor-pointer items-center justify-center rounded-xl bg-slate-100 text-techo-primary hover:bg-slate-200" aria-label="Adjuntar fotografía"><MdCameraAlt size={21} /><input ref={inputFotoRef} type="file" accept="image/jpeg,image/png,image/webp" capture="environment" className="sr-only" onChange={onSeleccionFoto} disabled={cargando} /></label>}
+        <label className="flex h-11 w-11 shrink-0 cursor-pointer items-center justify-center rounded-xl bg-slate-100 text-techo-primary hover:bg-slate-200" aria-label="Adjuntar archivo"><MdAttachFile size={21} /><input ref={inputArchivoRef} type="file" accept=".pdf,.docx,.xlsx,.txt,.csv,.zip" className="sr-only" onChange={onSeleccionArchivo} disabled={cargando} /></label>
+        <textarea rows={1} value={contenido} onChange={(e) => onContenido(e.target.value)} placeholder={esEmergencia ? 'Describe la emergencia...' : 'Escribe un mensaje...'} className="min-h-11 max-h-32 flex-1 resize-none rounded-xl border px-4 py-3 text-sm outline-none focus:border-techo-secondary" disabled={cargando} onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); e.currentTarget.form?.requestSubmit(); } }} />
+        <button type="submit" disabled={cargando} className="flex h-11 items-center gap-2 rounded-xl bg-techo-secondary px-4 font-semibold text-white disabled:opacity-60"><MdSend size={20} /><span className="hidden sm:inline">{cargando ? 'Enviando...' : 'Enviar'}</span></button>
+      </div>
+      {mostrarAcciones && <div className="mt-2 grid grid-cols-2 md:hidden">{acciones}</div>}
+      <div className="mt-2 hidden flex-wrap items-center gap-1 md:flex">{acciones}{esCoordinador && <label className="ml-auto flex min-h-11 items-center gap-2 px-3 text-xs font-semibold"><input type="checkbox" checked={prioridadAlta} onChange={(e) => onPrioridad(e.target.checked)} /> Prioridad alta</label>}</div>
+    </form>
+  );
+}
+
+function PanelCuadrilla({
+  abierto, canal, cuadrilla, integrantes, mensajes,
+  cargandoIntegrantes, errorIntegrantes, onCerrar,
+}) {
+  const archivosCompartidos = mensajes
+    .filter((mensaje) => mensaje.archivo_url && !/\.(jpe?g|png|webp)(?:\?|$)/i.test(mensaje.archivo_url))
+    .map((mensaje) => {
+      const url = obtenerUrlArchivo(mensaje.archivo_url);
+      const nombre = decodeURIComponent(url.split('/').pop() || '')
+        .replace(/^[0-9a-f-]{36}--/i, '');
+      return { ...mensaje, url, nombre: nombre || 'Archivo adjunto' };
+    });
+
+  return (
+    <>
+      {abierto && <button type="button" className="fixed inset-0 z-[3900] bg-slate-950/45 2xl:hidden" onClick={onCerrar} aria-label="Cerrar información" />}
+      <aside className={`fixed inset-y-0 right-0 z-[4000] w-[310px] overflow-y-auto border-l bg-white p-5 shadow-2xl transition-transform 2xl:static 2xl:translate-x-0 2xl:shadow-none ${abierto ? 'translate-x-0' : 'translate-x-full'}`}>
+        <div className="mb-5 flex items-center justify-between"><h2 className="font-bold text-techo-primary">Información del canal</h2><button type="button" onClick={onCerrar} className="h-11 w-11 2xl:hidden" aria-label="Cerrar"><MdClose size={23} /></button></div>
+        <section className="rounded-2xl border bg-slate-50 p-4"><MdInfo size={22} className="mb-3 text-techo-secondary" /><h3 className="font-bold">{canal === 'broadcast' ? 'Avisos generales' : canal === 'coordinadores' ? 'Chat de coordinadores' : canal === 'jefes' ? 'Chat de jefes' : cuadrilla?.nombre || 'Sin cuadrilla'}</h3><p className="mt-1 text-xs capitalize text-slate-500">{canal === 'broadcast' ? 'Canal general del sistema' : canal === 'coordinadores' ? 'Acceso exclusivo para coordinadores' : canal === 'jefes' ? 'Jefes escriben; coordinación solo visualiza' : [cuadrilla?.estado, cuadrilla?.fase].filter(Boolean).join(' · ') || 'Canal privado'}</p></section>
+        {canal === 'cuadrilla' && (
+          <section className="mt-5">
+            <h3 className="mb-3 text-xs font-bold uppercase tracking-wider text-slate-400">Integrantes</h3>
+            {cargandoIntegrantes ? (
+              <p className="text-sm text-slate-500">Cargando integrantes...</p>
+            ) : errorIntegrantes ? (
+              <p className="rounded-xl bg-red-50 p-3 text-sm text-red-700">{errorIntegrantes}</p>
+            ) : integrantes.length === 0 ? (
+              <p className="text-sm text-slate-500">Esta cuadrilla no tiene integrantes registrados.</p>
+            ) : (
+              <ul className="space-y-2">
+                {integrantes.map((integrante) => (
+                  <li key={integrante.id} className="flex items-center gap-3 rounded-xl border border-slate-100 p-2.5">
+                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-sky-100 text-sm font-bold text-techo-primary">
+                      {(integrante.nombre || 'U').slice(0, 1).toUpperCase()}
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-sm font-semibold text-slate-700">{integrante.nombre}</span>
+                      <span className="block text-xs capitalize text-slate-400">{integrante.rol?.replace('_', ' ')}</span>
+                    </span>
+                    {integrante.es_jefe && <span className="rounded-full bg-sky-100 px-2 py-1 text-[10px] font-bold uppercase text-sky-700">Jefe</span>}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
+        )}
+        <section className="mt-6 border-t border-slate-200 pt-5">
+          <div className="mb-3 flex items-center justify-between">
+            <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400">Archivos compartidos</h3>
+            <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-bold text-slate-500">{archivosCompartidos.length}</span>
+          </div>
+          {archivosCompartidos.length === 0 ? (
+            <p className="text-sm text-slate-500">Todavía no se han compartido archivos.</p>
+          ) : (
+            <ul className="space-y-2">
+              {archivosCompartidos.map((archivoCompartido) => (
+                <li key={archivoCompartido.id}>
+                  <a
+                    href={archivoCompartido.url}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="flex min-h-14 items-center gap-3 rounded-xl border border-slate-100 p-2.5 transition hover:border-primary/30 hover:bg-primary-fixed/40"
+                  >
+                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary-fixed text-primary">
+                      <MdAttachFile size={20} />
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-sm font-semibold text-slate-700">{archivoCompartido.nombre}</span>
+                      <span className="block truncate text-[11px] text-slate-400">
+                        {archivoCompartido.remitente_nombre || 'Usuario'}
+                        {archivoCompartido.creado_en ? ` · ${FORMATO_FECHA.format(new Date(archivoCompartido.creado_en))}` : ''}
+                      </span>
+                    </span>
+                  </a>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+      </aside>
+    </>
+  );
+}
+
+function ModalImagen({ imagen, onCerrar }) {
+  useEffect(() => {
+    if (!imagen) return undefined;
+    const cerrar = (e) => { if (e.key === 'Escape') onCerrar(); };
+    document.addEventListener('keydown', cerrar);
+    return () => document.removeEventListener('keydown', cerrar);
+  }, [imagen, onCerrar]);
+  if (!imagen) return null;
+  return <div className="fixed inset-0 z-[5000] flex items-center justify-center bg-slate-950/85 p-4" role="dialog" aria-modal="true" onMouseDown={(e) => { if (e.target === e.currentTarget) onCerrar(); }}><button type="button" onClick={onCerrar} className="absolute right-4 top-4 h-11 w-11 text-white" aria-label="Cerrar fotografía"><MdClose size={26} /></button><img src={imagen.url} alt={imagen.alt} className="max-h-[88vh] max-w-[94vw] rounded-2xl object-contain" /></div>;
+}
+
 function Comunicaciones() {
-  const { usuario } = useAutenticacion();
-  const [canal, setCanal] = useState('broadcast');
+  const { usuario, token } = useAutenticacion();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [canal, setCanal] = useState(
+    ['cuadrilla', 'coordinadores', 'jefes'].includes(searchParams.get('canal'))
+      ? searchParams.get('canal')
+      : 'broadcast',
+  );
+  const [cuadrillaId, setCuadrillaId] = useState(searchParams.get('cuadrillaId') || '');
   const [cuadrillas, setCuadrillas] = useState([]);
-  const [cuadrillaId, setCuadrillaId] = useState('');
-  const [cargandoCuadrillas, setCargandoCuadrillas] = useState(true);
-  const [prioridadAlta, setPrioridadAlta] = useState(false);
   const [mensajes, setMensajes] = useState([]);
+  const [integrantes, setIntegrantes] = useState([]);
   const [contenido, setContenido] = useState('');
-  const [cargando, setCargando] = useState(false);
-  const [error, setError] = useState('');
-  const [errorAutoRefresh, setErrorAutoRefresh] = useState('');
+  const [prioridadAlta, setPrioridadAlta] = useState(false);
   const [esEmergencia, setEsEmergencia] = useState(false);
   const [registrarHito, setRegistrarHito] = useState(false);
   const [hitoFinalizado, setHitoFinalizado] = useState(false);
   const [foto, setFoto] = useState(null);
+  const [archivo, setArchivo] = useState(null);
   const [vistaPreviaFoto, setVistaPreviaFoto] = useState('');
+  const [imagenModal, setImagenModal] = useState(null);
+  const [cargandoCuadrillas, setCargandoCuadrillas] = useState(true);
+  const [cargandoMensajes, setCargandoMensajes] = useState(false);
+  const [cargandoIntegrantes, setCargandoIntegrantes] = useState(false);
+  const [enviando, setEnviando] = useState(false);
+  const [error, setError] = useState('');
+  const [errorCuadrillas, setErrorCuadrillas] = useState('');
+  const [errorAutoRefresh, setErrorAutoRefresh] = useState('');
+  const [errorIntegrantes, setErrorIntegrantes] = useState('');
+  const [sidebarAbierto, setSidebarAbierto] = useState(false);
+  const [panelAbierto, setPanelAbierto] = useState(false);
   const inputFotoRef = useRef(null);
-  const intervaloRef = useRef(null);
+  const inputArchivoRef = useRef(null);
+  const listaMensajesRef = useRef(null);
   const montadoRef = useRef(true);
+  const mantenerAlFinalRef = useRef(true);
+
+  const agregarMensajeSinDuplicar = useCallback((mensajeNuevo) => {
+    if (!mensajeNuevo) return;
+    setMensajes((actuales) => (
+      actuales.some((mensaje) => mensaje.id === mensajeNuevo.id)
+        ? actuales
+        : [...actuales, mensajeNuevo]
+    ));
+  }, []);
 
   const cuadrillaSeleccionada = useMemo(
-    () => cuadrillas.find((c) => c.id === Number(cuadrillaId)),
+    () => cuadrillas.find((cuadrilla) => cuadrilla.id === Number(cuadrillaId)),
     [cuadrillas, cuadrillaId],
   );
 
-  const tituloCanal = useMemo(() => {
-    if (canal === 'broadcast') return 'Anuncios generales';
-    if (cuadrillaSeleccionada) return `Chat ${cuadrillaSeleccionada.nombre}`;
-    return 'Chat de cuadrilla';
-  }, [canal, cuadrillaSeleccionada]);
-
-  // Carga la lista de cuadrillas accesibles
-  const cargarCuadrillas = useCallback(async () => {
-    try {
-      setCargandoCuadrillas(true);
-      const datos = await obtenerCuadrillasAccesibles();
-      if (!montadoRef.current) return;
-      setCuadrillas(datos || []);
-    } catch {
-      // Error silencioso, se mantiene la lista anterior
-    } finally {
-      if (montadoRef.current) {
-        setCargandoCuadrillas(false);
-      }
+  useEffect(() => {
+    if (canal === 'coordinadores' && usuario?.rol !== 'coordinador') {
+      setCanal('broadcast');
+      setSearchParams({ canal: 'broadcast' }, { replace: true });
     }
+  }, [canal, setSearchParams, usuario?.rol]);
+
+  useEffect(() => {
+    if (canal === 'jefes' && !['coordinador', 'jefe_cuadrilla'].includes(usuario?.rol)) {
+      setCanal('broadcast');
+      setSearchParams({ canal: 'broadcast' }, { replace: true });
+    }
+  }, [canal, setSearchParams, usuario?.rol]);
+
+  const quitarFoto = useCallback(() => {
+    setFoto(null);
+    if (inputFotoRef.current) inputFotoRef.current.value = '';
   }, []);
 
-  // Carga los mensajes del canal activo
-  const cargarMensajes = useCallback(async (esAutoRefresh = false) => {
-    if (esAutoRefresh) {
-      setErrorAutoRefresh('');
-    } else {
-      setError('');
-    }
+  const quitarArchivo = useCallback(() => {
+    setArchivo(null);
+    if (inputArchivoRef.current) inputArchivoRef.current.value = '';
+  }, []);
 
-    try {
-      if (canal === 'broadcast') {
-        const datos = await obtenerBroadcast();
-        if (montadoRef.current) setMensajes(datos || []);
-        return;
-      }
+  const limpiarAcciones = useCallback(() => {
+    setEsEmergencia(false);
+    setRegistrarHito(false);
+    setHitoFinalizado(false);
+    setPrioridadAlta(false);
+  }, []);
 
-      if (!cuadrillaId) {
-        if (montadoRef.current) setMensajes([]);
-        return;
-      }
-
-      const datos = await obtenerMensajesCuadrilla(cuadrillaId);
-      if (montadoRef.current) setMensajes(datos || []);
-    } catch (errorActual) {
-      if (!montadoRef.current) return;
-      if (esAutoRefresh) {
-        setErrorAutoRefresh(errorActual.message || 'Error al actualizar mensajes');
-      } else {
-        setError(errorActual.message || 'No se pudieron cargar los mensajes');
-      }
-    }
-  }, [canal, cuadrillaId]);
-
-  // Cargar cuadrillas al montar el componente
   useEffect(() => {
     montadoRef.current = true;
+    async function cargarCuadrillas() {
+      setCargandoCuadrillas(true);
+      setErrorCuadrillas('');
+      try {
+        const datos = await obtenerCuadrillasAccesibles();
+        if (montadoRef.current) setCuadrillas(datos || []);
+      } catch (errorActual) {
+        if (montadoRef.current) {
+          setErrorCuadrillas(errorActual.message || 'No se pudieron cargar las cuadrillas.');
+        }
+      } finally {
+        if (montadoRef.current) setCargandoCuadrillas(false);
+      }
+    }
     cargarCuadrillas();
     return () => {
       montadoRef.current = false;
     };
-  }, [cargarCuadrillas]);
+  }, []);
 
-  // Cuando cambia el canal, cargar mensajes y ajustar selector
   useEffect(() => {
-    if (canal === 'broadcast') {
-      setCuadrillaId('');
-      cargarMensajes();
+    if (cargandoCuadrillas || canal !== 'cuadrilla') return;
+    const disponible = cuadrillas.some((cuadrilla) => cuadrilla.id === Number(cuadrillaId));
+    if (!disponible) {
+      const siguienteId = cuadrillas[0] ? String(cuadrillas[0].id) : '';
+      setCuadrillaId(siguienteId);
+      setSearchParams(
+        siguienteId ? { canal: 'cuadrilla', cuadrillaId: siguienteId } : { canal: 'cuadrilla' },
+        { replace: true },
+      );
     }
-  }, [canal, cargarMensajes]);
+  }, [canal, cargandoCuadrillas, cuadrillaId, cuadrillas, setSearchParams]);
 
-  // Auto-seleccionar la primera cuadrilla al entrar en modo cuadrilla
   useEffect(() => {
-    if (canal !== 'cuadrilla') return;
-
-    if (cuadrillas.length > 0) {
-      const sigueDisponible = cuadrillas.some((c) => c.id === Number(cuadrillaId));
-      if (cuadrillaId && sigueDisponible) {
-        // La selección actual sigue disponible; solo cargar mensajes
-        cargarMensajes();
-      } else {
-        // Seleccionar la primera disponible
-        const primera = cuadrillas[0];
-        setCuadrillaId(String(primera.id));
-      }
-    } else {
-      setCuadrillaId('');
-      setMensajes([]);
-    }
-  }, [canal, cuadrillas, cuadrillaId, cargarMensajes]);
-
-  // Cuando cuadrillaId cambia (por selector o auto-selección), cargar mensajes
-  useEffect(() => {
-    if (canal === 'cuadrilla' && cuadrillaId) {
-      cargarMensajes();
-    }
-  }, [cuadrillaId]); 
-
-  // Si la cuadrilla seleccionada deja de estar disponible, elegir otra
-  useEffect(() => {
-    if (canal !== 'cuadrilla' || !cuadrillaId || cargandoCuadrillas) return;
-    const sigueDisponible = cuadrillas.some((c) => c.id === Number(cuadrillaId));
-    if (!sigueDisponible) {
-      if (cuadrillas.length > 0) {
-        setCuadrillaId(String(cuadrillas[0].id));
-      } else {
-        setCuadrillaId('');
-        setMensajes([]);
-      }
-    }
-  }, [cuadrillas, cuadrillaId, canal, cargandoCuadrillas]);
-
-  // Intervalo de auto-refresh cada 5 segundos
-  useEffect(() => {
-    if (intervaloRef.current) {
-      clearInterval(intervaloRef.current);
-      intervaloRef.current = null;
+    if (canal !== 'cuadrilla' || !cuadrillaId) {
+      setIntegrantes([]);
+      setErrorIntegrantes('');
+      setCargandoIntegrantes(false);
+      return undefined;
     }
 
-    if (!canal || (canal === 'cuadrilla' && !cuadrillaId)) return;
-
-    intervaloRef.current = setInterval(() => {
-      cargarMensajes(true);
-    }, INTERVALO_AUTO_REFRESH);
+    let vigente = true;
+    setIntegrantes([]);
+    setErrorIntegrantes('');
+    setCargandoIntegrantes(true);
+    obtenerIntegrantesCuadrilla(cuadrillaId)
+      .then((datos) => {
+        if (vigente) setIntegrantes(datos || []);
+      })
+      .catch((errorActual) => {
+        if (vigente) setErrorIntegrantes(errorActual.message || 'No se pudieron cargar los integrantes.');
+      })
+      .finally(() => {
+        if (vigente) setCargandoIntegrantes(false);
+      });
 
     return () => {
-      if (intervaloRef.current) {
-        clearInterval(intervaloRef.current);
-        intervaloRef.current = null;
+      vigente = false;
+    };
+  }, [canal, cuadrillaId]);
+
+  const cargarMensajes = useCallback(async (esAutomatico = false) => {
+    if (canal === 'cuadrilla' && cargandoCuadrillas) return;
+    if (canal === 'cuadrilla' && !cuadrillaId) {
+      setMensajes([]);
+      return;
+    }
+    if (!esAutomatico) {
+      setCargandoMensajes(true);
+      setError('');
+    }
+    try {
+      const datos = canal === 'broadcast'
+        ? await obtenerBroadcast()
+        : canal === 'coordinadores'
+          ? await obtenerChatCoordinadores()
+          : canal === 'jefes'
+            ? await obtenerChatJefes()
+          : await obtenerMensajesCuadrilla(cuadrillaId);
+      if (!montadoRef.current) return;
+      setMensajes(datos || []);
+      setErrorAutoRefresh('');
+    } catch (errorActual) {
+      if (!montadoRef.current) return;
+      const texto = errorActual.message || 'No se pudieron cargar los mensajes.';
+      if (esAutomatico) setErrorAutoRefresh(texto);
+      else setError(texto);
+    } finally {
+      if (!esAutomatico && montadoRef.current) setCargandoMensajes(false);
+    }
+  }, [canal, cargandoCuadrillas, cuadrillaId]);
+
+  useEffect(() => {
+    mantenerAlFinalRef.current = true;
+    setMensajes([]);
+    cargarMensajes();
+  }, [cargarMensajes]);
+
+  useEffect(() => {
+    if (canal === 'cuadrilla' && !cuadrillaId) return undefined;
+    const intervalo = window.setInterval(() => cargarMensajes(true), INTERVALO_POLLING);
+    return () => window.clearInterval(intervalo);
+  }, [canal, cuadrillaId, cargarMensajes]);
+
+  useEffect(() => {
+    if (!token) return undefined;
+    const socket = conectarChatTiempoReal(token);
+    const recibirMensaje = (mensajeNuevo) => {
+      const perteneceCanal = canal === 'cuadrilla'
+        ? Number(mensajeNuevo.cuadrilla_id) === Number(cuadrillaId)
+        : canal === 'coordinadores'
+          ? mensajeNuevo.tipo === 'coordinadores'
+          : canal === 'jefes'
+            ? mensajeNuevo.tipo === 'jefes'
+            : !mensajeNuevo.cuadrilla_id
+              && !['coordinadores', 'jefes'].includes(mensajeNuevo.tipo);
+
+      if (perteneceCanal) {
+        mantenerAlFinalRef.current = true;
+        agregarMensajeSinDuplicar(mensajeNuevo);
       }
     };
-  }, [canal, cuadrillaId, cargarMensajes]);
+    socket.on('chat:mensaje', recibirMensaje);
+    return () => {
+      socket.off('chat:mensaje', recibirMensaje);
+      socket.disconnect();
+    };
+  }, [agregarMensajeSinDuplicar, canal, cuadrillaId, token]);
+
+  useEffect(() => {
+    if (!mantenerAlFinalRef.current || !listaMensajesRef.current) return;
+    window.requestAnimationFrame(() => {
+      if (listaMensajesRef.current) {
+        listaMensajesRef.current.scrollTop = listaMensajesRef.current.scrollHeight;
+      }
+    });
+  }, [mensajes]);
 
   useEffect(() => {
     if (!foto) {
       setVistaPreviaFoto('');
       return undefined;
     }
-
     const url = URL.createObjectURL(foto);
     setVistaPreviaFoto(url);
     return () => URL.revokeObjectURL(url);
   }, [foto]);
 
-  const quitarFoto = () => {
-    setFoto(null);
-    if (inputFotoRef.current) inputFotoRef.current.value = '';
+  const seleccionarBroadcast = () => {
+    setCanal('broadcast');
+    setCuadrillaId('');
+    setSidebarAbierto(false);
+    limpiarAcciones();
+    quitarFoto();
+    quitarArchivo();
+    setSearchParams({ canal: 'broadcast' });
+  };
+
+  const seleccionarCoordinadores = () => {
+    setCanal('coordinadores');
+    setCuadrillaId('');
+    setSidebarAbierto(false);
+    limpiarAcciones();
+    quitarFoto();
+    quitarArchivo();
+    setSearchParams({ canal: 'coordinadores' });
+  };
+
+  const seleccionarJefes = () => {
+    setCanal('jefes');
+    setCuadrillaId('');
+    setSidebarAbierto(false);
+    limpiarAcciones();
+    quitarFoto();
+    quitarArchivo();
+    setSearchParams({ canal: 'jefes' });
+  };
+
+  const seleccionarCuadrilla = (id) => {
+    const nuevoId = String(id);
+    setCanal('cuadrilla');
+    setCuadrillaId(nuevoId);
+    setSidebarAbierto(false);
+    limpiarAcciones();
+    quitarFoto();
+    quitarArchivo();
+    setSearchParams({ canal: 'cuadrilla', cuadrillaId: nuevoId });
   };
 
   const manejarSeleccionFoto = (evento) => {
     const archivo = evento.target.files?.[0];
     setError('');
     if (!archivo) return;
-    if (!TIPOS_FOTO_PERMITIDOS.includes(archivo.type)) {
-      setError('Formato no permitido. Usa JPG, PNG o WebP');
+    if (!TIPOS_FOTO.includes(archivo.type)) {
+      setError('Formato no permitido. Usa JPG, PNG o WebP.');
       evento.target.value = '';
       return;
     }
     if (archivo.size > MAX_FOTO_BYTES) {
-      setError('La foto no puede superar los 5 MB');
+      setError('La foto no puede superar los 5 MB.');
       evento.target.value = '';
       return;
     }
-
     setFoto(archivo);
+    quitarArchivo();
     setEsEmergencia(false);
     setPrioridadAlta(false);
   };
 
-  const manejarCambioCuadrilla = (evento) => {
-    setCuadrillaId(evento.target.value);
+  const manejarSeleccionArchivo = (evento) => {
+    const archivoSeleccionado = evento.target.files?.[0];
+    setError('');
+    if (!archivoSeleccionado) return;
+    const extension = archivoSeleccionado.name.split('.').pop()?.toLowerCase();
+    if (!EXTENSIONES_ARCHIVO.includes(extension)) {
+      setError('Formato no permitido. Usa PDF, DOCX, XLSX, TXT, CSV o ZIP.');
+      evento.target.value = '';
+      return;
+    }
+    if (archivoSeleccionado.size > MAX_ARCHIVO_BYTES) {
+      setError('El archivo no puede superar los 10 MB.');
+      evento.target.value = '';
+      return;
+    }
+    setArchivo(archivoSeleccionado);
+    quitarFoto();
+    limpiarAcciones();
+  };
+
+  const manejarAccion = (accion) => {
+    setError('');
+    if (accion === 'avance') {
+      setRegistrarHito(true);
+      setHitoFinalizado(false);
+      setEsEmergencia(false);
+      setPrioridadAlta(false);
+    } else if (accion === 'finalizado') {
+      setRegistrarHito(true);
+      setHitoFinalizado(true);
+      setEsEmergencia(false);
+      setPrioridadAlta(false);
+    } else if (accion === 'emergencia') {
+      setRegistrarHito(false);
+      setHitoFinalizado(false);
+      setEsEmergencia(true);
+      setPrioridadAlta(true);
+      quitarFoto();
+      quitarArchivo();
+    } else {
+      limpiarAcciones();
+    }
   };
 
   const manejarEnvio = async (evento) => {
     evento.preventDefault();
     setError('');
-
-    if (!contenido.trim() && !registrarHito && !foto) {
-      setError('Escribe un mensaje antes de enviar');
+    const texto = contenido.trim();
+    if (!texto && !registrarHito && !foto && !archivo) {
+      setError(esEmergencia ? 'Describe la emergencia antes de enviarla.' : 'Escribe un mensaje o adjunta un archivo.');
       return;
     }
-
     if (canal === 'cuadrilla' && !cuadrillaId) {
-      setError('Selecciona una cuadrilla');
+      setError('Selecciona una cuadrilla.');
       return;
     }
 
-    setCargando(true);
-
+    setEnviando(true);
     try {
-      if (foto) {
-        const tipoHito = registrarHito ? (hitoFinalizado ? 'finalizado' : 'avance') : null;
-        const mensajeNuevo = await enviarFotoAvance(Number(cuadrillaId), foto, contenido, tipoHito);
-        setMensajes((previo) => [...previo, mensajeNuevo]);
-        setContenido('');
-        quitarFoto();
-        setRegistrarHito(false);
-        setHitoFinalizado(false);
-        setPrioridadAlta(false);
-        return;
-      }
-
-      if (usuario?.rol === 'jefe_cuadrilla' && registrarHito) {
-        const mensajeNuevo = await marcarAvance(
+      let mensajeNuevo;
+      if (archivo) {
+        mensajeNuevo = await enviarArchivoChat(canal, cuadrillaId, archivo, texto);
+      } else if (foto) {
+        if (['broadcast', 'coordinadores', 'jefes'].includes(canal)) {
+          mensajeNuevo = await enviarFotoCanalCoordinador(canal, foto, texto);
+        } else {
+          const tipoHito = registrarHito ? (hitoFinalizado ? 'finalizado' : 'avance') : null;
+          mensajeNuevo = await enviarFotoAvance(Number(cuadrillaId), foto, texto, tipoHito);
+        }
+      } else if (usuario?.rol === 'jefe_cuadrilla' && registrarHito) {
+        mensajeNuevo = await marcarAvance(
           Number(cuadrillaId),
           hitoFinalizado ? 'finalizado' : 'avance',
-          contenido.trim() || 'Hito registrado',
+          texto || 'Hito registrado',
         );
-        setMensajes((previo) => [...previo, mensajeNuevo]);
-        setContenido('');
-        setEsEmergencia(false);
-        setRegistrarHito(false);
-        setHitoFinalizado(false);
-        return;
+      } else {
+        const payload = {
+          contenido: texto,
+          tipo: 'texto',
+          prioridad: prioridadAlta || esEmergencia,
+          cuadrilla_id: canal === 'cuadrilla' ? Number(cuadrillaId) : null,
+        };
+        mensajeNuevo = canal === 'coordinadores'
+          ? await enviarMensajeCoordinadores(texto, prioridadAlta)
+          : canal === 'jefes'
+            ? await enviarMensajeJefes(texto)
+          : esEmergencia && usuario?.rol === 'jefe_cuadrilla'
+          ? await enviarEmergencia({ ...payload, tipo: 'emergencia', prioridad: true })
+          : await enviarMensaje(payload);
       }
-
-      const payload = {
-        contenido: contenido.trim(),
-        tipo: 'texto',
-        prioridad: prioridadAlta || esEmergencia,
-        cuadrilla_id: canal === 'cuadrilla' ? Number(cuadrillaId) : null,
-      };
-
-      const mensajeNuevo = esEmergencia && usuario?.rol === 'jefe_cuadrilla'
-        ? await enviarEmergencia({
-            cuadrilla_id: canal === 'cuadrilla' ? Number(cuadrillaId) : null,
-            contenido: contenido.trim(),
-            tipo: 'emergencia',
-            prioridad: true,
-          })
-        : await enviarMensaje(payload);
-
-      setMensajes((previo) => [...previo, mensajeNuevo]);
+      if (!montadoRef.current) return;
+      mantenerAlFinalRef.current = true;
+      agregarMensajeSinDuplicar(mensajeNuevo);
       setContenido('');
-      setPrioridadAlta(false);
-      setEsEmergencia(false);
-      setRegistrarHito(false);
-      setHitoFinalizado(false);
+      quitarFoto();
+      quitarArchivo();
+      limpiarAcciones();
     } catch (errorActual) {
-      setError(errorActual.message || 'No se pudo enviar el mensaje');
+      if (montadoRef.current) setError(errorActual.message || 'No se pudo enviar el mensaje.');
     } finally {
-      setCargando(false);
+      if (montadoRef.current) setEnviando(false);
     }
   };
 
+  const manejarScroll = () => {
+    const lista = listaMensajesRef.current;
+    if (!lista) return;
+    mantenerAlFinalRef.current = lista.scrollHeight - lista.scrollTop - lista.clientHeight < 140;
+  };
+
   return (
-    <div className="min-h-screen chat-shell overflow-hidden">
+    <div className="h-screen w-full overflow-hidden bg-slate-100">
       <Navbar />
-      <div className="pt-20 px-6 pb-6 h-[calc(100vh-5rem)]">
-        <div className="max-w-6xl mx-auto animate-fadeIn h-full flex flex-col min-h-0">
-          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 mb-8">
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-techo-secondary/70">
-                Comunicaciones
-              </p>
-              <h1 className="text-3xl lg:text-4xl font-bold text-techo-primary">
-                {tituloCanal}
-              </h1>
-              <p className="text-sm text-slate-500 mt-2 max-w-xl">
-                Mantente al dia con anuncios, coordinaciones de cuadrillas y actualizaciones en terreno.
-              </p>
+      <div className="mt-[60px] flex h-[calc(100vh-60px)]">
+        <SidebarComunicaciones
+          abierto={sidebarAbierto}
+          usuario={usuario}
+          canal={canal}
+          cuadrillaId={cuadrillaId}
+          cuadrillas={cuadrillas}
+          cargandoCuadrillas={cargandoCuadrillas}
+          onCerrar={() => setSidebarAbierto(false)}
+          onSeleccionarBroadcast={seleccionarBroadcast}
+          onSeleccionarCoordinadores={seleccionarCoordinadores}
+          onSeleccionarJefes={seleccionarJefes}
+          onSeleccionarCuadrilla={seleccionarCuadrilla}
+        />
+
+        <main className="flex min-w-0 flex-1 flex-col bg-white">
+          <EncabezadoCanal
+            canal={canal}
+            cuadrilla={cuadrillaSeleccionada}
+            onAbrirCanales={() => setSidebarAbierto(true)}
+            onAbrirInformacion={() => setPanelAbierto(true)}
+          />
+
+          {(errorCuadrillas || errorAutoRefresh) && (
+            <div className="border-b border-amber-200 bg-amber-50 px-4 py-2 text-sm text-amber-900">
+              {errorCuadrillas || `No se pudo actualizar automáticamente: ${errorAutoRefresh}`}
             </div>
+          )}
 
-            <div className="flex flex-wrap gap-3">
-              <button
-                type="button"
-                className={`px-4 py-2 rounded-full text-sm font-semibold border transition-all ${
-                  canal === 'broadcast'
-                    ? 'bg-techo-primary text-white border-techo-primary'
-                    : 'bg-white/70 text-techo-primary border-white/60 hover:bg-white'
-                }`}
-                onClick={() => {
-                  setCanal('broadcast');
-                  quitarFoto();
-                }}
-              >
-                Broadcast
-              </button>
-              <button
-                type="button"
-                className={`px-4 py-2 rounded-full text-sm font-semibold border transition-all ${
-                  canal === 'cuadrilla'
-                    ? 'bg-techo-primary text-white border-techo-primary'
-                    : 'bg-white/70 text-techo-primary border-white/60 hover:bg-white'
-                }`}
-                onClick={() => setCanal('cuadrilla')}
-              >
-                Cuadrilla
-              </button>
+          <ListaMensajes
+            ref={listaMensajesRef}
+            mensajes={mensajes}
+            usuario={usuario}
+            canal={canal}
+            formatoFecha={FORMATO_FECHA}
+            resolverArchivo={obtenerUrlArchivo}
+            onAbrirImagen={setImagenModal}
+            onScroll={manejarScroll}
+            cargando={cargandoMensajes}
+          />
+
+          {error && (
+            <div className="border-t border-red-200 bg-red-50 px-4 py-2 text-sm text-red-700">
+              {error}
             </div>
-          </div>
+          )}
 
-          <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_320px] gap-6 flex-1 min-h-0">
-            <section className="chat-card rounded-2xl p-6 shadow-xl border border-white/50 flex flex-col min-h-0">
-              <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-6">
-                <div>
-                  <p className="text-sm font-semibold text-techo-primary">Canal activo</p>
-                  <p className="text-xs text-slate-500">
-                    {canal === 'broadcast'
-                      ? 'Mensajes generales para toda la operacion'
-                      : 'Mensajes internos por cuadrilla'}
-                  </p>
-                </div>
+          <CompositorMensaje
+            usuario={usuario}
+            canal={canal}
+            contenido={contenido}
+            onContenido={setContenido}
+            onEnviar={manejarEnvio}
+            cargando={enviando || (canal === 'cuadrilla' && !cuadrillaSeleccionada)}
+            prioridadAlta={prioridadAlta}
+            onPrioridad={setPrioridadAlta}
+            esEmergencia={esEmergencia}
+            registrarHito={registrarHito}
+            hitoFinalizado={hitoFinalizado}
+            onAccion={manejarAccion}
+            foto={foto}
+            vistaPreviaFoto={vistaPreviaFoto}
+            inputFotoRef={inputFotoRef}
+            onSeleccionFoto={manejarSeleccionFoto}
+            onQuitarFoto={quitarFoto}
+            archivo={archivo}
+            inputArchivoRef={inputArchivoRef}
+            onSeleccionArchivo={manejarSeleccionArchivo}
+            onQuitarArchivo={quitarArchivo}
+          />
+        </main>
 
-                {canal === 'cuadrilla' && (
-                  <div className="flex items-center gap-3">
-                    <label className="text-xs font-semibold text-slate-500" htmlFor="selector-cuadrilla">
-                      Cuadrilla
-                    </label>
-                    <select
-                      id="selector-cuadrilla"
-                      className="px-3 py-2 rounded-lg border border-slate-200 text-sm focus:ring-2 focus:ring-techo-secondary/30 focus:border-techo-secondary outline-none bg-white min-w-[180px]"
-                      value={cuadrillaId}
-                      onChange={manejarCambioCuadrilla}
-                      disabled={cargandoCuadrillas}
-                    >
-                      {cargandoCuadrillas ? (
-                        <option value="">Cargando cuadrillas...</option>
-                      ) : cuadrillas.length === 0 ? (
-                        <option value="">No hay cuadrillas disponibles</option>
-                      ) : (
-                        <>
-                          <option value="">Selecciona una cuadrilla</option>
-                          {cuadrillas.map((c) => (
-                            <option key={c.id} value={c.id}>
-                              {c.nombre}
-                            </option>
-                          ))}
-                        </>
-                      )}
-                    </select>
-                  </div>
-                )}
-              </div>
-
-              {error && (
-                <div className="mb-4 rounded-lg border border-red-200 bg-red-50 text-red-600 px-4 py-2 text-sm">
-                  {error}
-                </div>
-              )}
-
-              {errorAutoRefresh && (
-                <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 text-amber-700 px-4 py-2 text-xs">
-                  {errorAutoRefresh}
-                </div>
-              )}
-
-              <div className="flex-1 min-h-0 overflow-y-auto pr-2 space-y-4 mb-6">
-                {mensajes.length === 0 && (
-                  <div className="text-center py-10">
-                    <p className="text-sm text-slate-400">No hay mensajes aun.</p>
-                  </div>
-                )}
-
-                {mensajes.map((mensaje) => {
-                  const esPropio = usuario && mensaje.remitente_id === usuario.id;
-                  const esPrioritario = mensaje.prioridad === true || mensaje.tipo === 'emergencia';
-                  return (
-                    <div
-                      key={mensaje.id || `${mensaje.remitente_id}-${mensaje.creado_en}-${mensaje.contenido}`}
-                      className={`flex ${esPropio ? 'justify-end' : 'justify-start'}`}
-                    >
-                      <div
-                        className={`max-w-[80%] rounded-2xl px-4 py-3 shadow-sm border ${
-                          esPropio
-                            ? 'bg-techo-primary text-white border-techo-primary/80'
-                            : 'bg-white text-slate-700 border-slate-200'
-                        } ${esPrioritario ? 'ring-2 ring-techo-accent/40' : ''}`}
-                      >
-                        <div className="flex items-center gap-2 mb-1">
-                          <span className={`text-xs font-semibold ${esPropio ? 'text-white/80' : 'text-slate-400'}`}>
-                            {esPropio ? 'Tu' : (mensaje.remitente_nombre || `ID ${mensaje.remitente_id || 'anon'}`)}
-                          </span>
-                          {mensaje.tipo && (
-                            <span
-                              className={`text-[10px] uppercase tracking-wide px-2 py-0.5 rounded-full ${
-                                mensaje.tipo === 'emergencia'
-                                  ? 'bg-techo-danger/15 text-techo-danger'
-                                  : 'bg-slate-100 text-slate-500'
-                              }`}
-                            >
-                              {mensaje.tipo}
-                            </span>
-                          )}
-                          {esPrioritario && (
-                            <span className="text-[10px] uppercase tracking-wide px-2 py-0.5 rounded-full bg-techo-accent/15 text-techo-accent">
-                              Prioridad
-                            </span>
-                          )}
-                        </div>
-                        {mensaje.archivo_url && (
-                          <a
-                            href={obtenerUrlArchivo(mensaje.archivo_url)}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="block mt-2"
-                            aria-label="Abrir foto de avance en tamano completo"
-                          >
-                            <img
-                              src={obtenerUrlArchivo(mensaje.archivo_url)}
-                              alt={mensaje.contenido || (mensaje.tipo === 'finalizado'
-                                ? 'Foto de finalizacion de la obra'
-                                : 'Foto de avance de la cuadrilla')}
-                              className="max-h-80 w-full rounded-xl object-cover"
-                              loading="lazy"
-                            />
-                          </a>
-                        )}
-                        {mensaje.contenido && (
-                          <p className={`text-sm leading-relaxed ${mensaje.archivo_url ? 'mt-2' : ''}`}>
-                            {mensaje.contenido}
-                          </p>
-                        )}
-                        {!mensaje.contenido && !mensaje.archivo_url && (
-                          <p className="text-sm leading-relaxed">Mensaje sin contenido</p>
-                        )}
-                        <p className={`text-[11px] mt-2 ${esPropio ? 'text-white/70' : 'text-slate-400'}`}>
-                          {mensaje.creado_en
-                            ? FORMATO_FECHA.format(new Date(mensaje.creado_en))
-                            : 'Reciente'}
-                        </p>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-
-              <form onSubmit={manejarEnvio} className="space-y-3">
-                {usuario?.rol === 'jefe_cuadrilla' && canal === 'cuadrilla' && (
-                  <div className="rounded-xl border border-slate-200 bg-white/80 p-3">
-                    <div className="flex flex-wrap items-center gap-3">
-                      <label className="cursor-pointer rounded-lg bg-slate-100 px-4 py-2 text-xs font-semibold text-techo-primary hover:bg-slate-200">
-                        Adjuntar foto
-                        <input
-                          ref={inputFotoRef}
-                          type="file"
-                          accept="image/jpeg,image/png,image/webp"
-                          capture="environment"
-                          className="sr-only"
-                          onChange={manejarSeleccionFoto}
-                          disabled={cargando}
-                        />
-                      </label>
-                      <span className="text-[11px] text-slate-500">JPG, PNG o WebP, maximo 5 MB</span>
-                    </div>
-
-                    {foto && (
-                      <div className="mt-3 flex items-center gap-3">
-                        <img
-                          src={vistaPreviaFoto}
-                          alt="Vista previa de la foto seleccionada"
-                          className="h-20 w-24 rounded-lg object-cover"
-                        />
-                        <div className="min-w-0 flex-1">
-                          <p className="truncate text-xs font-semibold text-slate-700">{foto.name}</p>
-                          <p className="text-[11px] text-slate-500">{(foto.size / 1024 / 1024).toFixed(2)} MB</p>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={quitarFoto}
-                          disabled={cargando}
-                          className="text-xs font-semibold text-red-600 hover:text-red-700 disabled:opacity-60"
-                        >
-                          Quitar
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                )}
-                <div className="flex flex-col md:flex-row md:items-center gap-3">
-                  <input
-                    className="flex-1 px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-techo-secondary/30 focus:border-techo-secondary outline-none text-sm"
-                    placeholder="Escribe un mensaje para el equipo..."
-                    value={contenido}
-                    onChange={(e) => setContenido(e.target.value)}
-                  />
-                  <button
-                    type="submit"
-                    className="px-5 py-3 rounded-xl bg-techo-secondary text-white text-sm font-semibold shadow-lg hover:shadow-xl transition-all disabled:opacity-60"
-                    disabled={cargando}
-                  >
-                    {cargando
-                      ? 'Enviando...'
-                      : foto && registrarHito
-                        ? (hitoFinalizado ? 'Finalizar con foto' : 'Registrar hito con foto')
-                        : foto
-                          ? 'Enviar foto'
-                          : registrarHito
-                            ? (hitoFinalizado ? 'Finalizar obra' : 'Registrar hito')
-                            : 'Enviar mensaje'}
-                  </button>
-                </div>
-                <label className="flex items-center gap-2 text-xs text-slate-500">
-                  <input
-                    type="checkbox"
-                    checked={prioridadAlta}
-                    onChange={(e) => setPrioridadAlta(e.target.checked)}
-                    disabled={Boolean(foto)}
-                  />
-                  Marcar como prioridad alta
-                </label>
-
-                {usuario?.rol === 'jefe_cuadrilla' && canal === 'cuadrilla' && (
-                  <div className="rounded-xl border border-slate-100 bg-slate-50/80 px-4 py-3 space-y-3">
-                    <p className="text-xs font-semibold text-techo-primary">Opciones rápidas</p>
-                    <div className="flex flex-wrap gap-4 text-xs text-slate-600">
-                      <label className="flex items-center gap-2 cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={esEmergencia}
-                          onChange={(e) => {
-                            setEsEmergencia(e.target.checked);
-                            if (e.target.checked) {
-                              quitarFoto();
-                              setRegistrarHito(false);
-                              setHitoFinalizado(false);
-                            }
-                          }}
-                        />
-                        Emergencia
-                      </label>
-                      <label className="flex items-center gap-2 cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={registrarHito}
-                          onChange={(e) => {
-                            setRegistrarHito(e.target.checked);
-                            if (e.target.checked) {
-                              setEsEmergencia(false);
-                              setPrioridadAlta(false);
-                            }
-                          }}
-                        />
-                        Registrar hito
-                      </label>
-                      <label className="flex items-center gap-2 cursor-pointer text-slate-500">
-                        <input
-                          type="checkbox"
-                          checked={hitoFinalizado}
-                          onChange={(e) => setHitoFinalizado(e.target.checked)}
-                          disabled={!registrarHito}
-                        />
-                        Finalizado
-                      </label>
-                    </div>
-                  </div>
-                )}
-              </form>
-            </section>
-
-            <aside className="space-y-6 overflow-y-auto pr-1 lg:max-h-full">
-              <div className="chat-card rounded-2xl p-5 shadow-lg border border-white/50">
-                <h2 className="text-sm font-semibold text-techo-primary mb-3">Estado del canal</h2>
-                <div className="space-y-3 text-sm text-slate-600">
-                  <div className="flex items-center justify-between">
-                    <span>Usuario activo</span>
-                    <span className="font-semibold text-slate-700">{usuario?.nombre || 'Invitado'}</span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span>Rol</span>
-                    <span className="font-semibold text-slate-700">{usuario?.rol || 'Sin rol'}</span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span>Prioridad</span>
-                    <span className={`font-semibold ${prioridadAlta ? 'text-techo-accent' : 'text-slate-400'}`}>
-                      {prioridadAlta ? 'Alta' : 'Normal'}
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-              <div className="chat-card rounded-2xl p-5 shadow-lg border border-white/50">
-                <h2 className="text-sm font-semibold text-techo-primary mb-3">Atajos operativos</h2>
-                <ul className="space-y-3 text-sm text-slate-600">
-                  <li className="flex items-start gap-3">
-                    <span className="mt-1 h-2 w-2 rounded-full bg-techo-secondary"></span>
-                    Coordina con los jefes antes de iniciar una cuadrilla nueva.
-                  </li>
-                  <li className="flex items-start gap-3">
-                    <span className="mt-1 h-2 w-2 rounded-full bg-techo-accent"></span>
-                    Marca prioridad solo cuando requiera atencion inmediata.
-                  </li>
-                  <li className="flex items-start gap-3">
-                    <span className="mt-1 h-2 w-2 rounded-full bg-techo-primary"></span>
-                    Usa Broadcast para anuncios generales y Cuadrilla para temas internos.
-                  </li>
-                </ul>
-              </div>
-
-            </aside>
-          </div>
-        </div>
+        <PanelCuadrilla
+          abierto={panelAbierto}
+          canal={canal}
+          cuadrilla={cuadrillaSeleccionada}
+          usuario={usuario}
+          integrantes={integrantes}
+          mensajes={mensajes}
+          cargandoIntegrantes={cargandoIntegrantes}
+          errorIntegrantes={errorIntegrantes}
+          onCerrar={() => setPanelAbierto(false)}
+        />
       </div>
+      <ModalImagen imagen={imagenModal} onCerrar={() => setImagenModal(null)} />
     </div>
   );
 }

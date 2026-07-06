@@ -17,6 +17,7 @@ import { NotificacionEntity } from '../entity/notificacion.entity.js';
 import { ZonaPeligroEntity } from '../entity/zona-peligro.entity.js';
 import { SolicitudEntity } from '../entity/solicitud.entity.js';
 import { ReporteEntity } from '../entity/reporte.entity.js';
+import { MovimientoHerramientaEntity } from '../entity/movimiento-herramienta.entity.js';
 
 dotenv.config();
 
@@ -29,7 +30,7 @@ const AppDataSource = new DataSource({
   password: process.env.DB_CONTRASENA || 'postgres',
   database: process.env.DB_NOMBRE || 'techo_db',
   // Solo activo la sincronización automática de tablas en desarrollo, nunca en producción
-  synchronize: process.env.NODE_ENV === 'development',
+  synchronize: false,
   logging: process.env.NODE_ENV === 'development',
   // Registro todas las entidades del sistema para que TypeORM las gestione
   entities: [
@@ -46,6 +47,7 @@ const AppDataSource = new DataSource({
     ZonaPeligroEntity,
     SolicitudEntity,
     ReporteEntity,
+    MovimientoHerramientaEntity,
   ],
 });
 
@@ -53,6 +55,41 @@ const AppDataSource = new DataSource({
 export const initDatabase = async () => {
   try {
     await AppDataSource.initialize();
+    // Crea y actualiza las tablas descritas por las entidades sin eliminar datos.
+    await AppDataSource.synchronize(false);
+
+    // Crea los tres usuarios principales solo cuando no existen.
+    // La contrasena inicial de las tres cuentas es techo123.
+    await AppDataSource.query(`
+      INSERT INTO usuarios (nombre, rut, correo, contrasena, rol, activo)
+      VALUES
+        (
+          'Coordinador Principal',
+          '12345678-9',
+          'coordinador@techo.cl',
+          '$2a$10$NqfrbruW3XscJjc/uKeQLeLFTyQLnNOsBULwJdztcmIis47so2Seq',
+          'coordinador',
+          true
+        ),
+        (
+          'Jefe Cuadrilla Uno',
+          '98765432-1',
+          'jefe@techo.cl',
+          '$2a$10$NqfrbruW3XscJjc/uKeQLeLFTyQLnNOsBULwJdztcmIis47so2Seq',
+          'jefe_cuadrilla',
+          true
+        ),
+        (
+          'Voluntario Uno',
+          '11111111-1',
+          'voluntario@techo.cl',
+          '$2a$10$NqfrbruW3XscJjc/uKeQLeLFTyQLnNOsBULwJdztcmIis47so2Seq',
+          'voluntario',
+          true
+        )
+      ON CONFLICT DO NOTHING
+    `);
+
     console.log('Base de datos conectada correctamente');
     return AppDataSource;
   } catch (error) {

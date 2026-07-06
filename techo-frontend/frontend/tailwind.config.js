@@ -1,26 +1,69 @@
 /** @type {import('tailwindcss').Config} */
 module.exports = {
-  // Indico a Tailwind qué archivos escanear para purgar clases no usadas en producción
   content: ['./src/**/*.{js,jsx,ts,tsx}', './index.html'],
   theme: {
     extend: {
       colors: {
-        // Paleta de colores propia de TECHO Chile; la uso con el prefijo "techo-" en los componentes
+        primary: '#0092DD',
+        'primary-dark': '#005CA9',
+        'primary-container': '#33A8E4',
+        'on-primary': '#FFFFFF',
+        'on-primary-container': '#FFFFFF',
+        'primary-fixed': '#D9F2FF',
+        'primary-fixed-dim': '#80C9EE',
+        secondary: '#005CA9',
+        'secondary-container': '#D8EAF8',
+        'on-secondary': '#FFFFFF',
+        'on-secondary-container': '#333333',
+        'secondary-fixed': '#D8EAF8',
+        'secondary-fixed-dim': '#80B6DF',
+        tertiary: '#E94362',
+        'tertiary-container': '#FDE3E9',
+        'on-tertiary': '#FFFFFF',
+        'on-tertiary-container': '#333333',
+        'tertiary-fixed': '#FDE3E9',
+        'tertiary-fixed-dim': '#F58A9E',
+        error: '#E94362',
+        'error-container': '#FDE3E9',
+        'on-error': '#FFFFFF',
+        'on-error-container': '#7A1730',
+        background: '#F5F5F5',
+        'on-background': '#333333',
+        surface: '#F5F5F5',
+        'on-surface': '#333333',
+        'surface-variant': '#E8E8E8',
+        'on-surface-variant': '#555555',
+        'surface-container-lowest': '#FFFFFF',
+        'surface-container-low': '#F1F1F1',
+        'surface-container': '#ECECEC',
+        'surface-container-high': '#E6E6E6',
+        'surface-container-highest': '#DEDEDE',
+        'surface-dim': '#D6D6D6',
+        'surface-bright': '#FFFFFF',
+        outline: '#868686',
+        neutral: '#333333',
+        'outline-variant': '#C8C8C8',
+        'inverse-surface': '#333333',
+        'inverse-on-surface': '#FFFFFF',
+        'inverse-primary': '#80C9EE',
         techo: {
-          primary: '#1a3a5c',      // Azul marino oscuro — color principal de la marca
-          primaryDark: '#0f2440',  // Variante más oscura para degradados y hovers
-          secondary: '#0099d6',    // Azul celeste — botones principales y acentos
-          accent: '#f39c12',       // Naranja — alertas y elementos destacados
-          success: '#27ae60',      // Verde — estados exitosos
-          warning: '#f1c40f',      // Amarillo — advertencias
-          danger: '#e74c3c',       // Rojo — errores y página 403
-          light: '#f0f4f8',        // Gris claro — fondo general de las páginas internas
-          dark: '#1a1a2e',         // Azul muy oscuro — fondo de degradados del login
+          primary: '#0092DD',
+          primaryDark: '#005CA9',
+          secondary: '#005CA9',
+          accent: '#E94362',
+          success: '#005CA9',
+          warning: '#868686',
+          danger: '#E94362',
+          light: '#F5F5F5',
+          dark: '#333333',
         },
       },
       fontFamily: {
-        // Uso Inter como tipografía principal con fallbacks de sistema
         sans: ['Inter', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'sans-serif'],
+      },
+      boxShadow: {
+        card: '0 1px 3px 0 rgba(0,0,0,0.06), 0 1px 2px -1px rgba(0,0,0,0.04)',
+        'card-hover': '0 6px 20px -4px rgba(0,0,0,0.11), 0 2px 8px -2px rgba(0,0,0,0.06)',
       },
     },
   },

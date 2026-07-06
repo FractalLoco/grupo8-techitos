@@ -7,6 +7,7 @@ import {
   actualizarEstadoHerramienta,
   resumenPorEmergencia,
   inventarioTotal,
+  getCatalogo,
 } from '../controllers/herramienta.controller.js';
 import { authMiddleware } from '../middleware/auth.middleware.js';
 import { roleMiddleware } from '../middleware/role.middleware.js';
@@ -19,6 +20,8 @@ const router = Router();
  * Debe ir ANTES de /:cuadrillaId para que Express no interprete "emergencia" como un ID numérico.
  */
 router.get('/inventario', authMiddleware, inventarioTotal);
+// GET /api/herramientas/catalogo — catálogo completo agrupado por nombre y tipo
+router.get('/catalogo', authMiddleware, getCatalogo);
 router.get('/emergencia/:emergenciaId', authMiddleware, resumenPorEmergencia);
 
 /**

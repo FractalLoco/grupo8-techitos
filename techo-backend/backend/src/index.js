@@ -8,6 +8,8 @@ import { initDatabase } from './config/database.js';
 // Importo el enrutador principal que agrupa todas las rutas de la API
 import routes from './routes/index.js';
 import path from 'node:path';
+import { createServer } from 'node:http';
+import { configurarChatSocket } from './realtime/chat.socket.js';
 
 // Cargo las variables de entorno desde el archivo .env
 dotenv.config();
@@ -44,11 +46,13 @@ app.use((error, solicitud, respuesta, siguiente) => {
 });
 
 const PUERTO = process.env.PUERTO || 3000;
+const servidorHttp = createServer(app);
+configurarChatSocket(servidorHttp);
 
 // Primero conecto la base de datos y solo si eso funciona levanto el servidor HTTP
 initDatabase()
   .then(() => {
-    app.listen(PUERTO, () => {
+    servidorHttp.listen(PUERTO, () => {
       console.log(`Servidor corriendo en puerto ${PUERTO}`);
     });
   })

@@ -16,6 +16,11 @@ export const listarCuadrillasConEstado = (emergenciaId, color = null) => {
   return axios.get(url, headers()).then((r) => r.data);
 };
 
+export const listarTodasLasCuadrillasConEstado = (color = null) => {
+  const url = color ? `${API}/todas/estado?color=${color}` : `${API}/todas/estado`;
+  return axios.get(url, headers()).then((r) => r.data);
+};
+
 export const crearCuadrilla = (datos) =>
   axios.post(API, datos, headers()).then((r) => r.data);
 

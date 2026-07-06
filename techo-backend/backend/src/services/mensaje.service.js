@@ -1,7 +1,9 @@
 'use strict';
+import AppDataSource from '../config/database.js';
 import { MensajeRepository } from '../repositories/mensaje.repository.js';
 import { MiembroCuadrillaRepository } from '../repositories/miembro-cuadrilla.repository.js';
 import { CuadrillaRepository } from '../repositories/cuadrilla.repository.js';
+import { NotificacionService } from './notificacion.service.js';
 
 export class MensajeService {
   static toDTO(mensaje, remitenteNombreFallback = null) {
@@ -61,5 +63,109 @@ export class MensajeService {
     }
 
     return [];
+  }
+
+  static async listarCoordinadores(limite) {
+    const mensajes = await MensajeRepository.listarCoordinadores(limite);
+    return mensajes.map((mensaje) => this.toDTO(mensaje));
+  }
+
+  static async listarJefes(limite) {
+    const mensajes = await MensajeRepository.listarJefes(limite);
+    return mensajes.map((mensaje) => this.toDTO(mensaje));
+  }
+
+  static async obtenerIntegrantesCuadrilla(cuadrillaId) {
+    const integrantes = await AppDataSource.query(
+      `SELECT u.id, u.nombre, u.rol, TRUE AS es_jefe
+       FROM cuadrillas c
+       JOIN usuarios u ON u.id = c.jefe_id
+       WHERE c.id = $1
+       UNION
+       SELECT u.id, u.nombre, u.rol, FALSE AS es_jefe
+       FROM miembros_cuadrilla mc
+       JOIN usuarios u ON u.id = mc.voluntario_id
+       WHERE mc.cuadrilla_id = $1
+         AND u.id <> COALESCE((SELECT jefe_id FROM cuadrillas WHERE id = $1), -1)
+       ORDER BY es_jefe DESC, nombre ASC`,
+      [cuadrillaId],
+    );
+
+    return integrantes;
+  }
+
+  /**
+   * Envía un mensaje y sus notificaciones asociadas dentro de una transacción.
+   * Si falla cualquier notificación, se revierte el mensaje.
+   *
+   * @param {Object} datosMensaje - { cuadrilla_id, remitente_id, tipo, contenido, prioridad }
+   * @param {Object} options
+   * @param {boolean} options.esBroadcast - Si es broadcast de coordinador
+   * @param {boolean} options.esAlertaEmergencia - Si es alerta de emergencia de jefe
+   * @param {string} options.nombreCuadrilla - Nombre de la cuadrilla (para alertas)
+   * @param {number} options.remitenteRol - Rol del remitente
+   * @returns {Promise<Object>} El mensaje creado
+   */
+  static async enviarMensajeConNotificaciones(datosMensaje, options = {}) {
+    const queryRunner = AppDataSource.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
+
+    try {
+      // 1. Guardar el mensaje
+      const mensaje = await MensajeRepository.crearConQueryRunner(datosMensaje, queryRunner);
+
+      // 2. Preparar y guardar notificaciones según el tipo de mensaje
+      const { esBroadcast, esAlertaEmergencia, nombreCuadrilla, remitenteRol } = options;
+      const remitenteId = datosMensaje.remitente_id;
+
+      if (esBroadcast) {
+        const preparar = NotificacionService.prepararNotificacionesBroadcast(
+          remitenteId,
+          mensaje.id,
+          datosMensaje.contenido,
+        );
+        await preparar(queryRunner);
+      } else if (esAlertaEmergencia && datosMensaje.cuadrilla_id) {
+        const preparar = NotificacionService.prepararNotificacionesAlerta(
+          remitenteId,
+          mensaje.id,
+          nombreCuadrilla || 'Cuadrilla',
+          datosMensaje.contenido,
+          datosMensaje.cuadrilla_id,
+        );
+        await preparar(queryRunner);
+      } else if (datosMensaje.cuadrilla_id) {
+        // Mensaje privado de cuadrilla
+        const esCoordinador = remitenteRol === 'coordinador';
+        const preparar = NotificacionService.prepararNotificacionesMensajeCuadrilla(
+          remitenteId,
+          mensaje.id,
+          datosMensaje.contenido,
+          datosMensaje.cuadrilla_id,
+          esCoordinador,
+          datosMensaje.tipo,
+          nombreCuadrilla || 'Cuadrilla',
+        );
+        await preparar(queryRunner);
+      }
+
+      // 3. Confirmar transacción
+      await queryRunner.commitTransaction();
+
+      // 4. Recargar con relaciones para el DTO
+      const repo = MensajeRepository.getRepository();
+      const mensajeCompleto = await repo.findOne({
+        where: { id: mensaje.id },
+        relations: { remitente: true },
+      });
+
+      return mensajeCompleto || mensaje;
+    } catch (error) {
+      await queryRunner.rollbackTransaction();
+      throw error;
+    } finally {
+      await queryRunner.release();
+    }
   }
 }

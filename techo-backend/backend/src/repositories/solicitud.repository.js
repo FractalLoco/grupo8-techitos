@@ -12,9 +12,17 @@ export class SolicitudRepository {
     return repo.save(solicitud);
   }
 
+  static async listarTodas() {
+    return this.getRepository().find({
+      relations: ['cuadrilla', 'jefe', 'emergencia'],
+      order: { fecha_creacion: 'DESC' },
+    });
+  }
+
   static async listarPorEmergencia(emergenciaId) {
     return this.getRepository().find({
       where: { emergencia_id: emergenciaId },
+      relations: ['cuadrilla', 'jefe', 'emergencia'],
       order: { fecha_creacion: 'DESC' },
     });
   }
@@ -22,6 +30,15 @@ export class SolicitudRepository {
   static async listarPorCuadrilla(cuadrillaId) {
     return this.getRepository().find({
       where: { cuadrilla_id: cuadrillaId },
+      relations: ['cuadrilla', 'jefe', 'emergencia'],
+      order: { fecha_creacion: 'DESC' },
+    });
+  }
+
+  static async listarPorJefe(jefeId) {
+    return this.getRepository().find({
+      where: { jefe_id: jefeId },
+      relations: ['cuadrilla', 'jefe', 'emergencia'],
       order: { fecha_creacion: 'DESC' },
     });
   }
@@ -29,10 +46,10 @@ export class SolicitudRepository {
   static async actualizarEstado(id, estado, respuesta = null) {
     const repo = this.getRepository();
     await repo.update(id, { estado, respuesta });
-    return repo.findOne({ where: { id } });
+    return repo.findOne({ where: { id }, relations: ['cuadrilla', 'jefe', 'emergencia'] });
   }
 
   static async buscarPorId(id) {
-    return this.getRepository().findOne({ where: { id } });
+    return this.getRepository().findOne({ where: { id }, relations: ['cuadrilla', 'jefe', 'emergencia'] });
   }
 }
