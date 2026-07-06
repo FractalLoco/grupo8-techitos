@@ -42,6 +42,11 @@ export class ZonaPeligroService {
     return ZonaPeligroRepository.listarPorEmergencia(emergenciaId);
   }
 
+  // Devuelvo todas las zonas de peligro del sistema sin filtrar (vista global del mapa)
+  static async listarTodas() {
+    return ZonaPeligroRepository.listarTodas();
+  }
+
   // Edito los campos de una zona; el radio se vuelve a validar si el coordinador lo cambia
   static async actualizarZona(id, datos) {
     const zona = await ZonaPeligroRepository.buscarPorId(id);

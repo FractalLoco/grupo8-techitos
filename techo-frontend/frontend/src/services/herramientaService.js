@@ -28,3 +28,7 @@ export const obtenerInventarioTotal = () =>
 
 export const obtenerResumenEmergencia = (emergenciaId) =>
   axios.get(`${API}/emergencia/${emergenciaId}`, headers()).then((r) => r.data);
+
+// Catálogo completo agrupado por nombre y tipo_item para la vista de inventario
+export const obtenerCatalogoInventario = () =>
+  axios.get(`${API}/catalogo`, headers()).then((r) => r.data);

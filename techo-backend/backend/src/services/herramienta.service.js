@@ -6,8 +6,9 @@ import { NotificacionService } from '../services/notificacion.service.js';
 
 export class HerramientaService {
   // Registro una herramienta individual asignándola a la cuadrilla indicada
-  static async registrar(cuadrillaId, nombre) {
-    return HerramientaRepository.registrar({ cuadrilla_id: cuadrillaId, nombre });
+  // tipo_item puede ser: herramienta | epp | material | otro (por defecto herramienta)
+  static async registrar(cuadrillaId, nombre, tipo_item = 'herramienta') {
+    return HerramientaRepository.registrar({ cuadrilla_id: cuadrillaId, nombre, tipo_item });
   }
 
   // Devuelvo todas las herramientas asociadas a una cuadrilla para su revisión o inventario
@@ -46,11 +47,15 @@ export class HerramientaService {
       const titulo = `Alerta de herramientas: cuadrilla "${cuadrilla.nombre}"`;
       const mensaje = `Balance con diferencias detectadas. ${resumen}.`;
 
-      await Promise.all(
-        coordinadores.map((c) =>
-          NotificacionService.crearNotificacion(c.id, titulo, mensaje, 'alerta_herramienta', cuadrillaId)
-        )
-      );
+      try {
+        await Promise.all(
+          coordinadores.map((c) =>
+            NotificacionService.crearNotificacion(c.id, titulo, mensaje, 'alerta_herramienta', cuadrillaId)
+          )
+        );
+      } catch {
+        // Las notificaciones no bloquean el cierre del balance
+      }
     }
 
     return { ...balance, alerta_activada: balance.conDiferencias };
@@ -65,11 +70,19 @@ export class HerramientaService {
     return HerramientaRepository.resumenPorEmergencia(emergenciaId);
   }
 
+  // Devuelvo el catálogo de ítems agrupado por nombre y tipo para la vista de inventario completo
+  static async catalogoInventario() {
+    return HerramientaRepository.catalogoInventario();
+  }
+
   // Registro múltiples herramientas en lote para agilizar el proceso de preparación de la cuadrilla
-  static async registrarHerramientasMasivas(cuadrillaId, nombres) {
+  // Cada entrada puede ser un string (nombre) o un objeto { nombre, tipo_item }
+  static async registrarHerramientasMasivas(cuadrillaId, nombres, tipo_item = 'herramienta') {
     const resultados = [];
-    for (const nombre of nombres) {
-      const herramienta = await HerramientaRepository.registrar({ cuadrilla_id: cuadrillaId, nombre });
+    for (const item of nombres) {
+      const nombre = typeof item === 'string' ? item : item.nombre;
+      const tipo   = typeof item === 'string' ? tipo_item : (item.tipo_item || tipo_item);
+      const herramienta = await HerramientaRepository.registrar({ cuadrilla_id: cuadrillaId, nombre, tipo_item: tipo });
       resultados.push(herramienta);
     }
     return resultados;

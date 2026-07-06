@@ -3,6 +3,7 @@ import { Router } from 'express';
 import {
   crearObra,
   listarObrasPorEmergencia,
+  listarTodasObras,
   obtenerObra,
   actualizarEstadoObra,
 } from '../controllers/obra.controller.js';
@@ -17,6 +18,12 @@ const router = Router();
  * Body: { nombre, descripcion?, lat, lng, emergencia_id }
  */
 router.post('/', authMiddleware, roleMiddleware('coordinador'), crearObra);
+
+/**
+ * GET /api/obras/todas
+ * Listar todas las obras del sistema (vista global del mapa, sin filtrar por emergencia)
+ */
+router.get('/todas', authMiddleware, listarTodasObras);
 
 /**
  * GET /api/obras/emergencia/:emergenciaId

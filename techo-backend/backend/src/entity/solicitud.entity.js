@@ -27,6 +27,16 @@ export const SolicitudEntity = new EntitySchema({
       length: 20,
       nullable: false,
     },
+    nombre_item: {
+      type: 'varchar',
+      length: 150,
+      nullable: true,
+    },
+    cantidad: {
+      type: 'int',
+      default: 1,
+      nullable: true,
+    },
     descripcion: {
       type: 'text',
       nullable: false,
@@ -47,7 +57,7 @@ export const SolicitudEntity = new EntitySchema({
     },
   },
   checks: [
-    { expression: `"tipo" IN ('herramienta', 'epp')` },
+    { expression: `"tipo" IN ('herramienta', 'epp', 'material', 'otro')` },
     { expression: `"estado" IN ('pendiente', 'aprobada', 'rechazada')` },
   ],
   relations: {

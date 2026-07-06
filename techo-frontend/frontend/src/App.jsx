@@ -20,6 +20,8 @@ import GestionCuadrillas from './pages/GestionCuadrillas';
 import MapaInteractivo from './pages/MapaInteractivo';
 import GestionHerramientas from './pages/GestionHerramientas';
 import GestionInventario from './pages/GestionInventario';
+import CatalogoInventario from './pages/CatalogoInventario';
+import SolicitudesHerramientas from './pages/SolicitudesHerramientas';
 import Reportes from './pages/Reportes';
 
 function Aplicacion() {
@@ -91,6 +93,24 @@ function Aplicacion() {
             element={
               <RutaProtegida rolesPermitidos={['coordinador']}>
                 <GestionInventario />
+              </RutaProtegida>
+            }
+          />
+
+          <Route
+            path="/catalogo"
+            element={
+              <RutaProtegida rolesPermitidos={['coordinador', 'jefe_cuadrilla']}>
+                <CatalogoInventario />
+              </RutaProtegida>
+            }
+          />
+
+          <Route
+            path="/solicitudes"
+            element={
+              <RutaProtegida rolesPermitidos={['coordinador', 'jefe_cuadrilla']}>
+                <SolicitudesHerramientas />
               </RutaProtegida>
             }
           />
