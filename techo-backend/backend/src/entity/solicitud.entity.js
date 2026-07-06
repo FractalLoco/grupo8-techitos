@@ -14,6 +14,12 @@ export const SolicitudEntity = new EntitySchema({
       type: 'int',
       nullable: false,
     },
+    // Quien realmente creó la solicitud (voluntario, jefe o coordinador).
+    // Nullable para no romper filas antiguas creadas antes de esta columna.
+    solicitante_id: {
+      type: 'int',
+      nullable: true,
+    },
     cuadrilla_id: {
       type: 'int',
       nullable: false,
@@ -65,6 +71,12 @@ export const SolicitudEntity = new EntitySchema({
       target: 'Usuario',
       type: 'many-to-one',
       joinColumn: { name: 'jefe_id', referencedColumnName: 'id' },
+    },
+    solicitante: {
+      target: 'Usuario',
+      type: 'many-to-one',
+      nullable: true,
+      joinColumn: { name: 'solicitante_id', referencedColumnName: 'id' },
     },
     cuadrilla: {
       target: 'Cuadrilla',

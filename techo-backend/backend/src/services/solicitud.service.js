@@ -2,13 +2,33 @@
 import { SolicitudRepository } from '../repositories/solicitud.repository.js';
 import { MovimientoHerramientaService } from '../services/movimiento-herramienta.service.js';
 import { UsuarioRepository } from '../repositories/usuario.repository.js';
+import { CuadrillaRepository } from '../repositories/cuadrilla.repository.js';
+import { MiembroCuadrillaRepository } from '../repositories/miembro-cuadrilla.repository.js';
 
 export class SolicitudService {
-  static async crear(jefeId, cuadrillaId, emergenciaId, tipo, descripcion, nombre_item = null, cantidad = 1) {
+  // El creador puede ser voluntario, jefe o coordinador. Para un voluntario se deriva
+  // automáticamente su cuadrilla; de la cuadrilla se toman el jefe y la emergencia.
+  static async crear({ creadorId, rolCreador, cuadrillaId, emergenciaId, tipo, descripcion, nombre_item = null, cantidad = 1 }) {
+    let cuadrilla_id = cuadrillaId ? Number(cuadrillaId) : null;
+    let emergencia_id = emergenciaId ? Number(emergenciaId) : null;
+
+    if (rolCreador === 'voluntario') {
+      const membresia = await MiembroCuadrillaRepository.buscarVoluntarioEnCuadrilla(creadorId);
+      if (!membresia) throw new Error('No perteneces a ninguna cuadrilla; no puedes crear solicitudes');
+      cuadrilla_id = membresia.cuadrilla_id;
+    }
+
+    if (!cuadrilla_id) throw new Error('Debes indicar la cuadrilla de la solicitud');
+
+    const cuadrilla = await CuadrillaRepository.buscarPorId(cuadrilla_id);
+    if (!cuadrilla) throw new Error('Cuadrilla no encontrada');
+    if (!emergencia_id) emergencia_id = cuadrilla.emergencia_id;
+
     return SolicitudRepository.crear({
-      jefe_id: jefeId,
-      cuadrilla_id: cuadrillaId,
-      emergencia_id: emergenciaId,
+      jefe_id: cuadrilla.jefe_id,
+      solicitante_id: creadorId,
+      cuadrilla_id,
+      emergencia_id,
       tipo,
       descripcion,
       nombre_item: nombre_item || null,
@@ -28,24 +48,39 @@ export class SolicitudService {
     return SolicitudRepository.listarPorCuadrilla(cuadrillaId);
   }
 
-  static async listarPorJefe(jefeId) {
-    return SolicitudRepository.listarPorJefe(jefeId);
+  static async listarPorSolicitante(usuarioId) {
+    return SolicitudRepository.listarPorSolicitante(usuarioId);
   }
 
-  static async actualizarEstado(id, estado, respuesta = null, coordinadorId = null) {
+  static async listarPorJefeCuadrilla(jefeId) {
+    return SolicitudRepository.listarPorJefeCuadrilla(jefeId);
+  }
+
+  static async actualizarEstado(id, estado, respuesta = null, aprobadorId = null) {
     const solicitud = await SolicitudRepository.buscarPorId(id);
     if (!solicitud) throw new Error('Solicitud no encontrada');
     if (solicitud.estado !== 'pendiente') throw new Error('La solicitud ya fue procesada');
+
+    // Antes de aprobar con un ítem concreto, valida que haya stock disponible en el almacén.
+    // Si no alcanza, no se cambia el estado: la solicitud queda pendiente con el mensaje de sin stock.
+    if (estado === 'aprobada' && solicitud.nombre_item) {
+      const necesita = solicitud.cantidad || 1;
+      const disponible = await MovimientoHerramientaService.stockDisponible(solicitud.nombre_item, solicitud.tipo);
+      if (disponible < necesita) {
+        throw new Error(`Sin stock suficiente de "${solicitud.nombre_item}": disponibles ${disponible}, se solicitan ${necesita}`);
+      }
+    }
 
     const actualizada = await SolicitudRepository.actualizarEstado(id, estado, respuesta);
 
     // Al aprobar: registra automáticamente la salida en el inventario de movimientos
     if (estado === 'aprobada' && solicitud.nombre_item) {
       let personaRecibe = `Cuadrilla #${solicitud.cuadrilla_id}`;
+      const receptorId = solicitud.solicitante_id || solicitud.jefe_id;
       try {
-        const jefe = await UsuarioRepository.buscarPorId(solicitud.jefe_id);
-        if (jefe?.nombre) personaRecibe = jefe.nombre;
-      } catch { /* si no encuentra al jefe, usa el fallback */ }
+        const receptor = await UsuarioRepository.buscarPorId(receptorId);
+        if (receptor?.nombre) personaRecibe = receptor.nombre;
+      } catch { /* si no encuentra al receptor, usa el fallback */ }
 
       await MovimientoHerramientaService.registrarSalida(
         {
@@ -59,7 +94,7 @@ export class SolicitudService {
           solicitud_id:     solicitud.id,
           observaciones:    respuesta || null,
         },
-        coordinadorId,
+        aprobadorId,
       );
     }
 

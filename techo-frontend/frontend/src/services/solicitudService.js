@@ -21,5 +21,8 @@ export const listarSolicitudesPorCuadrilla = (cuadrillaId) =>
 export const listarMisSolicitudes = () =>
   axios.get(`${API}/mis`, headers()).then((r) => r.data);
 
+export const listarSolicitudesPorAprobar = () =>
+  axios.get(`${API}/por-aprobar`, headers()).then((r) => r.data);
+
 export const actualizarEstadoSolicitud = (id, estado, respuesta = null) =>
   axios.put(`${API}/${id}/estado`, { estado, respuesta }, headers()).then((r) => r.data);

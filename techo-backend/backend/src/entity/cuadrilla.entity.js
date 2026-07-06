@@ -84,6 +84,12 @@ export const CuadrillaEntity = new EntitySchema({
       type: 'text',
       nullable: true,
     },
+    // Se marca cuando el coordinador devuelve al inventario las herramientas de una obra terminada,
+    // para evitar devolver el stock dos veces.
+    herramientas_devueltas: {
+      type: 'boolean',
+      default: false,
+    },
   },
   // Plazo solo puede ser 2 o 5 días según la magnitud del trabajo (Req 1)
   checks: [
