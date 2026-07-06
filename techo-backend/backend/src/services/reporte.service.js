@@ -231,6 +231,12 @@ export const construirSnapshotReporte = (datos, fechaGeneracion = new Date()) =>
     }
   }
 
+  const cuadrillaPorObra = new Map(
+    cuadrillas
+      .filter((cuadrilla) => cuadrilla.obra_asignada_id)
+      .map((cuadrilla) => [Number(cuadrilla.obra_asignada_id), cuadrilla]),
+  );
+
   const cuadrillasSnapshot = cuadrillas.map((cuadrilla) => {
     const integrantes = miembrosPorCuadrilla.get(Number(cuadrilla.id)) || [];
     const inventario = herramientasPorCuadrilla.get(Number(cuadrilla.id)) || [];
@@ -320,16 +326,27 @@ export const construirSnapshotReporte = (datos, fechaGeneracion = new Date()) =>
         lng: familia.lng ?? NO_REGISTRADO,
       },
     })),
-    obras: obras.map((obra) => ({
-      id: obra.id,
-      nombre: obra.nombre,
-      descripcion: valorRegistrado(obra.descripcion),
-      estado: obra.estado,
-      direccion: valorRegistrado(obra.direccion),
-      lat: obra.lat,
-      lng: obra.lng,
-      fecha_creacion: obra.fecha_creacion,
-    })),
+    obras: obras.map((obra) => {
+      const cuadrilla = cuadrillaPorObra.get(Number(obra.id));
+      return {
+        id: obra.id,
+        nombre: obra.nombre,
+        descripcion: valorRegistrado(obra.descripcion),
+        estado: obra.estado,
+        direccion: valorRegistrado(obra.direccion),
+        lat: obra.lat,
+        lng: obra.lng,
+        fecha_creacion: obra.fecha_creacion,
+        fecha_inicio: cuadrilla?.fecha_asignacion || NO_REGISTRADO,
+        fecha_termino: cuadrilla?.fecha_completada || NO_REGISTRADO,
+        cumplimiento_plazo: cuadrilla
+          ? calcularCumplimientoPlazo(cuadrilla, fechaGeneracion)
+          : NO_REGISTRADO,
+        cuadrilla: cuadrilla
+          ? { id: cuadrilla.id, nombre: cuadrilla.nombre }
+          : NO_REGISTRADO,
+      };
+    }),
     incidentes: mensajes
       .filter((mensaje) => mensaje.tipo === 'emergencia')
       .map((mensaje) => ({
