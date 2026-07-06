@@ -42,6 +42,9 @@ export const enviarAlertaEmergencia = (cuadrillaId, descripcion) =>
 export const completarCuadrilla = (cuadrillaId) =>
   axios.put(`${API}/${cuadrillaId}/completar`, {}, headers()).then((r) => r.data);
 
+export const devolverHerramientas = (cuadrillaId) =>
+  axios.put(`${API}/${cuadrillaId}/devolver-herramientas`, {}, headers()).then((r) => r.data);
+
 export const reasignarVoluntario = (cuadrillaOrigenId, voluntarioId, cuadrillaDestinoId) =>
   axios
     .put(`${API}/reasignar/${cuadrillaOrigenId}/${voluntarioId}`, { cuadrillaDestinoId }, headers())
