@@ -5,8 +5,16 @@ import { respuestaExito, respuestaError } from '../utils/response.utils.js';
 export const crearSolicitud = async (req, res) => {
   try {
     const { cuadrillaId, emergenciaId, tipo, descripcion, nombre_item, cantidad } = req.body;
-    const jefeId = req.usuario.id;
-    const solicitud = await SolicitudService.crear(jefeId, cuadrillaId, emergenciaId, tipo, descripcion, nombre_item, cantidad);
+    const solicitud = await SolicitudService.crear({
+      creadorId: req.usuario.id,
+      rolCreador: req.usuario.rol,
+      cuadrillaId,
+      emergenciaId,
+      tipo,
+      descripcion,
+      nombre_item,
+      cantidad,
+    });
     return respuestaExito(res, 201, 'Solicitud enviada correctamente', { solicitud });
   } catch (error) {
     return respuestaError(res, 400, error.message);
@@ -34,8 +42,20 @@ export const listarPorEmergencia = async (req, res) => {
 
 export const listarMias = async (req, res) => {
   try {
-    const jefeId = req.usuario.id;
-    const solicitudes = await SolicitudService.listarPorJefe(jefeId);
+    const solicitudes = await SolicitudService.listarPorSolicitante(req.usuario.id);
+    return respuestaExito(res, 200, 'Solicitudes obtenidas', { solicitudes });
+  } catch (error) {
+    return respuestaError(res, 500, error.message);
+  }
+};
+
+// Solicitudes que este usuario puede aprobar/rechazar:
+// coordinador ve todas; jefe ve las de sus cuadrillas.
+export const listarPorAprobar = async (req, res) => {
+  try {
+    const solicitudes = req.usuario.rol === 'coordinador'
+      ? await SolicitudService.listarTodas()
+      : await SolicitudService.listarPorJefeCuadrilla(req.usuario.id);
     return respuestaExito(res, 200, 'Solicitudes obtenidas', { solicitudes });
   } catch (error) {
     return respuestaError(res, 500, error.message);
