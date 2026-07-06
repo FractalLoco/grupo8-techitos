@@ -176,16 +176,31 @@ const agregarCuadrillas = async (doc, snapshot) => {
 
 const agregarFamilias = (doc, snapshot) => {
   tituloSeccion(doc, 'Familias atendidas');
-  listaSimple(doc, snapshot.familias, (familia) => (
-    `${familia.responsable} - ${familia.miembros} integrante(s) - Prioridad ${familia.prioridad} - ${familia.ubicacion.direccion}`
-  ));
+  listaSimple(doc, snapshot.familias, (familia) => {
+    const coordenadas = familia.ubicacion.lat !== 'No registrado' && familia.ubicacion.lng !== 'No registrado'
+      ? ` (${familia.ubicacion.lat}, ${familia.ubicacion.lng})`
+      : '';
+    return `${familia.responsable} - ${familia.miembros} integrante(s) - Prioridad ${familia.prioridad} - ${familia.ubicacion.direccion}${coordenadas}`;
+  });
 };
 
 const agregarObras = (doc, snapshot) => {
   tituloSeccion(doc, 'Avance de obras');
-  listaSimple(doc, snapshot.obras, (obra) => (
-    `${obra.nombre} - Estado: ${obra.estado} - Ubicacion: ${obra.direccion} - Registrada: ${fechaLegible(obra.fecha_creacion)}`
-  ));
+  if (snapshot.obras.length === 0) {
+    listaSimple(doc, [], () => '');
+    return;
+  }
+  for (const obra of snapshot.obras) {
+    asegurarEspacio(doc, 95);
+    doc.font('Helvetica-Bold').fontSize(10).fillColor(COLOR_PRIMARIO).text(obra.nombre);
+    filaDato(doc, 'Estado', obra.estado);
+    filaDato(doc, 'Cuadrilla', typeof obra.cuadrilla === 'string' ? obra.cuadrilla : obra.cuadrilla.nombre);
+    filaDato(doc, 'Ubicacion', `${obra.direccion} (${obra.lat}, ${obra.lng})`);
+    filaDato(doc, 'Fecha de inicio', fechaLegible(obra.fecha_inicio));
+    filaDato(doc, 'Fecha de termino', fechaLegible(obra.fecha_termino));
+    filaDato(doc, 'Cumplimiento de plazo', obra.cumplimiento_plazo);
+    doc.moveDown(0.5);
+  }
 };
 
 const agregarHerramientas = (doc, snapshot) => {
@@ -223,6 +238,11 @@ const agregarIncidentes = async (doc, snapshot) => {
       await agregarFoto(doc, incidente.archivo_url);
     }
   }
+};
+
+const agregarVoluntarios = (doc, snapshot) => {
+  tituloSeccion(doc, 'Voluntarios movilizados');
+  listaSimple(doc, snapshot.voluntarios, (voluntario) => `${voluntario.nombre} - ID ${voluntario.id}`);
 };
 
 const agregarEncabezadosYPies = (doc, snapshot) => {
@@ -275,6 +295,7 @@ export const generarPdfReporte = async (snapshot, rutaArchivo) => {
         await agregarObras(doc, snapshot);
         await agregarHerramientas(doc, snapshot);
         await agregarIncidentes(doc, snapshot);
+        agregarVoluntarios(doc, snapshot);
         agregarEncabezadosYPies(doc, snapshot);
         doc.end();
       } catch (err) {
