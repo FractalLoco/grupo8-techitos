@@ -13,6 +13,12 @@ const FORMATOS_FOTO = new Map([
   ['image/png', 'png'],
   ['image/webp', 'webp'],
 ]);
+const FORMATOS_ARCHIVO = new Map([
+  ['application/pdf', 'pdf'],
+  ['application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'docx'],
+  ['application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 'xlsx'],
+  ['application/zip', 'zip'],
+]);
 const ESTADOS_CUADRILLA_ACTIVA = new Set(['activa', 'en_progreso']);
 const DIRECTORIO_FOTOS = path.resolve(process.cwd(), 'uploads', 'chat');
 
@@ -244,6 +250,97 @@ export const enviarFotoCanalCoordinador = async (req, res) => {
     if (rutaGuardada) await unlink(rutaGuardada).catch(() => {});
     console.error('error enviarFotoCanalCoordinador:', error.message);
     return respuestaError(res, 500, 'No se pudo guardar la foto');
+  }
+};
+
+export const enviarArchivoChat = async (req, res) => {
+  let rutaGuardada = null;
+
+  try {
+    const canal = String(req.body?.canal || '');
+    const cuadrillaId = Number.parseInt(req.body?.cuadrilla_id, 10);
+    let cuadrilla = null;
+
+    if (!['broadcast', 'coordinadores', 'jefes', 'cuadrilla'].includes(canal)) {
+      return respuestaError(res, 400, 'Canal no valido');
+    }
+    if (canal === 'broadcast' && req.usuario.rol !== 'coordinador') {
+      return respuestaError(res, 403, 'Solo coordinacion puede publicar avisos generales');
+    }
+    if (canal === 'coordinadores' && req.usuario.rol !== 'coordinador') {
+      return respuestaError(res, 403, 'Solo coordinadores pueden escribir en este canal');
+    }
+    if (canal === 'jefes' && req.usuario.rol !== 'jefe_cuadrilla') {
+      return respuestaError(res, 403, 'Solo jefes pueden escribir en este canal');
+    }
+    if (canal === 'cuadrilla') {
+      if (!Number.isInteger(cuadrillaId) || cuadrillaId <= 0) {
+        return respuestaError(res, 400, 'Selecciona una cuadrilla');
+      }
+      cuadrilla = await CuadrillaRepository.buscarPorId(cuadrillaId);
+      if (!cuadrilla) return respuestaError(res, 404, 'Cuadrilla no encontrada');
+      if (req.usuario.rol !== 'coordinador') {
+        const tieneAcceso = await MensajeService.usuarioEnCuadrilla(req.usuario.id, cuadrillaId);
+        if (!tieneAcceso) return respuestaError(res, 403, 'No perteneces a esa cuadrilla');
+      }
+    }
+    if (!req.file) return respuestaError(res, 400, 'Debes seleccionar un archivo');
+
+    const tipoDetectado = await fileTypeFromBuffer(req.file.buffer);
+    const nombreOriginal = path.basename(req.file.originalname || 'archivo');
+    const extensionOriginal = path.extname(nombreOriginal).slice(1).toLowerCase();
+    const esTextoPermitido = ['txt', 'csv'].includes(extensionOriginal)
+      && ['text/plain', 'text/csv', 'application/vnd.ms-excel'].includes(req.file.mimetype);
+    const extension = esTextoPermitido
+      ? extensionOriginal
+      : tipoDetectado && FORMATOS_ARCHIVO.get(tipoDetectado.mime);
+    if (!extension) {
+      return respuestaError(res, 400, 'Formato no permitido. Usa PDF, DOCX, XLSX, TXT, CSV o ZIP');
+    }
+
+    const baseSegura = path.parse(nombreOriginal).name
+      .replace(/[^a-zA-Z0-9._-]+/g, '-')
+      .replace(/^-+|-+$/g, '')
+      .slice(0, 90) || 'archivo';
+    const nombreSeguro = `${baseSegura}.${extension}`;
+    await mkdir(DIRECTORIO_FOTOS, { recursive: true });
+    const nombreArchivo = `${randomUUID()}--${nombreSeguro}`;
+    rutaGuardada = path.join(DIRECTORIO_FOTOS, nombreArchivo);
+    await writeFile(rutaGuardada, req.file.buffer, { flag: 'wx' });
+
+    const contenido = typeof req.body.contenido === 'string'
+      ? req.body.contenido.trim() || null
+      : null;
+    const tipoMensaje = canal === 'coordinadores'
+      ? 'coordinadores'
+      : canal === 'jefes'
+        ? 'jefes'
+        : 'archivo';
+    const datosMensaje = {
+      cuadrilla_id: canal === 'cuadrilla' ? cuadrillaId : null,
+      remitente_id: req.usuario.id,
+      tipo: tipoMensaje,
+      contenido,
+      archivo_url: `/uploads/chat/${nombreArchivo}`,
+      prioridad: false,
+    };
+    const mensaje = canal === 'broadcast' || canal === 'cuadrilla'
+      ? await MensajeService.enviarMensajeConNotificaciones(datosMensaje, {
+          esBroadcast: canal === 'broadcast',
+          esAlertaEmergencia: false,
+          nombreCuadrilla: cuadrilla?.nombre || null,
+          remitenteRol: req.usuario.rol,
+        })
+      : await MensajeService.enviarMensaje(datosMensaje);
+
+    rutaGuardada = null;
+    const mensajeDTO = MensajeService.toDTO(mensaje, req.usuario?.nombre || null);
+    emitirMensajeChat(mensajeDTO);
+    return respuestaExito(res, 201, 'Archivo enviado', { mensaje: mensajeDTO });
+  } catch (error) {
+    if (rutaGuardada) await unlink(rutaGuardada).catch(() => {});
+    console.error('error enviarArchivoChat:', error.message);
+    return respuestaError(res, 500, 'No se pudo guardar el archivo');
   }
 };
 

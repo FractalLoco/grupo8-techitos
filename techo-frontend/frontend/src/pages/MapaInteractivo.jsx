@@ -303,7 +303,7 @@ function MapaInteractivo() {
         <aside className="w-72 bg-primary-dark flex flex-col flex-shrink-0 overflow-hidden shadow-xl">
           <div className="px-4 py-3 border-b border-white/10">
             <div className="flex items-center gap-2 mb-3">
-              <img src="/logo.svg" alt="TECHO" className="h-8 w-auto" onError={(e) => { e.target.style.display = 'none'; }} />
+              <img src="/logo-techo-blanco-oficial.png" alt="TECHO" className="h-8 w-auto" onError={(e) => { e.target.style.display = 'none'; }} />
             </div>
             <div className="flex items-center gap-2 mb-2">
               <MdMap className="text-white/80 text-lg" />

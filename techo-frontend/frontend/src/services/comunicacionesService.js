@@ -118,6 +118,23 @@ export async function enviarFotoCanalCoordinador(canal, foto, contenido = '') {
   return datos.mensaje;
 }
 
+export async function enviarArchivoChat(canal, cuadrillaId, archivo, contenido = '') {
+  const formulario = new FormData();
+  formulario.append('archivo', archivo);
+  formulario.append('canal', canal);
+  if (cuadrillaId) formulario.append('cuadrilla_id', cuadrillaId);
+  if (contenido.trim()) formulario.append('contenido', contenido.trim());
+
+  const token = localStorage.getItem('token');
+  const respuesta = await fetch(`${URL_BASE}/api/comunicaciones/chat/archivo`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}` },
+    body: formulario,
+  });
+  const datos = await manejarRespuesta(respuesta, 'No se pudo enviar el archivo');
+  return datos.mensaje;
+}
+
 export async function obtenerChatCoordinadores() {
   const respuesta = await fetch(`${URL_BASE}/api/comunicaciones/chat/coordinadores`, {
     headers: obtenerHeaders(),

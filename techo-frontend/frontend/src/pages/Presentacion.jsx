@@ -15,21 +15,11 @@ function Presentacion() {
         <div className="w-full max-w-2xl mx-auto text-center">
           {/* Logo */}
           <img
-            src="/logo.svg"
+            src="/logo-techo-color-oficial.svg"
             alt="TECHO Chile"
-            className="w-20 sm:w-24 mx-auto mb-5"
+            className="w-52 sm:w-64 mx-auto mb-5"
             onError={(e) => (e.target.style.display = 'none')}
           />
-
-          {/* Nombre de la organización */}
-          <p className="text-xs font-semibold tracking-[0.2em] text-techo-secondary uppercase mb-2">
-            TECHO Chile
-          </p>
-
-          {/* Título */}
-          <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-techo-primary leading-tight">
-            Dashboard Multifuncional
-          </h1>
 
           {/* Descripción */}
           <p className="text-sm sm:text-base text-gray-500 mt-3 max-w-lg mx-auto leading-relaxed">
