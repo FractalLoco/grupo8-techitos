@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { MapContainer, TileLayer, Marker, Popup, Circle, useMapEvents } from 'react-leaflet';
 import L from 'leaflet';
 import {
@@ -17,9 +18,9 @@ import {
   MdOutlineConstruction,
   MdLocationOn,
   MdSchedule,
+  MdArrowBack,
 } from 'react-icons/md';
 import { FaExclamationTriangle, FaMapMarkerAlt, FaRoute } from 'react-icons/fa';
-import Navbar from '../components/Navbar';
 import { useAutenticacion } from '../context/AuthContext';
 import { obtenerEmergencias, obtenerFamilias } from '../services/emergenciaService';
 import { listarObrasPorEmergencia, listarTodasLasObras } from '../services/obraService';
@@ -88,6 +89,7 @@ function CapturadorClic({ activo, onClic }) {
 // ── Componente principal ──────────────────────────────────────────────────────
 function MapaInteractivo() {
   const { usuario } = useAutenticacion();
+  const navigate = useNavigate();
   const esCoordinador = usuario?.rol === 'coordinador';
 
   // Estado general
@@ -260,8 +262,6 @@ function MapaInteractivo() {
   // ── Render ───────────────────────────────────────────────────────────────
   return (
     <div className="min-h-screen bg-background flex flex-col">
-      <Navbar />
-
       {/* Toast */}
       {mensaje && (
         <div className={`fixed top-[86px] left-1/2 -translate-x-1/2 z-[9999] flex items-center gap-2 px-5 py-2.5 rounded-xl shadow-xl text-sm font-semibold ${mensaje.tipo === 'exito' ? 'bg-secondary' : 'bg-error'} text-white`}>
@@ -280,13 +280,22 @@ function MapaInteractivo() {
       )}
 
       {/* ── Layout principal: sidebar + mapa ─────────────────────────────── */}
-      <div className="pt-[60px] flex" style={{ height: '100vh' }}>
+      <div className="flex" style={{ height: '100vh' }}>
 
         {/* ══ SIDEBAR ══════════════════════════════════════════════════════ */}
         <aside className="w-64 bg-inverse-surface flex flex-col flex-shrink-0 overflow-hidden border-r border-white/10 shadow-lg">
 
           {/* Cabecera del sidebar */}
           <div className="px-4 py-3 bg-primary border-b border-white/10">
+            <button
+              type="button"
+              onClick={() => navigate('/inicio')}
+              className="mb-3 flex min-h-11 w-full items-center gap-2 rounded-xl border border-white/20 bg-white/10 px-3 text-sm font-semibold text-white transition hover:bg-white/20 focus:outline-none focus:ring-2 focus:ring-white/70"
+              aria-label="Volver al inicio"
+            >
+              <MdArrowBack className="text-xl" />
+              Volver al inicio
+            </button>
             <div className="flex items-center gap-2 mb-2">
               <MdMap className="text-white/90 text-lg" />
               <h2 className="text-white font-bold text-sm tracking-wide">Mapa Interactivo</h2>

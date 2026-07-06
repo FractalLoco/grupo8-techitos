@@ -65,6 +65,35 @@ export class MensajeService {
     return [];
   }
 
+  static async listarCoordinadores(limite) {
+    const mensajes = await MensajeRepository.listarCoordinadores(limite);
+    return mensajes.map((mensaje) => this.toDTO(mensaje));
+  }
+
+  static async listarJefes(limite) {
+    const mensajes = await MensajeRepository.listarJefes(limite);
+    return mensajes.map((mensaje) => this.toDTO(mensaje));
+  }
+
+  static async obtenerIntegrantesCuadrilla(cuadrillaId) {
+    const integrantes = await AppDataSource.query(
+      `SELECT u.id, u.nombre, u.rol, TRUE AS es_jefe
+       FROM cuadrillas c
+       JOIN usuarios u ON u.id = c.jefe_id
+       WHERE c.id = $1
+       UNION
+       SELECT u.id, u.nombre, u.rol, FALSE AS es_jefe
+       FROM miembros_cuadrilla mc
+       JOIN usuarios u ON u.id = mc.voluntario_id
+       WHERE mc.cuadrilla_id = $1
+         AND u.id <> COALESCE((SELECT jefe_id FROM cuadrillas WHERE id = $1), -1)
+       ORDER BY es_jefe DESC, nombre ASC`,
+      [cuadrillaId],
+    );
+
+    return integrantes;
+  }
+
   /**
    * Envía un mensaje y sus notificaciones asociadas dentro de una transacción.
    * Si falla cualquier notificación, se revierte el mensaje.
