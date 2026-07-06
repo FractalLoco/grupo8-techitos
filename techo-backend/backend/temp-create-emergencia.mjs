@@ -11,7 +11,7 @@ async function run() {
     process.exit(1);
   }
 
-  const token = loginData.data?.token || loginData.token || loginData.accessToken;
+  const token = loginData.datos?.token || loginData.data?.token || loginData.token || loginData.accessToken;
   if (!token) {
     console.error('Token no encontrado', loginData);
     process.exit(1);

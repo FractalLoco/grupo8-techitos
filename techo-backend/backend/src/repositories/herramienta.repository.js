@@ -81,15 +81,18 @@ export class HerramientaRepository {
   // Cada entrada tiene los conteos por estado para que el coordinador vea el inventario global.
   static async catalogoInventario() {
     const herramientas = await this.getRepository().find();
+    const movimientos = await AppDataSource.getRepository('MovimientoHerramienta').find();
 
-    // Agrupa por nombre (normalizado) + tipo_item
+    // Agrupa por nombre (normalizado) + tipo_item. Cada ítem combina dos fuentes:
+    // - tabla herramientas: estado de lo asignado a cuadrillas (buenas, dañadas, etc.)
+    // - tabla movimientos: stock del almacén (entrada_stock) y lo que está en préstamo (salida activa)
     const mapaItems = {};
-    for (const h of herramientas) {
-      const tipo = h.tipo_item || 'herramienta';
-      const key = `${h.nombre.toLowerCase()}__${tipo}`;
+    const asegurarItem = (nombre, tipoItem) => {
+      const tipo = tipoItem || 'herramienta';
+      const key = `${nombre.toLowerCase()}__${tipo}`;
       if (!mapaItems[key]) {
         mapaItems[key] = {
-          nombre: h.nombre,
+          nombre,
           tipo_item: tipo,
           total: 0,
           entregadas: 0,
@@ -97,14 +100,34 @@ export class HerramientaRepository {
           danadas: 0,
           perdidas: 0,
           no_devueltas: 0,
+          stock_almacen: 0,
+          en_prestamo: 0,
+          disponible: 0,
         };
       }
-      mapaItems[key].total += 1;
-      if (h.estado === 'entregada')   mapaItems[key].entregadas += 1;
-      if (h.estado === 'buena')       mapaItems[key].buenas += 1;
-      if (h.estado === 'danada')      mapaItems[key].danadas += 1;
-      if (h.estado === 'perdida')     mapaItems[key].perdidas += 1;
-      if (h.estado === 'no_devuelta') mapaItems[key].no_devueltas += 1;
+      return mapaItems[key];
+    };
+
+    for (const h of herramientas) {
+      const item = asegurarItem(h.nombre, h.tipo_item);
+      item.total += 1;
+      if (h.estado === 'entregada')   item.entregadas += 1;
+      if (h.estado === 'buena')       item.buenas += 1;
+      if (h.estado === 'danada')      item.danadas += 1;
+      if (h.estado === 'perdida')     item.perdidas += 1;
+      if (h.estado === 'no_devuelta') item.no_devueltas += 1;
+    }
+
+    for (const m of movimientos) {
+      const item = asegurarItem(m.nombre_item, m.tipo_item);
+      const cant = Number(m.cantidad) || 1;
+      if (m.tipo_movimiento === 'entrada_stock') item.stock_almacen += cant;
+      else if (m.tipo_movimiento === 'salida' && m.estado === 'activo') item.en_prestamo += cant;
+    }
+
+    // Disponible = lo que hay en el almacén menos lo que está prestado.
+    for (const item of Object.values(mapaItems)) {
+      item.disponible = Math.max(0, item.stock_almacen - item.en_prestamo);
     }
 
     const catalogo = Object.values(mapaItems).sort((a, b) =>
@@ -115,13 +138,19 @@ export class HerramientaRepository {
     const porTipo = {};
     for (const item of catalogo) {
       if (!porTipo[item.tipo_item]) {
-        porTipo[item.tipo_item] = { total: 0, buenas: 0, danadas: 0, perdidas: 0, no_devueltas: 0 };
+        porTipo[item.tipo_item] = {
+          total: 0, buenas: 0, danadas: 0, perdidas: 0, no_devueltas: 0,
+          stock_almacen: 0, en_prestamo: 0, disponible: 0,
+        };
       }
-      porTipo[item.tipo_item].total        += item.total;
-      porTipo[item.tipo_item].buenas       += item.buenas;
-      porTipo[item.tipo_item].danadas      += item.danadas;
-      porTipo[item.tipo_item].perdidas     += item.perdidas;
-      porTipo[item.tipo_item].no_devueltas += item.no_devueltas;
+      porTipo[item.tipo_item].total         += item.total;
+      porTipo[item.tipo_item].buenas        += item.buenas;
+      porTipo[item.tipo_item].danadas       += item.danadas;
+      porTipo[item.tipo_item].perdidas      += item.perdidas;
+      porTipo[item.tipo_item].no_devueltas  += item.no_devueltas;
+      porTipo[item.tipo_item].stock_almacen += item.stock_almacen;
+      porTipo[item.tipo_item].en_prestamo   += item.en_prestamo;
+      porTipo[item.tipo_item].disponible    += item.disponible;
     }
 
     return { catalogo, porTipo };
