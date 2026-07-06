@@ -16,10 +16,10 @@ html, body {
 }
 
 :root {
-  --chat-ink: #0f2440;
-  --chat-ocean: #0099d6;
-  --chat-sun: #f39c12;
-  --chat-mist: #f7f9fb;
+  --chat-ink: #333333;
+  --chat-ocean: #0092dd;
+  --chat-sun: #e94362;
+  --chat-mist: #f5f5f5;
 }
 
 #root {
@@ -65,9 +65,9 @@ html, body {
 
 .chat-shell {
   background:
-    radial-gradient(1200px circle at 12% 8%, rgba(0, 153, 214, 0.15), transparent 60%),
-    radial-gradient(900px circle at 85% 20%, rgba(243, 156, 18, 0.18), transparent 55%),
-    linear-gradient(180deg, #f0f4f8 0%, var(--chat-mist) 100%);
+    radial-gradient(1200px circle at 12% 8%, rgba(0, 146, 221, 0.15), transparent 60%),
+    radial-gradient(900px circle at 85% 20%, rgba(233, 67, 98, 0.13), transparent 55%),
+    linear-gradient(180deg, #ffffff 0%, var(--chat-mist) 100%);
 }
 
 .chat-card {

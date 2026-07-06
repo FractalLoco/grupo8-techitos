@@ -1,9 +1,9 @@
 import { forwardRef, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useSearchParams } from 'react-router-dom';
 import {
   MdAdd,
   MdAnnouncement,
-  MdArrowBack,
+  MdAttachFile,
   MdBolt,
   MdCameraAlt,
   MdCheckCircle,
@@ -20,8 +20,10 @@ import {
   MdWarning,
 } from 'react-icons/md';
 import { useAutenticacion } from '../context/AuthContext';
+import Navbar from '../components/Navbar';
 import {
   enviarEmergencia,
+  enviarArchivoChat,
   enviarFotoCanalCoordinador,
   enviarFotoAvance,
   enviarMensaje,
@@ -40,6 +42,8 @@ import {
 
 const TIPOS_FOTO = ['image/jpeg', 'image/png', 'image/webp'];
 const MAX_FOTO_BYTES = 5 * 1024 * 1024;
+const MAX_ARCHIVO_BYTES = 10 * 1024 * 1024;
+const EXTENSIONES_ARCHIVO = ['pdf', 'docx', 'xlsx', 'txt', 'csv', 'zip'];
 const INTERVALO_POLLING = 5000;
 const FORMATO_FECHA = new Intl.DateTimeFormat('es-CL', {
   day: '2-digit',
@@ -53,7 +57,6 @@ function SidebarComunicaciones({
   onCerrar, onSeleccionarBroadcast, onSeleccionarCoordinadores, onSeleccionarJefes,
   onSeleccionarCuadrilla,
 }) {
-  const navigate = useNavigate();
   const [busquedaCuadrilla, setBusquedaCuadrilla] = useState('');
   const cuadrillasFiltradas = cuadrillas.filter((cuadrilla) => {
     const termino = busquedaCuadrilla.trim().toLocaleLowerCase('es');
@@ -109,7 +112,6 @@ function SidebarComunicaciones({
             <span className="flex h-10 w-10 items-center justify-center rounded-full bg-techo-secondary font-bold">{(usuario?.nombre || 'U')[0].toUpperCase()}</span>
             <span className="min-w-0"><span className="block truncate text-sm font-semibold">{usuario?.nombre || 'Usuario'}</span><span className="block text-[10px] capitalize text-white/50">{usuario?.rol?.replace('_', ' ')}</span></span>
           </div>
-          <button type="button" onClick={() => navigate('/inicio')} className="flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border border-white/15 bg-white/10 text-sm font-semibold hover:bg-white/20"><MdArrowBack size={20} /> Volver al inicio</button>
         </div>
       </aside>
     </>
@@ -138,6 +140,7 @@ const ESTILO_TIPO = {
   finalizado: ['Finalizado', 'border-green-300 bg-green-50', 'bg-green-600 text-white', MdCheckCircle],
   emergencia: ['Emergencia', 'border-red-300 bg-red-50 ring-1 ring-red-200', 'bg-red-600 text-white', MdWarning],
   imagen: ['Fotografía', 'border-slate-200 bg-white', 'bg-sky-100 text-sky-700', MdImage],
+  archivo: ['Archivo', 'border-slate-200 bg-white', 'bg-slate-100 text-slate-700', MdAttachFile],
 };
 
 function TarjetaMensaje({ mensaje, usuario, canal, onAbrirImagen }) {
@@ -145,6 +148,9 @@ function TarjetaMensaje({ mensaje, usuario, canal, onAbrirImagen }) {
   const config = ESTILO_TIPO[mensaje.tipo];
   const Icono = config?.[3] || MdAnnouncement;
   const url = obtenerUrlArchivo(mensaje.archivo_url);
+  const esImagen = Boolean(url && /\.(jpe?g|png|webp)(?:\?|$)/i.test(url));
+  const nombreArchivo = decodeURIComponent(url ? url.split('/').pop() : '')
+    .replace(/^[0-9a-f-]{36}--/i, '');
   return (
     <article className={`flex ${propio ? 'justify-end' : 'justify-start'}`}>
       <div className={`max-w-[88%] rounded-2xl border px-4 py-3 shadow-sm sm:max-w-[76%] ${propio ? 'border-techo-primary bg-techo-primary text-white' : config?.[1] || (canal === 'broadcast' ? 'border-sky-200 bg-sky-50' : 'border-slate-200 bg-white')}`}>
@@ -153,7 +159,13 @@ function TarjetaMensaje({ mensaje, usuario, canal, onAbrirImagen }) {
           {(config || ['broadcast', 'coordinadores', 'jefes'].includes(canal)) && <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold uppercase ${config?.[2] || 'bg-sky-100 text-sky-700'}`}><Icono size={13} />{config?.[0] || (canal === 'coordinadores' ? 'Coordinadores' : canal === 'jefes' ? 'Jefes' : 'Aviso general')}</span>}
           {(mensaje.prioridad === true && mensaje.tipo !== 'emergencia') && <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold uppercase text-amber-800">Prioridad alta</span>}
         </div>
-        {url && <button type="button" onClick={() => onAbrirImagen({ url, alt: mensaje.contenido || 'Evidencia fotográfica' })} className="block w-full overflow-hidden rounded-xl" aria-label="Abrir fotografía"><img src={url} alt={mensaje.contenido || 'Evidencia fotográfica'} className="max-h-80 w-full object-cover" loading="lazy" /></button>}
+        {esImagen && <button type="button" onClick={() => onAbrirImagen({ url, alt: mensaje.contenido || 'Evidencia fotográfica' })} className="block w-full overflow-hidden rounded-xl" aria-label="Abrir fotografía"><img src={url} alt={mensaje.contenido || 'Evidencia fotográfica'} className="max-h-80 w-full object-cover" loading="lazy" /></button>}
+        {url && !esImagen && (
+          <a href={url} target="_blank" rel="noreferrer" className={`flex items-center gap-3 rounded-xl border p-3 ${propio ? 'border-white/25 bg-white/10 text-white' : 'border-slate-200 bg-slate-50 text-techo-primary'}`}>
+            <MdAttachFile size={24} className="shrink-0" />
+            <span className="min-w-0"><span className="block truncate text-sm font-semibold">{nombreArchivo || 'Archivo adjunto'}</span><span className="block text-[11px] opacity-70">Abrir o descargar archivo</span></span>
+          </a>
+        )}
         {mensaje.contenido && <p className={`whitespace-pre-wrap break-words text-sm ${url ? 'mt-3' : ''}`}>{mensaje.contenido}</p>}
         <time className={`mt-2 block text-[11px] ${propio ? 'text-white/65' : 'text-slate-400'}`}>{mensaje.creado_en ? FORMATO_FECHA.format(new Date(mensaje.creado_en)) : 'Reciente'}</time>
       </div>
@@ -173,6 +185,7 @@ function CompositorMensaje({
   usuario, canal, contenido, onContenido, onEnviar, cargando, prioridadAlta, onPrioridad,
   esEmergencia, registrarHito, hitoFinalizado, onAccion, foto, vistaPreviaFoto,
   inputFotoRef, onSeleccionFoto, onQuitarFoto,
+  archivo, inputArchivoRef, onSeleccionArchivo, onQuitarArchivo,
 }) {
   const [mostrarAcciones, setMostrarAcciones] = useState(false);
   const esJefe = usuario?.rol === 'jefe_cuadrilla' && canal === 'cuadrilla';
@@ -197,10 +210,12 @@ function CompositorMensaje({
   return (
     <form onSubmit={onEnviar} className="border-t border-slate-200 bg-white p-3 sm:p-4">
       {foto && <div className="mb-3 flex items-center gap-3 rounded-xl border border-sky-200 bg-sky-50 p-3"><img src={vistaPreviaFoto} alt="Vista previa" className="h-16 w-20 rounded-lg object-cover" /><div className="min-w-0 flex-1"><p className="truncate text-xs font-bold">{foto.name}</p><p className="text-[11px] text-slate-500">{(foto.size / 1024 / 1024).toFixed(2)} MB</p></div><button type="button" onClick={onQuitarFoto} className="h-11 w-11 text-red-600" aria-label="Quitar fotografía"><MdClose size={21} /></button></div>}
+      {archivo && <div className="mb-3 flex items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 p-3"><MdAttachFile size={26} className="shrink-0 text-techo-primary" /><div className="min-w-0 flex-1"><p className="truncate text-xs font-bold">{archivo.name}</p><p className="text-[11px] text-slate-500">{(archivo.size / 1024 / 1024).toFixed(2)} MB</p></div><button type="button" onClick={onQuitarArchivo} className="h-11 w-11 text-red-600" aria-label="Quitar archivo"><MdClose size={21} /></button></div>}
       {(modo || prioridadAlta) && <div className="mb-2 flex gap-2">{modo && <button type="button" onClick={() => onAccion('normal')} className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-bold text-emerald-700">{modo} · Quitar</button>}{prioridadAlta && <button type="button" onClick={() => onPrioridad(false)} className="rounded-full bg-amber-100 px-3 py-1 text-xs font-bold text-amber-800">Prioridad alta · Quitar</button>}</div>}
       <div className="flex items-end gap-2">
         {esJefe && <button type="button" onClick={() => setMostrarAcciones(!mostrarAcciones)} className="flex h-11 w-11 items-center justify-center rounded-xl bg-slate-100 md:hidden" aria-label="Mostrar acciones"><MdAdd size={25} /></button>}
         {puedeAdjuntarFoto && <label className="flex h-11 w-11 shrink-0 cursor-pointer items-center justify-center rounded-xl bg-slate-100 text-techo-primary hover:bg-slate-200" aria-label="Adjuntar fotografía"><MdCameraAlt size={21} /><input ref={inputFotoRef} type="file" accept="image/jpeg,image/png,image/webp" capture="environment" className="sr-only" onChange={onSeleccionFoto} disabled={cargando} /></label>}
+        <label className="flex h-11 w-11 shrink-0 cursor-pointer items-center justify-center rounded-xl bg-slate-100 text-techo-primary hover:bg-slate-200" aria-label="Adjuntar archivo"><MdAttachFile size={21} /><input ref={inputArchivoRef} type="file" accept=".pdf,.docx,.xlsx,.txt,.csv,.zip" className="sr-only" onChange={onSeleccionArchivo} disabled={cargando} /></label>
         <textarea rows={1} value={contenido} onChange={(e) => onContenido(e.target.value)} placeholder={esEmergencia ? 'Describe la emergencia...' : 'Escribe un mensaje...'} className="min-h-11 max-h-32 flex-1 resize-none rounded-xl border px-4 py-3 text-sm outline-none focus:border-techo-secondary" disabled={cargando} onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); e.currentTarget.form?.requestSubmit(); } }} />
         <button type="submit" disabled={cargando} className="flex h-11 items-center gap-2 rounded-xl bg-techo-secondary px-4 font-semibold text-white disabled:opacity-60"><MdSend size={20} /><span className="hidden sm:inline">{cargando ? 'Enviando...' : 'Enviar'}</span></button>
       </div>
@@ -211,9 +226,18 @@ function CompositorMensaje({
 }
 
 function PanelCuadrilla({
-  abierto, canal, cuadrilla, integrantes,
+  abierto, canal, cuadrilla, integrantes, mensajes,
   cargandoIntegrantes, errorIntegrantes, onCerrar,
 }) {
+  const archivosCompartidos = mensajes
+    .filter((mensaje) => mensaje.archivo_url && !/\.(jpe?g|png|webp)(?:\?|$)/i.test(mensaje.archivo_url))
+    .map((mensaje) => {
+      const url = obtenerUrlArchivo(mensaje.archivo_url);
+      const nombre = decodeURIComponent(url.split('/').pop() || '')
+        .replace(/^[0-9a-f-]{36}--/i, '');
+      return { ...mensaje, url, nombre: nombre || 'Archivo adjunto' };
+    });
+
   return (
     <>
       {abierto && <button type="button" className="fixed inset-0 z-[3900] bg-slate-950/45 2xl:hidden" onClick={onCerrar} aria-label="Cerrar información" />}
@@ -247,6 +271,39 @@ function PanelCuadrilla({
             )}
           </section>
         )}
+        <section className="mt-6 border-t border-slate-200 pt-5">
+          <div className="mb-3 flex items-center justify-between">
+            <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400">Archivos compartidos</h3>
+            <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-bold text-slate-500">{archivosCompartidos.length}</span>
+          </div>
+          {archivosCompartidos.length === 0 ? (
+            <p className="text-sm text-slate-500">Todavía no se han compartido archivos.</p>
+          ) : (
+            <ul className="space-y-2">
+              {archivosCompartidos.map((archivoCompartido) => (
+                <li key={archivoCompartido.id}>
+                  <a
+                    href={archivoCompartido.url}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="flex min-h-14 items-center gap-3 rounded-xl border border-slate-100 p-2.5 transition hover:border-primary/30 hover:bg-primary-fixed/40"
+                  >
+                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary-fixed text-primary">
+                      <MdAttachFile size={20} />
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-sm font-semibold text-slate-700">{archivoCompartido.nombre}</span>
+                      <span className="block truncate text-[11px] text-slate-400">
+                        {archivoCompartido.remitente_nombre || 'Usuario'}
+                        {archivoCompartido.creado_en ? ` · ${FORMATO_FECHA.format(new Date(archivoCompartido.creado_en))}` : ''}
+                      </span>
+                    </span>
+                  </a>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
       </aside>
     </>
   );
@@ -281,6 +338,7 @@ function Comunicaciones() {
   const [registrarHito, setRegistrarHito] = useState(false);
   const [hitoFinalizado, setHitoFinalizado] = useState(false);
   const [foto, setFoto] = useState(null);
+  const [archivo, setArchivo] = useState(null);
   const [vistaPreviaFoto, setVistaPreviaFoto] = useState('');
   const [imagenModal, setImagenModal] = useState(null);
   const [cargandoCuadrillas, setCargandoCuadrillas] = useState(true);
@@ -294,6 +352,7 @@ function Comunicaciones() {
   const [sidebarAbierto, setSidebarAbierto] = useState(false);
   const [panelAbierto, setPanelAbierto] = useState(false);
   const inputFotoRef = useRef(null);
+  const inputArchivoRef = useRef(null);
   const listaMensajesRef = useRef(null);
   const montadoRef = useRef(true);
   const mantenerAlFinalRef = useRef(true);
@@ -329,6 +388,11 @@ function Comunicaciones() {
   const quitarFoto = useCallback(() => {
     setFoto(null);
     if (inputFotoRef.current) inputFotoRef.current.value = '';
+  }, []);
+
+  const quitarArchivo = useCallback(() => {
+    setArchivo(null);
+    if (inputArchivoRef.current) inputArchivoRef.current.value = '';
   }, []);
 
   const limpiarAcciones = useCallback(() => {
@@ -494,6 +558,7 @@ function Comunicaciones() {
     setSidebarAbierto(false);
     limpiarAcciones();
     quitarFoto();
+    quitarArchivo();
     setSearchParams({ canal: 'broadcast' });
   };
 
@@ -503,6 +568,7 @@ function Comunicaciones() {
     setSidebarAbierto(false);
     limpiarAcciones();
     quitarFoto();
+    quitarArchivo();
     setSearchParams({ canal: 'coordinadores' });
   };
 
@@ -512,6 +578,7 @@ function Comunicaciones() {
     setSidebarAbierto(false);
     limpiarAcciones();
     quitarFoto();
+    quitarArchivo();
     setSearchParams({ canal: 'jefes' });
   };
 
@@ -522,6 +589,7 @@ function Comunicaciones() {
     setSidebarAbierto(false);
     limpiarAcciones();
     quitarFoto();
+    quitarArchivo();
     setSearchParams({ canal: 'cuadrilla', cuadrillaId: nuevoId });
   };
 
@@ -540,8 +608,29 @@ function Comunicaciones() {
       return;
     }
     setFoto(archivo);
+    quitarArchivo();
     setEsEmergencia(false);
     setPrioridadAlta(false);
+  };
+
+  const manejarSeleccionArchivo = (evento) => {
+    const archivoSeleccionado = evento.target.files?.[0];
+    setError('');
+    if (!archivoSeleccionado) return;
+    const extension = archivoSeleccionado.name.split('.').pop()?.toLowerCase();
+    if (!EXTENSIONES_ARCHIVO.includes(extension)) {
+      setError('Formato no permitido. Usa PDF, DOCX, XLSX, TXT, CSV o ZIP.');
+      evento.target.value = '';
+      return;
+    }
+    if (archivoSeleccionado.size > MAX_ARCHIVO_BYTES) {
+      setError('El archivo no puede superar los 10 MB.');
+      evento.target.value = '';
+      return;
+    }
+    setArchivo(archivoSeleccionado);
+    quitarFoto();
+    limpiarAcciones();
   };
 
   const manejarAccion = (accion) => {
@@ -562,6 +651,7 @@ function Comunicaciones() {
       setEsEmergencia(true);
       setPrioridadAlta(true);
       quitarFoto();
+      quitarArchivo();
     } else {
       limpiarAcciones();
     }
@@ -571,8 +661,8 @@ function Comunicaciones() {
     evento.preventDefault();
     setError('');
     const texto = contenido.trim();
-    if (!texto && !registrarHito && !foto) {
-      setError(esEmergencia ? 'Describe la emergencia antes de enviarla.' : 'Escribe un mensaje o adjunta una foto.');
+    if (!texto && !registrarHito && !foto && !archivo) {
+      setError(esEmergencia ? 'Describe la emergencia antes de enviarla.' : 'Escribe un mensaje o adjunta un archivo.');
       return;
     }
     if (canal === 'cuadrilla' && !cuadrillaId) {
@@ -583,7 +673,9 @@ function Comunicaciones() {
     setEnviando(true);
     try {
       let mensajeNuevo;
-      if (foto) {
+      if (archivo) {
+        mensajeNuevo = await enviarArchivoChat(canal, cuadrillaId, archivo, texto);
+      } else if (foto) {
         if (['broadcast', 'coordinadores', 'jefes'].includes(canal)) {
           mensajeNuevo = await enviarFotoCanalCoordinador(canal, foto, texto);
         } else {
@@ -616,6 +708,7 @@ function Comunicaciones() {
       agregarMensajeSinDuplicar(mensajeNuevo);
       setContenido('');
       quitarFoto();
+      quitarArchivo();
       limpiarAcciones();
     } catch (errorActual) {
       if (montadoRef.current) setError(errorActual.message || 'No se pudo enviar el mensaje.');
@@ -632,7 +725,8 @@ function Comunicaciones() {
 
   return (
     <div className="h-screen w-full overflow-hidden bg-slate-100">
-      <div className="flex h-full">
+      <Navbar />
+      <div className="mt-[60px] flex h-[calc(100vh-60px)]">
         <SidebarComunicaciones
           abierto={sidebarAbierto}
           usuario={usuario}
@@ -697,6 +791,10 @@ function Comunicaciones() {
             inputFotoRef={inputFotoRef}
             onSeleccionFoto={manejarSeleccionFoto}
             onQuitarFoto={quitarFoto}
+            archivo={archivo}
+            inputArchivoRef={inputArchivoRef}
+            onSeleccionArchivo={manejarSeleccionArchivo}
+            onQuitarArchivo={quitarArchivo}
           />
         </main>
 
@@ -706,6 +804,7 @@ function Comunicaciones() {
           cuadrilla={cuadrillaSeleccionada}
           usuario={usuario}
           integrantes={integrantes}
+          mensajes={mensajes}
           cargandoIntegrantes={cargandoIntegrantes}
           errorIntegrantes={errorIntegrantes}
           onCerrar={() => setPanelAbierto(false)}
