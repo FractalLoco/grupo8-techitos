@@ -38,16 +38,13 @@ function GestionUsuarios() {
   const [filtroRol, setFiltroRol] = useState("todos");
   const [filtroEstado, setFiltroEstado] = useState("todos");
   const [paginaActual, setPaginaActual] = useState(1);
-  const usuariosPorPagina = 5;
+  const [mostrarFormulario, setMostrarFormulario] = useState(false);
+  const [editandoId, setEditandoId] = useState(null);
+  const [guardando, setGuardando] = useState(false);
+  const [formulario, setFormulario] = useState(FORMULARIO_INICIAL);
 
-  const [formulario, setFormulario] = useState({
-    nombre: "",
-    rut: "",
-    correo: "",
-    rol: "voluntario",
-  });
+  const usuariosPorPagina = 8;
 
-  // Obtiene id compatible con MongoDB o SQL
   const obtenerId = (usuario) => usuario._id || usuario.id;
 
   const mostrarMensajeExito = (mensaje) => {
@@ -431,101 +428,191 @@ function GestionUsuarios() {
                 Limpiar filtros
               </button>
             </div>
-          </div>
+          )}
+        </section>
 
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className="bg-gray-200 text-left">
-                <tr>
-                  <th className="p-3">Nombre</th>
-                  <th className="p-3">Correo</th>
-                  <th className="p-3">Rol</th>
-                  <th className="p-3">Estado</th>
-                  <th className="p-3">Acción</th>
-                </tr>
-              </thead>
+        <section className="mb-4">
+          {cargando && (
+            <div className="rounded-xl border border-outline-variant bg-surface-container-lowest p-10 text-center text-on-surface-variant shadow-sm">
+              Cargando usuarios...
+            </div>
+          )}
 
-              <tbody>
-                {cargando && (
-                  <tr>
-                    <td className="p-4 text-center text-gray-500" colSpan="5">
-                      Cargando usuarios...
-                    </td>
-                  </tr>
-                )}
+          {!cargando && usuariosPaginados.length === 0 && (
+            <div className="rounded-xl border border-outline-variant bg-surface-container-lowest p-10 text-center text-on-surface-variant shadow-sm">
+              No se encontraron usuarios con los filtros seleccionados.
+            </div>
+          )}
 
-                {!cargando && usuariosPaginados.length === 0 && (
-                  <tr>
-                    <td className="p-4 text-center text-gray-500" colSpan="5">
-                      No se encontraron usuarios con los filtros seleccionados.
-                    </td>
-                  </tr>
-                )}
+          {!cargando && usuariosPaginados.length > 0 && (
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+              {usuariosPaginados.map((usuario) => {
+                const activo = Boolean(usuario.activo);
 
-                {!cargando &&
-                  Array.isArray(usuariosPaginados) &&
-                  usuariosPaginados.map((usuario) => (
-                    <tr key={obtenerId(usuario)} className="border-t">
-                      <td className="p-3">{usuario.nombre}</td>
+                return (
+                  <article
+                    key={obtenerId(usuario)}
+                    className={`group relative flex min-h-[245px] flex-col gap-4 rounded-xl border border-outline-variant bg-surface-container-lowest p-5 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md ${
+                      activo ? "" : "bg-surface-container-low/30"
+                    }`}
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div
+                        className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-full text-lg font-bold ${
+                          activo
+                            ? obtenerClaseAvatar(usuario.rol)
+                            : "bg-surface-variant text-on-surface-variant"
+                        }`}
+                        aria-hidden="true"
+                      >
+                        {obtenerIniciales(usuario.nombre)}
+                      </div>
 
-                      <td className="p-3">{usuario.correo}</td>
-
-                      <td className="p-3">{usuario.rol}</td>
-
-                      <td className="p-3">
-                        {usuario.activo ? "Activo" : "Desactivado"}
-                      </td>
-
-                      <td className="p-3">
+                      <div className="flex gap-1 opacity-100 transition-opacity sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100">
                         <button
-                          onClick={() => cambiarEstado(usuario)}
-                          className="bg-slate-800 text-white px-3 py-1 rounded"
+                          type="button"
+                          onClick={() => abrirEdicion(usuario)}
+                          className="flex h-8 w-8 items-center justify-center rounded-full bg-surface-container text-on-surface-variant transition-colors hover:bg-surface-variant hover:text-primary"
+                          title="Editar usuario"
+                          aria-label={`Editar a ${usuario.nombre}`}
                         >
-                          {usuario.activo ? "Desactivar" : "Activar"}
+                          <MdEdit className="text-lg" />
                         </button>
-                      </td>
-                    </tr>
-                  ))}
-              </tbody>
-            </table>
-          </div>
 
-          <div className="p-4 border-t flex flex-col md:flex-row md:items-center md:justify-between gap-3">
-            <span className="text-sm text-gray-600">
-              Página {paginaActual} de {totalPaginas}
-            </span>
+                        <button
+                          type="button"
+                          onClick={() => cambiarEstado(usuario)}
+                          className={`flex h-8 w-8 items-center justify-center rounded-full bg-surface-container transition-colors ${
+                            activo
+                              ? "text-error hover:bg-error-container"
+                              : "text-primary hover:bg-primary-fixed"
+                          }`}
+                          title={activo ? "Desactivar usuario" : "Activar usuario"}
+                          aria-label={`${activo ? "Desactivar" : "Activar"} a ${
+                            usuario.nombre
+                          }`}
+                        >
+                          {activo ? (
+                            <MdBlock className="text-lg" />
+                          ) : (
+                            <MdRefresh className="text-lg" />
+                          )}
+                        </button>
+                      </div>
+                    </div>
 
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={() => setPaginaActual(1)}
-                disabled={paginaActual === 1}
-                className="border rounded-lg px-3 py-1 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                Primera
-              </button>
+                    <div className={activo ? "" : "opacity-60"}>
+                      <h3 className="mb-1 truncate text-lg font-bold text-on-surface">
+                        {usuario.nombre || "Usuario sin nombre"}
+                      </h3>
+                      <p
+                        className="mb-1 truncate text-sm text-on-surface-variant"
+                        title={usuario.correo || ""}
+                      >
+                        {usuario.correo || "Sin correo"}
+                      </p>
+                      <p className="text-sm text-on-surface-variant">
+                        {usuario.rut || "Sin RUT"}
+                      </p>
+                    </div>
 
+                    <div className="mt-auto flex items-center justify-between gap-3 border-t border-outline-variant pt-4">
+                      <span
+                        className={`min-w-0 truncate text-sm font-medium text-on-surface ${
+                          activo ? "" : "opacity-60"
+                        }`}
+                        title={formatearRol(usuario.rol)}
+                      >
+                        {formatearRol(usuario.rol)}
+                      </span>
+
+                      {activo ? (
+                        <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-primary-fixed px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-on-primary-fixed-variant">
+                          <span className="h-1.5 w-1.5 rounded-full bg-primary" />
+                          Activo
+                        </span>
+                      ) : (
+                        <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-surface-variant px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-on-surface-variant">
+                          <span className="h-1.5 w-1.5 rounded-full bg-outline" />
+                          Inactivo
+                        </span>
+                      )}
+                    </div>
+                  </article>
+                );
+              })}
+            </div>
+          )}
+        </section>
+
+        <section className="flex flex-col gap-4 rounded-xl border border-outline-variant bg-surface-container-lowest p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between">
+          <span className="text-sm text-on-surface-variant">
+            Mostrando {indiceInicial} - {indiceFinal} de {usuariosFiltrados.length}
+          </span>
+
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setPaginaActual((pagina) => Math.max(1, pagina - 1))}
+              disabled={paginaActual === 1}
+              className="rounded-md border border-outline-variant px-3 py-1.5 text-sm font-bold text-on-surface-variant transition hover:bg-surface-container-low disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              Anterior
+            </button>
+
+            {numerosPagina.map((pagina) => (
               <button
                 key={pagina}
                 type="button"
-                onClick={() => setPaginaActual((pagina) => Math.max(1, pagina - 1))}
-                disabled={paginaActual === 1}
-                className="border rounded-lg px-3 py-1 disabled:opacity-50 disabled:cursor-not-allowed"
+                onClick={() => setPaginaActual(pagina)}
+                className={`min-w-9 rounded-md border px-3 py-1.5 text-sm font-bold transition ${
+                  paginaActual === pagina
+                    ? "border-primary bg-primary text-on-primary"
+                    : "border-outline-variant text-on-surface-variant hover:bg-surface-container-low"
+                }`}
+                aria-current={paginaActual === pagina ? "page" : undefined}
               >
-                Anterior
+                {pagina}
               </button>
+            ))}
 
-              <button
-                type="button"
-                onClick={() =>
-                  setPaginaActual((pagina) => Math.min(totalPaginas, pagina + 1))
-                }
-                disabled={paginaActual === totalPaginas}
-                className="border rounded-lg px-3 py-1 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                Siguiente
-              </button>
+            <button
+              type="button"
+              onClick={() =>
+                setPaginaActual((pagina) => Math.min(totalPaginas, pagina + 1))
+              }
+              disabled={paginaActual === totalPaginas}
+              className="rounded-md border border-outline-variant px-3 py-1.5 text-sm font-bold text-on-surface-variant transition hover:bg-surface-container-low disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              Siguiente
+            </button>
+          </div>
+        </section>
+      </main>
 
+      {mostrarFormulario && (
+        <div
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 p-4 backdrop-blur-[1px]"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="titulo-formulario-usuario"
+          onMouseDown={(e) => {
+            if (e.target === e.currentTarget) cerrarFormulario();
+          }}
+        >
+          <div className="w-full max-w-2xl overflow-hidden rounded-2xl border border-outline-variant bg-surface-container-lowest shadow-2xl">
+            <div className="flex items-center justify-between border-b border-outline-variant bg-surface-container-low px-6 py-4">
+              <div>
+                <p className="text-xs font-bold uppercase tracking-[0.16em] text-primary">
+                  {editandoId ? "Actualización de cuenta" : "Registro de cuenta"}
+                </p>
+                <h2
+                  id="titulo-formulario-usuario"
+                  className="mt-1 text-xl font-bold text-on-surface"
+                >
+                  {editandoId ? "Editar usuario" : "Nuevo usuario"}
+                </h2>
+              </div>
               <button
                 type="button"
                 onClick={cerrarFormulario}
