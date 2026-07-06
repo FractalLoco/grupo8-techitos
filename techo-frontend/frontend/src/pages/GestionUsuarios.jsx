@@ -1,11 +1,33 @@
 import { useEffect, useMemo, useState } from "react";
 import Navbar from "../components/Navbar";
 import {
+  MdAdd,
+  MdBlock,
+  MdCheckCircle,
+  MdClose,
+  MdEdit,
+  MdEngineering,
+  MdGroups,
+  MdManageAccounts,
+  MdPersonOff,
+  MdRefresh,
+  MdSearch,
+  MdVolunteerActivism,
+} from "react-icons/md";
+import {
   obtenerUsuarios,
   crearUsuario,
+  actualizarUsuario,
   activarUsuario,
   desactivarUsuario,
 } from "../services/usuarioService";
+
+const FORMULARIO_INICIAL = {
+  nombre: "",
+  rut: "",
+  correo: "",
+  rol: "voluntario",
+};
 
 function GestionUsuarios() {
   const [usuarios, setUsuarios] = useState([]);
@@ -16,16 +38,13 @@ function GestionUsuarios() {
   const [filtroRol, setFiltroRol] = useState("todos");
   const [filtroEstado, setFiltroEstado] = useState("todos");
   const [paginaActual, setPaginaActual] = useState(1);
+  const [mostrarFormulario, setMostrarFormulario] = useState(false);
+  const [editandoId, setEditandoId] = useState(null);
+  const [guardando, setGuardando] = useState(false);
+  const [formulario, setFormulario] = useState(FORMULARIO_INICIAL);
+
   const usuariosPorPagina = 5;
 
-  const [formulario, setFormulario] = useState({
-    nombre: "",
-    rut: "",
-    correo: "",
-    rol: "voluntario",
-  });
-
-  // Obtiene id compatible con MongoDB o SQL
   const obtenerId = (usuario) => usuario._id || usuario.id;
 
   const mostrarMensajeExito = (mensaje) => {
@@ -43,11 +62,14 @@ function GestionUsuarios() {
   const cargarUsuarios = async () => {
     try {
       setCargando(true);
-
       const data = await obtenerUsuarios();
 
       if (Array.isArray(data?.datos?.usuarios)) {
         setUsuarios(data.datos.usuarios);
+      } else if (Array.isArray(data?.datos)) {
+        setUsuarios(data.datos);
+      } else if (Array.isArray(data)) {
+        setUsuarios(data);
       } else {
         setUsuarios([]);
       }
@@ -63,13 +85,6 @@ function GestionUsuarios() {
   useEffect(() => {
     cargarUsuarios();
   }, []);
-
-  const manejarCambio = (e) => {
-    setFormulario({
-      ...formulario,
-      [e.target.name]: e.target.value,
-    });
-  };
 
   const normalizarTexto = (texto) => String(texto || "").toLowerCase().trim();
 
@@ -87,12 +102,24 @@ function GestionUsuarios() {
 
       const coincideEstado =
         filtroEstado === "todos" ||
-        (filtroEstado === "activo" && usuario.activo) ||
+        (filtroEstado === "activo" && Boolean(usuario.activo)) ||
         (filtroEstado === "desactivado" && !usuario.activo);
 
       return coincideBusqueda && coincideRol && coincideEstado;
     });
   }, [usuarios, busqueda, filtroRol, filtroEstado]);
+
+  const estadisticas = useMemo(
+    () => ({
+      total: usuarios.length,
+      voluntariosActivos: usuarios.filter(
+        (usuario) => usuario.rol === "voluntario" && usuario.activo
+      ).length,
+      coordinadores: usuarios.filter((usuario) => usuario.rol === "coordinador").length,
+      inactivos: usuarios.filter((usuario) => !usuario.activo).length,
+    }),
+    [usuarios]
+  );
 
   const totalPaginas = Math.max(
     1,
@@ -101,10 +128,17 @@ function GestionUsuarios() {
 
   const usuariosPaginados = useMemo(() => {
     const inicio = (paginaActual - 1) * usuariosPorPagina;
-    const fin = inicio + usuariosPorPagina;
-
-    return usuariosFiltrados.slice(inicio, fin);
+    return usuariosFiltrados.slice(inicio, inicio + usuariosPorPagina);
   }, [usuariosFiltrados, paginaActual]);
+
+  const indiceInicial =
+    usuariosFiltrados.length === 0
+      ? 0
+      : (paginaActual - 1) * usuariosPorPagina + 1;
+  const indiceFinal = Math.min(
+    paginaActual * usuariosPorPagina,
+    usuariosFiltrados.length
+  );
 
   useEffect(() => {
     setPaginaActual(1);
@@ -116,35 +150,69 @@ function GestionUsuarios() {
     }
   }, [paginaActual, totalPaginas]);
 
-  const limpiarFiltros = () => {
-    setBusqueda("");
-    setFiltroRol("todos");
-    setFiltroEstado("todos");
+  const manejarCambio = (e) => {
+    const { name, value } = e.target;
+    setFormulario((actual) => ({ ...actual, [name]: value }));
   };
 
-  // Crear usuario con manejo de errores
+  const abrirNuevoUsuario = () => {
+    setEditandoId(null);
+    setFormulario(FORMULARIO_INICIAL);
+    setMostrarFormulario(true);
+  };
+
+  const abrirEdicion = (usuario) => {
+    setEditandoId(obtenerId(usuario));
+    setFormulario({
+      nombre: usuario.nombre || "",
+      rut: usuario.rut || "",
+      correo: usuario.correo || "",
+      rol: usuario.rol || "voluntario",
+    });
+    setMostrarFormulario(true);
+  };
+
+  const cerrarFormulario = () => {
+    if (guardando) return;
+    setMostrarFormulario(false);
+    setEditandoId(null);
+    setFormulario(FORMULARIO_INICIAL);
+  };
+
   const manejarSubmit = async (e) => {
     e.preventDefault();
 
     try {
-      await crearUsuario(formulario);
+      setGuardando(true);
 
-      setFormulario({
-        nombre: "",
-        rut: "",
-        correo: "",
-        rol: "voluntario",
-      });
+      if (editandoId) {
+        await actualizarUsuario(editandoId, {
+          nombre: formulario.nombre,
+          rut: formulario.rut,
+          correo: formulario.correo,
+          rol: formulario.rol,
+        });
+        mostrarMensajeExito("Usuario actualizado correctamente.");
+      } else {
+        await crearUsuario(formulario);
+        mostrarMensajeExito("Usuario creado correctamente.");
+      }
 
-      mostrarMensajeExito("Usuario creado correctamente.");
+      cerrarFormulario();
       await cargarUsuarios();
     } catch (error) {
       console.error(error);
-      mostrarMensajeError(error.message || "No se pudo crear el usuario.");
+      mostrarMensajeError(
+        error.message ||
+          (editandoId
+            ? "No se pudo actualizar el usuario."
+            : "No se pudo crear el usuario.")
+      );
+    } finally {
+      setGuardando(false);
     }
   };
 
-  // Activar o desactivar usuario
   const cambiarEstado = async (usuario) => {
     try {
       const id = obtenerId(usuario);
@@ -164,139 +232,232 @@ function GestionUsuarios() {
     }
   };
 
+  const limpiarFiltros = () => {
+    setBusqueda("");
+    setFiltroRol("todos");
+    setFiltroEstado("todos");
+  };
+
+  const formatearRol = (rol) => {
+    const etiquetas = {
+      coordinador: "Coordinador",
+      jefe_cuadrilla: "Jefe de cuadrilla",
+      voluntario: "Voluntario",
+    };
+
+    return etiquetas[rol] || rol || "Sin rol";
+  };
+
+  const obtenerIniciales = (nombre) => {
+    const partes = String(nombre || "Usuario")
+      .trim()
+      .split(/\s+/)
+      .filter(Boolean);
+
+    return partes
+      .slice(0, 2)
+      .map((parte) => parte[0]?.toUpperCase())
+      .join("");
+  };
+
+  const obtenerClaseAvatar = (rol) => {
+    if (rol === "coordinador") {
+      return "bg-primary-container text-on-primary-container";
+    }
+    if (rol === "jefe_cuadrilla") {
+      return "bg-secondary-container text-on-secondary-container";
+    }
+    return "bg-tertiary-container text-on-tertiary-container";
+  };
+
+  const numerosPagina = useMemo(() => {
+    const paginas = [];
+    const inicio = Math.max(1, paginaActual - 1);
+    const fin = Math.min(totalPaginas, inicio + 2);
+
+    for (let pagina = Math.max(1, fin - 2); pagina <= fin; pagina += 1) {
+      paginas.push(pagina);
+    }
+
+    return paginas;
+  }, [paginaActual, totalPaginas]);
+
   return (
-    <div className="min-h-screen bg-gray-100">
+    <div className="min-h-screen bg-background text-on-background">
       <Navbar />
 
-      <div className="pt-24 px-6 max-w-6xl mx-auto">
-        <h1 className="text-3xl font-bold mb-6">Gestión de Usuarios</h1>
+      <main className="mx-auto w-full max-w-[1200px] px-4 pb-12 pt-24 md:px-6 lg:px-8">
+        <section
+          className="relative mb-10 h-36 overflow-hidden rounded-xl bg-cover bg-center shadow-sm md:h-48"
+          style={{
+            backgroundImage:
+              "url('https://lh3.googleusercontent.com/aida-public/AB6AXuAo80V_uCD3JukUGlnLb7uyyClzBBUh42BHwKsNM--88PEGqiCbrYwN0mVy4Pt4LIA3vfz2w-x10ZMZBkDDDLoR8vPi_GZ_bu20F9sHBULxVErOO35vknrDk0zQMCPj8120LwIBf-Wh9tkrYlgFqACHWegCmeW4OreRrkTrH7DwvQ5Qxe2gPyILRzDhdHmPdNJ4WAptmHJGDy51eIuiQ0l7G5mfz7wiSpfonvE6oAW9zbkXYBRHvJ0g0E-tXMWfcvTU_m4Yn1wzwyZG')",
+          }}
+        >
+          <div className="absolute inset-0 bg-primary/50" />
+          <div className="absolute bottom-5 left-5 z-10 flex items-center gap-3 text-white md:bottom-6 md:left-6">
+            <MdManageAccounts className="text-4xl" />
+            <div>
+              <p className="text-xs font-bold uppercase tracking-[0.18em] text-white/80">
+                Administración central
+              </p>
+              <h1 className="text-2xl font-extrabold md:text-3xl">
+                Gestión de Usuarios
+              </h1>
+            </div>
+          </div>
+        </section>
 
         {mensajeExito && (
-          <div className="mb-4 rounded-lg border border-green-300 bg-green-50 px-4 py-3 text-green-700">
-            {mensajeExito}
+          <div className="mb-5 flex items-center gap-3 rounded-xl border border-primary-fixed-dim bg-primary-fixed px-4 py-3 text-on-primary-fixed-variant">
+            <MdCheckCircle className="shrink-0 text-xl" />
+            <span className="text-sm font-medium">{mensajeExito}</span>
           </div>
         )}
 
         {mensajeError && (
-          <div className="mb-4 rounded-lg border border-red-300 bg-red-50 px-4 py-3 text-red-700">
-            {mensajeError}
+          <div className="mb-5 flex items-center gap-3 rounded-xl border border-error/30 bg-error-container px-4 py-3 text-on-error-container">
+            <MdPersonOff className="shrink-0 text-xl" />
+            <span className="text-sm font-medium">{mensajeError}</span>
           </div>
         )}
 
-        <form
-          onSubmit={manejarSubmit}
-          className="bg-white p-6 rounded-xl shadow mb-8 grid grid-cols-1 md:grid-cols-2 gap-4"
-        >
-          <input
-            type="text"
-            name="nombre"
-            placeholder="Nombre completo"
-            value={formulario.nombre}
-            onChange={manejarCambio}
-            className="border rounded-lg px-4 py-2"
-            required
-          />
+        <section className="mb-10 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <article className="flex min-h-32 flex-col justify-between rounded-xl border border-outline-variant bg-surface-container-lowest p-6 shadow-sm">
+            <span className="text-sm text-on-surface-variant">Total usuarios</span>
+            <div className="mt-2 flex items-end justify-between">
+              <strong className="text-3xl font-bold text-primary">
+                {estadisticas.total}
+              </strong>
+              <MdGroups className="text-3xl text-primary-fixed-dim" />
+            </div>
+          </article>
 
-          <input
-            type="text"
-            name="rut"
-            placeholder="RUT"
-            value={formulario.rut}
-            onChange={manejarCambio}
-            className="border rounded-lg px-4 py-2"
-            required
-          />
+          <article className="flex min-h-32 flex-col justify-between rounded-xl border border-outline-variant bg-surface-container-lowest p-6 shadow-sm">
+            <span className="text-sm text-on-surface-variant">
+              Voluntarios activos
+            </span>
+            <div className="mt-2 flex items-end justify-between">
+              <strong className="text-3xl font-bold text-tertiary">
+                {estadisticas.voluntariosActivos}
+              </strong>
+              <MdVolunteerActivism className="text-3xl text-tertiary-fixed-dim" />
+            </div>
+          </article>
 
-          <input
-            type="email"
-            name="correo"
-            placeholder="Correo"
-            value={formulario.correo}
-            onChange={manejarCambio}
-            className="border rounded-lg px-4 py-2"
-            required
-          />
+          <article className="flex min-h-32 flex-col justify-between rounded-xl border border-outline-variant bg-surface-container-lowest p-6 shadow-sm">
+            <span className="text-sm text-on-surface-variant">Coordinadores</span>
+            <div className="mt-2 flex items-end justify-between">
+              <strong className="text-3xl font-bold text-primary">
+                {estadisticas.coordinadores}
+              </strong>
+              <MdEngineering className="text-3xl text-primary-fixed-dim" />
+            </div>
+          </article>
 
-          <select
-            name="rol"
-            value={formulario.rol}
-            onChange={manejarCambio}
-            className="border rounded-lg px-4 py-2"
-          >
-            <option value="coordinador">Coordinador</option>
+          <article className="flex min-h-32 flex-col justify-between rounded-xl border border-outline-variant bg-surface-container-lowest p-6 shadow-sm">
+            <span className="text-sm text-on-surface-variant">Usuarios inactivos</span>
+            <div className="mt-2 flex items-end justify-between">
+              <strong className="text-3xl font-bold text-error">
+                {estadisticas.inactivos}
+              </strong>
+              <MdPersonOff className="text-3xl text-secondary-fixed-dim" />
+            </div>
+          </article>
+        </section>
 
-            <option value="jefe_cuadrilla">Jefe de cuadrilla</option>
+        <section className="mb-4 rounded-xl border border-outline-variant bg-surface-container-lowest p-4 shadow-sm">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+            <div className="flex flex-1 flex-col gap-4 md:flex-row">
+              <label className="relative w-full md:max-w-sm">
+                <MdSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-xl text-on-surface-variant" />
+                <input
+                  type="text"
+                  value={busqueda}
+                  onChange={(e) => setBusqueda(e.target.value)}
+                  placeholder="Buscar por nombre, RUT o correo..."
+                  className="w-full rounded-lg border border-outline-variant bg-surface py-2.5 pl-10 pr-4 text-sm text-on-surface outline-none transition focus:border-primary focus:ring-1 focus:ring-primary"
+                />
+              </label>
 
-            <option value="voluntario">Voluntario</option>
-          </select>
+              <select
+                value={filtroRol}
+                onChange={(e) => setFiltroRol(e.target.value)}
+                className="w-full rounded-lg border border-outline-variant bg-surface px-4 py-2.5 text-sm text-on-surface-variant outline-none focus:border-primary md:w-52"
+              >
+                <option value="todos">Todos los roles</option>
+                <option value="voluntario">Voluntario</option>
+                <option value="jefe_cuadrilla">Jefe de cuadrilla</option>
+                <option value="coordinador">Coordinador</option>
+              </select>
 
-          <button className="bg-blue-600 text-white rounded-lg py-2 px-4 col-span-full">
-            Crear usuario
-          </button>
-        </form>
+              <select
+                value={filtroEstado}
+                onChange={(e) => setFiltroEstado(e.target.value)}
+                className="w-full rounded-lg border border-outline-variant bg-surface px-4 py-2.5 text-sm text-on-surface-variant outline-none focus:border-primary md:w-48"
+              >
+                <option value="todos">Todos los estados</option>
+                <option value="activo">Activo</option>
+                <option value="desactivado">Inactivo</option>
+              </select>
+            </div>
 
-        <div className="bg-white rounded-xl shadow overflow-hidden">
-          <div className="p-4 border-b grid grid-cols-1 md:grid-cols-4 gap-3">
-            <input
-              type="text"
-              value={busqueda}
-              onChange={(e) => setBusqueda(e.target.value)}
-              placeholder="Buscar por nombre, correo, RUT o rol"
-              className="border rounded-lg px-4 py-2 md:col-span-2"
-            />
-
-            <select
-              value={filtroRol}
-              onChange={(e) => setFiltroRol(e.target.value)}
-              className="border rounded-lg px-4 py-2"
+            <button
+              type="button"
+              onClick={abrirNuevoUsuario}
+              className="flex w-full items-center justify-center gap-2 whitespace-nowrap rounded-lg bg-primary px-6 py-2.5 text-sm font-bold text-on-primary shadow-sm transition hover:bg-primary-dark lg:w-auto"
             >
-              <option value="todos">Todos los roles</option>
-              <option value="coordinador">Coordinador</option>
-              <option value="jefe_cuadrilla">Jefe de cuadrilla</option>
-              <option value="voluntario">Voluntario</option>
-            </select>
+              <MdAdd className="text-xl" />
+              Nuevo usuario
+            </button>
+          </div>
 
-            <select
-              value={filtroEstado}
-              onChange={(e) => setFiltroEstado(e.target.value)}
-              className="border rounded-lg px-4 py-2"
-            >
-              <option value="todos">Todos los estados</option>
-              <option value="activo">Activos</option>
-              <option value="desactivado">Desactivados</option>
-            </select>
-
-            <div className="md:col-span-4 flex flex-col md:flex-row md:items-center md:justify-between gap-3 text-sm text-gray-600">
+          {(busqueda || filtroRol !== "todos" || filtroEstado !== "todos") && (
+            <div className="mt-4 flex flex-col gap-3 border-t border-outline-variant pt-4 text-sm text-on-surface-variant sm:flex-row sm:items-center sm:justify-between">
               <span>
-                Mostrando {usuariosPaginados.length} de {usuariosFiltrados.length} usuarios filtrados
+                {usuariosFiltrados.length} resultado
+                {usuariosFiltrados.length === 1 ? "" : "s"} encontrado
+                {usuariosFiltrados.length === 1 ? "" : "s"}
               </span>
-
               <button
                 type="button"
                 onClick={limpiarFiltros}
-                className="border rounded-lg px-4 py-2 text-gray-700 hover:bg-gray-100"
+                className="inline-flex items-center justify-center gap-2 rounded-lg border border-outline-variant px-4 py-2 font-semibold text-on-surface-variant transition hover:bg-surface-container-low"
               >
+                <MdRefresh />
                 Limpiar filtros
               </button>
             </div>
-          </div>
+          )}
+        </section>
 
+        <section className="overflow-hidden rounded-xl border border-outline-variant bg-surface-container-lowest shadow-sm">
           <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className="bg-gray-200 text-left">
-                <tr>
-                  <th className="p-3">Nombre</th>
-                  <th className="p-3">Correo</th>
-                  <th className="p-3">Rol</th>
-                  <th className="p-3">Estado</th>
-                  <th className="p-3">Acción</th>
+            <table className="w-full min-w-[820px] border-collapse text-left">
+              <thead>
+                <tr className="border-b border-outline-variant bg-surface-container-low">
+                  <th className="p-4 text-xs font-bold uppercase tracking-wider text-on-surface-variant">
+                    Usuario
+                  </th>
+                  <th className="p-4 text-xs font-bold uppercase tracking-wider text-on-surface-variant">
+                    RUT
+                  </th>
+                  <th className="p-4 text-xs font-bold uppercase tracking-wider text-on-surface-variant">
+                    Rol
+                  </th>
+                  <th className="p-4 text-xs font-bold uppercase tracking-wider text-on-surface-variant">
+                    Estado
+                  </th>
+                  <th className="p-4 text-right text-xs font-bold uppercase tracking-wider text-on-surface-variant">
+                    Acciones
+                  </th>
                 </tr>
               </thead>
 
-              <tbody>
+              <tbody className="divide-y divide-outline-variant">
                 {cargando && (
                   <tr>
-                    <td className="p-4 text-center text-gray-500" colSpan="5">
+                    <td colSpan="5" className="p-8 text-center text-on-surface-variant">
                       Cargando usuarios...
                     </td>
                   </tr>
@@ -304,33 +465,92 @@ function GestionUsuarios() {
 
                 {!cargando && usuariosPaginados.length === 0 && (
                   <tr>
-                    <td className="p-4 text-center text-gray-500" colSpan="5">
+                    <td colSpan="5" className="p-8 text-center text-on-surface-variant">
                       No se encontraron usuarios con los filtros seleccionados.
                     </td>
                   </tr>
                 )}
 
                 {!cargando &&
-                  Array.isArray(usuariosPaginados) &&
                   usuariosPaginados.map((usuario) => (
-                    <tr key={obtenerId(usuario)} className="border-t">
-                      <td className="p-3">{usuario.nombre}</td>
-
-                      <td className="p-3">{usuario.correo}</td>
-
-                      <td className="p-3">{usuario.rol}</td>
-
-                      <td className="p-3">
-                        {usuario.activo ? "Activo" : "Desactivado"}
+                    <tr
+                      key={obtenerId(usuario)}
+                      className="transition-colors hover:bg-surface-container-low/60"
+                    >
+                      <td className="p-4">
+                        <div className="flex items-center gap-3">
+                          <div
+                            className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-xs font-bold ${obtenerClaseAvatar(
+                              usuario.rol
+                            )}`}
+                          >
+                            {obtenerIniciales(usuario.nombre)}
+                          </div>
+                          <div className="min-w-0">
+                            <p className="m-0 truncate text-base font-medium text-on-surface">
+                              {usuario.nombre}
+                            </p>
+                            <p className="m-0 truncate text-xs text-on-surface-variant">
+                              {usuario.correo}
+                            </p>
+                          </div>
+                        </div>
                       </td>
 
-                      <td className="p-3">
-                        <button
-                          onClick={() => cambiarEstado(usuario)}
-                          className="bg-slate-800 text-white px-3 py-1 rounded"
-                        >
-                          {usuario.activo ? "Desactivar" : "Activar"}
-                        </button>
+                      <td className="p-4 text-sm text-on-surface">
+                        {usuario.rut || "—"}
+                      </td>
+
+                      <td className="p-4 text-sm text-on-surface">
+                        {formatearRol(usuario.rol)}
+                      </td>
+
+                      <td className="p-4">
+                        {usuario.activo ? (
+                          <span className="inline-flex items-center gap-1.5 rounded-full bg-primary-fixed px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-on-primary-fixed-variant">
+                            <span className="h-1.5 w-1.5 rounded-full bg-primary" />
+                            Activo
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1.5 rounded-full bg-surface-variant px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-on-surface-variant">
+                            <span className="h-1.5 w-1.5 rounded-full bg-outline" />
+                            Inactivo
+                          </span>
+                        )}
+                      </td>
+
+                      <td className="p-4 text-right">
+                        <div className="flex items-center justify-end gap-1">
+                          <button
+                            type="button"
+                            onClick={() => abrirEdicion(usuario)}
+                            className="rounded-lg p-2 text-on-surface-variant transition hover:bg-primary/10 hover:text-primary"
+                            title="Editar usuario"
+                            aria-label={`Editar a ${usuario.nombre}`}
+                          >
+                            <MdEdit className="text-lg" />
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => cambiarEstado(usuario)}
+                            className={`rounded-lg p-2 transition ${
+                              usuario.activo
+                                ? "text-on-surface-variant hover:bg-error-container hover:text-error"
+                                : "text-on-surface-variant hover:bg-primary-fixed hover:text-primary"
+                            }`}
+                            title={usuario.activo ? "Desactivar usuario" : "Activar usuario"}
+                            aria-label={`${usuario.activo ? "Desactivar" : "Activar"} a ${
+                              usuario.nombre
+                            }`}
+                          >
+                            {usuario.activo ? (
+                              <MdBlock className="text-lg" />
+                            ) : (
+                              <MdRefresh className="text-lg" />
+                            )}
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -338,29 +558,36 @@ function GestionUsuarios() {
             </table>
           </div>
 
-          <div className="p-4 border-t flex flex-col md:flex-row md:items-center md:justify-between gap-3">
-            <span className="text-sm text-gray-600">
-              Página {paginaActual} de {totalPaginas}
+          <div className="flex flex-col gap-4 border-t border-outline-variant bg-surface-container-lowest p-4 sm:flex-row sm:items-center sm:justify-between">
+            <span className="text-sm text-on-surface-variant">
+              Mostrando {indiceInicial} - {indiceFinal} de {usuariosFiltrados.length}
             </span>
 
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={() => setPaginaActual(1)}
-                disabled={paginaActual === 1}
-                className="border rounded-lg px-3 py-1 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                Primera
-              </button>
-
+            <div className="flex flex-wrap items-center gap-2">
               <button
                 type="button"
                 onClick={() => setPaginaActual((pagina) => Math.max(1, pagina - 1))}
                 disabled={paginaActual === 1}
-                className="border rounded-lg px-3 py-1 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="rounded-md border border-outline-variant px-3 py-1.5 text-sm font-bold text-on-surface-variant transition hover:bg-surface-container-low disabled:cursor-not-allowed disabled:opacity-40"
               >
                 Anterior
               </button>
+
+              {numerosPagina.map((pagina) => (
+                <button
+                  key={pagina}
+                  type="button"
+                  onClick={() => setPaginaActual(pagina)}
+                  className={`min-w-9 rounded-md border px-3 py-1.5 text-sm font-bold transition ${
+                    paginaActual === pagina
+                      ? "border-primary bg-primary text-on-primary"
+                      : "border-outline-variant text-on-surface-variant hover:bg-surface-container-low"
+                  }`}
+                  aria-current={paginaActual === pagina ? "page" : undefined}
+                >
+                  {pagina}
+                </button>
+              ))}
 
               <button
                 type="button"
@@ -368,23 +595,139 @@ function GestionUsuarios() {
                   setPaginaActual((pagina) => Math.min(totalPaginas, pagina + 1))
                 }
                 disabled={paginaActual === totalPaginas}
-                className="border rounded-lg px-3 py-1 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="rounded-md border border-outline-variant px-3 py-1.5 text-sm font-bold text-on-surface-variant transition hover:bg-surface-container-low disabled:cursor-not-allowed disabled:opacity-40"
               >
                 Siguiente
               </button>
-
-              <button
-                type="button"
-                onClick={() => setPaginaActual(totalPaginas)}
-                disabled={paginaActual === totalPaginas}
-                className="border rounded-lg px-3 py-1 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                Última
-              </button>
             </div>
           </div>
+        </section>
+      </main>
+
+      {mostrarFormulario && (
+        <div
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 p-4 backdrop-blur-[1px]"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="titulo-formulario-usuario"
+          onMouseDown={(e) => {
+            if (e.target === e.currentTarget) cerrarFormulario();
+          }}
+        >
+          <div className="w-full max-w-2xl overflow-hidden rounded-2xl border border-outline-variant bg-surface-container-lowest shadow-2xl">
+            <div className="flex items-center justify-between border-b border-outline-variant bg-surface-container-low px-6 py-4">
+              <div>
+                <p className="text-xs font-bold uppercase tracking-[0.16em] text-primary">
+                  {editandoId ? "Actualización de cuenta" : "Registro de cuenta"}
+                </p>
+                <h2
+                  id="titulo-formulario-usuario"
+                  className="mt-1 text-xl font-bold text-on-surface"
+                >
+                  {editandoId ? "Editar usuario" : "Nuevo usuario"}
+                </h2>
+              </div>
+              <button
+                type="button"
+                onClick={cerrarFormulario}
+                disabled={guardando}
+                className="rounded-full p-2 text-on-surface-variant transition hover:bg-surface-container-high disabled:opacity-50"
+                aria-label="Cerrar formulario"
+              >
+                <MdClose className="text-2xl" />
+              </button>
+            </div>
+
+            <form onSubmit={manejarSubmit} className="p-6">
+              <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
+                <label className="md:col-span-2">
+                  <span className="mb-1.5 block text-sm font-semibold text-on-surface">
+                    Nombre completo
+                  </span>
+                  <input
+                    type="text"
+                    name="nombre"
+                    value={formulario.nombre}
+                    onChange={manejarCambio}
+                    placeholder="Ej. María Valenzuela"
+                    className="w-full rounded-lg border border-outline-variant bg-surface px-4 py-2.5 text-sm outline-none transition focus:border-primary focus:ring-1 focus:ring-primary"
+                    required
+                  />
+                </label>
+
+                <label>
+                  <span className="mb-1.5 block text-sm font-semibold text-on-surface">
+                    RUT
+                  </span>
+                  <input
+                    type="text"
+                    name="rut"
+                    value={formulario.rut}
+                    onChange={manejarCambio}
+                    placeholder="12.345.678-9"
+                    className="w-full rounded-lg border border-outline-variant bg-surface px-4 py-2.5 text-sm outline-none transition focus:border-primary focus:ring-1 focus:ring-primary"
+                    required
+                  />
+                </label>
+
+                <label>
+                  <span className="mb-1.5 block text-sm font-semibold text-on-surface">
+                    Rol
+                  </span>
+                  <select
+                    name="rol"
+                    value={formulario.rol}
+                    onChange={manejarCambio}
+                    className="w-full rounded-lg border border-outline-variant bg-surface px-4 py-2.5 text-sm outline-none transition focus:border-primary focus:ring-1 focus:ring-primary"
+                  >
+                    <option value="coordinador">Coordinador</option>
+                    <option value="jefe_cuadrilla">Jefe de cuadrilla</option>
+                    <option value="voluntario">Voluntario</option>
+                  </select>
+                </label>
+
+                <label className="md:col-span-2">
+                  <span className="mb-1.5 block text-sm font-semibold text-on-surface">
+                    Correo electrónico
+                  </span>
+                  <input
+                    type="email"
+                    name="correo"
+                    value={formulario.correo}
+                    onChange={manejarCambio}
+                    placeholder="usuario@ejemplo.cl"
+                    className="w-full rounded-lg border border-outline-variant bg-surface px-4 py-2.5 text-sm outline-none transition focus:border-primary focus:ring-1 focus:ring-primary"
+                    required
+                  />
+                </label>
+              </div>
+
+              <div className="mt-6 flex flex-col-reverse gap-3 border-t border-outline-variant pt-5 sm:flex-row sm:justify-end">
+                <button
+                  type="button"
+                  onClick={cerrarFormulario}
+                  disabled={guardando}
+                  className="rounded-lg border border-outline-variant px-5 py-2.5 text-sm font-bold text-on-surface-variant transition hover:bg-surface-container-low disabled:opacity-50"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={guardando}
+                  className="inline-flex items-center justify-center gap-2 rounded-lg bg-primary px-6 py-2.5 text-sm font-bold text-on-primary transition hover:bg-primary-dark disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {editandoId ? <MdEdit className="text-lg" /> : <MdAdd className="text-lg" />}
+                  {guardando
+                    ? "Guardando..."
+                    : editandoId
+                    ? "Guardar cambios"
+                    : "Crear usuario"}
+                </button>
+              </div>
+            </form>
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }
