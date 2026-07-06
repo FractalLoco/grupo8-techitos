@@ -8,6 +8,7 @@ import {
   actualizarFase,
   enviarAlertaEmergencia,
   completarCuadrilla,
+  devolverHerramientas,
   reasignarVoluntario,
   obtenerCuadrillasConEstado,
   obtenerTodasCuadrillasConEstado,
@@ -67,10 +68,10 @@ router.put('/:cuadrillaId/obra', authMiddleware, roleMiddleware('coordinador'), 
 
 /**
  * PUT /api/cuadrillas/:cuadrillaId/fase
- * Actualizar fase de avance (solo jefe_cuadrilla)
+ * Actualizar fase de avance (jefe de la cuadrilla o coordinador)
  * Body: { fase }
  */
-router.put('/:cuadrillaId/fase', authMiddleware, roleMiddleware('jefe_cuadrilla'), actualizarFase);
+router.put('/:cuadrillaId/fase', authMiddleware, roleMiddleware('jefe_cuadrilla', 'coordinador'), actualizarFase);
 
 /**
  * POST /api/cuadrillas/:cuadrillaId/alerta
@@ -84,6 +85,12 @@ router.post('/:cuadrillaId/alerta', authMiddleware, roleMiddleware('jefe_cuadril
  * Marcar cuadrilla como completada (solo coordinador)
  */
 router.put('/:cuadrillaId/completar', authMiddleware, roleMiddleware('coordinador'), completarCuadrilla);
+
+/**
+ * PUT /api/cuadrillas/:cuadrillaId/devolver-herramientas
+ * Devolver al inventario las herramientas reutilizables de una obra terminada (solo coordinador)
+ */
+router.put('/:cuadrillaId/devolver-herramientas', authMiddleware, roleMiddleware('coordinador'), devolverHerramientas);
 
 /**
  * PUT /api/cuadrillas/reasignar/:cuadrillaOrigenId/:voluntarioId

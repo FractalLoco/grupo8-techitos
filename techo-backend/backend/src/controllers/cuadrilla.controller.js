@@ -53,7 +53,7 @@ export const actualizarFase = async (solicitud, respuesta) => {
   try {
     const { cuadrillaId } = solicitud.params;
     const { fase } = solicitud.body;
-    const cuadrilla = await CuadrillaService.actualizarFase(cuadrillaId, fase, solicitud.usuario.id);
+    const cuadrilla = await CuadrillaService.actualizarFase(cuadrillaId, fase, solicitud.usuario.id, solicitud.usuario.rol);
     return respuestaExito(respuesta, 200, 'Fase actualizada correctamente', { cuadrilla });
   } catch (error) {
     return respuestaError(respuesta, 400, error.message);
@@ -78,6 +78,17 @@ export const completarCuadrilla = async (solicitud, respuesta) => {
     const { cuadrillaId } = solicitud.params;
     const cuadrilla = await CuadrillaService.completarCuadrilla(cuadrillaId);
     return respuestaExito(respuesta, 200, 'Cuadrilla completada y desarmada', { cuadrilla });
+  } catch (error) {
+    return respuestaError(respuesta, 400, error.message);
+  }
+};
+
+// Devuelvo al inventario las herramientas reutilizables de una obra terminada.
+export const devolverHerramientas = async (solicitud, respuesta) => {
+  try {
+    const { cuadrillaId } = solicitud.params;
+    const resultado = await CuadrillaService.devolverHerramientas(cuadrillaId, solicitud.usuario?.id || null);
+    return respuestaExito(respuesta, 200, 'Herramientas devueltas al inventario', resultado);
   } catch (error) {
     return respuestaError(respuesta, 400, error.message);
   }
