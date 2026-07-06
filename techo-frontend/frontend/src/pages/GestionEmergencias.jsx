@@ -4,12 +4,14 @@ import {
   MdAdd,
   MdBarChart,
   MdCheckCircle,
+  MdChevronRight,
   MdClose,
   MdEdit,
   MdFamilyRestroom,
   MdGroups,
   MdHourglassTop,
   MdLocationOn,
+  MdPersonOff,
   MdSearch,
   MdWarningAmber,
 } from "react-icons/md";
@@ -27,6 +29,15 @@ import {
   geocodificarDireccion,
 } from "../services/mapaService";
 
+const crearFormularioFamilia = (emergencia = null) => ({
+  nombre_cabeza_familia: "",
+  direccion: emergencia?.direccion || "",
+  lat: emergencia?.lat ?? "",
+  lng: emergencia?.lng ?? "",
+  miembros: 1,
+  prioridad: "normal",
+});
+
 function GestionEmergencias() {
   const [emergencias, setEmergencias] = useState([]);
   const [cargando, setCargando] = useState(true);
@@ -35,7 +46,7 @@ function GestionEmergencias() {
   const [busquedaEmergencia, setBusquedaEmergencia] = useState("");
   const [filtroEstadoEmergencia, setFiltroEstadoEmergencia] = useState("todos");
   const [paginaActualEmergencias, setPaginaActualEmergencias] = useState(1);
-  const emergenciasPorPagina = 5;
+  const emergenciasPorPagina = 6;
 
   const [formulario, setFormulario] = useState({
     nombre: "",
@@ -53,21 +64,33 @@ function GestionEmergencias() {
 
   const [familias, setFamilias] = useState([]);
   const [emergenciaSeleccionada, setEmergenciaSeleccionada] = useState(null);
-  const [mostrarModalFamilia, setMostrarModalFamilia] = useState(false);
-  const [formularioFamilia, setFormularioFamilia] = useState({
-    nombre_cabeza_familia: "",
-    direccion: "",
-    lat: "",
-    lng: "",
-    miembros: 1,
-    prioridad: "normal",
-  });
-  const [resultadosDireccionFamilia, setResultadosDireccionFamilia] = useState([]);
-  const [buscandoDireccionFamilia, setBuscandoDireccionFamilia] = useState(false);
-  const [direccionFamiliaSeleccionada, setDireccionFamiliaSeleccionada] = useState(false);
-  const [busquedaDireccionFamiliaRealizada, setBusquedaDireccionFamiliaRealizada] = useState(false);
-  const [indiceDireccionFamiliaActiva, setIndiceDireccionFamiliaActiva] = useState(-1);
-  const contenedorDireccionFamiliaRef = useRef(null);
+
+  // Los dos accesos para registrar familias usan modales y estados separados.
+  // Así la acción de una tarjeta no reutiliza el modal de la sección inferior.
+  const [mostrarModalFamiliaAccion, setMostrarModalFamiliaAccion] = useState(false);
+  const [mostrarModalFamiliaSeccion, setMostrarModalFamiliaSeccion] = useState(false);
+  const [emergenciaFamiliaAccion, setEmergenciaFamiliaAccion] = useState(null);
+
+  const [formularioFamiliaAccion, setFormularioFamiliaAccion] = useState(
+    crearFormularioFamilia()
+  );
+  const [formularioFamiliaSeccion, setFormularioFamiliaSeccion] = useState(
+    crearFormularioFamilia()
+  );
+
+  const [resultadosDireccionFamiliaAccion, setResultadosDireccionFamiliaAccion] = useState([]);
+  const [buscandoDireccionFamiliaAccion, setBuscandoDireccionFamiliaAccion] = useState(false);
+  const [direccionFamiliaAccionSeleccionada, setDireccionFamiliaAccionSeleccionada] = useState(false);
+  const [busquedaDireccionFamiliaAccionRealizada, setBusquedaDireccionFamiliaAccionRealizada] = useState(false);
+  const [indiceDireccionFamiliaAccionActiva, setIndiceDireccionFamiliaAccionActiva] = useState(-1);
+  const contenedorDireccionFamiliaAccionRef = useRef(null);
+
+  const [resultadosDireccionFamiliaSeccion, setResultadosDireccionFamiliaSeccion] = useState([]);
+  const [buscandoDireccionFamiliaSeccion, setBuscandoDireccionFamiliaSeccion] = useState(false);
+  const [direccionFamiliaSeccionSeleccionada, setDireccionFamiliaSeccionSeleccionada] = useState(false);
+  const [busquedaDireccionFamiliaSeccionRealizada, setBusquedaDireccionFamiliaSeccionRealizada] = useState(false);
+  const [indiceDireccionFamiliaSeccionActiva, setIndiceDireccionFamiliaSeccionActiva] = useState(-1);
+  const contenedorDireccionFamiliaSeccionRef = useRef(null);
 
   const [editandoId, setEditandoId] = useState(null);
   const [mostrarFormularioEmergencia, setMostrarFormularioEmergencia] = useState(false);
@@ -327,15 +350,15 @@ function GestionEmergencias() {
     );
   };
 
-  const manejarCambioFamilia = (e) => {
+  const manejarCambioFamiliaAccion = (e) => {
     const { name, value } = e.target;
 
     if (name === "direccion") {
-      setDireccionFamiliaSeleccionada(false);
-      setResultadosDireccionFamilia([]);
-      setBusquedaDireccionFamiliaRealizada(false);
-      setIndiceDireccionFamiliaActiva(-1);
-      setFormularioFamilia((actual) => ({
+      setDireccionFamiliaAccionSeleccionada(false);
+      setResultadosDireccionFamiliaAccion([]);
+      setBusquedaDireccionFamiliaAccionRealizada(false);
+      setIndiceDireccionFamiliaAccionActiva(-1);
+      setFormularioFamiliaAccion((actual) => ({
         ...actual,
         direccion: value,
         lat: "",
@@ -344,45 +367,60 @@ function GestionEmergencias() {
       return;
     }
 
-    setFormularioFamilia((actual) => ({
-      ...actual,
-      [name]: value,
-    }));
+    setFormularioFamiliaAccion((actual) => ({ ...actual, [name]: value }));
+  };
+
+  const manejarCambioFamiliaSeccion = (e) => {
+    const { name, value } = e.target;
+
+    if (name === "direccion") {
+      setDireccionFamiliaSeccionSeleccionada(false);
+      setResultadosDireccionFamiliaSeccion([]);
+      setBusquedaDireccionFamiliaSeccionRealizada(false);
+      setIndiceDireccionFamiliaSeccionActiva(-1);
+      setFormularioFamiliaSeccion((actual) => ({
+        ...actual,
+        direccion: value,
+        lat: "",
+        lng: "",
+      }));
+      return;
+    }
+
+    setFormularioFamiliaSeccion((actual) => ({ ...actual, [name]: value }));
   };
 
   useEffect(() => {
-    const texto = formularioFamilia.direccion.trim();
+    const texto = formularioFamiliaAccion.direccion.trim();
 
-    if (direccionFamiliaSeleccionada || texto.length < 3) {
-      setResultadosDireccionFamilia([]);
-      setBuscandoDireccionFamilia(false);
-      setBusquedaDireccionFamiliaRealizada(false);
-      setIndiceDireccionFamiliaActiva(-1);
+    if (direccionFamiliaAccionSeleccionada || texto.length < 3) {
+      setResultadosDireccionFamiliaAccion([]);
+      setBuscandoDireccionFamiliaAccion(false);
+      setBusquedaDireccionFamiliaAccionRealizada(false);
+      setIndiceDireccionFamiliaAccionActiva(-1);
       return undefined;
     }
 
     let cancelado = false;
-    setBuscandoDireccionFamilia(true);
-    setBusquedaDireccionFamiliaRealizada(false);
-    setIndiceDireccionFamiliaActiva(-1);
+    setBuscandoDireccionFamiliaAccion(true);
+    setBusquedaDireccionFamiliaAccionRealizada(false);
+    setIndiceDireccionFamiliaAccionActiva(-1);
 
     const timer = setTimeout(async () => {
       try {
         const resultados = await buscarDireccionesMultiples(texto);
         if (!cancelado) {
-          setResultadosDireccionFamilia(resultados);
-          setBusquedaDireccionFamiliaRealizada(true);
+          setResultadosDireccionFamiliaAccion(resultados);
+          setBusquedaDireccionFamiliaAccionRealizada(true);
         }
       } catch (error) {
-        console.error("Error buscando direcciones de familia:", error);
+        console.error("Error buscando dirección de familia desde acciones:", error);
         if (!cancelado) {
-          setResultadosDireccionFamilia([]);
-          setBusquedaDireccionFamiliaRealizada(true);
+          setResultadosDireccionFamiliaAccion([]);
+          setBusquedaDireccionFamiliaAccionRealizada(true);
         }
       } finally {
-        if (!cancelado) {
-          setBuscandoDireccionFamilia(false);
-        }
+        if (!cancelado) setBuscandoDireccionFamiliaAccion(false);
       }
     }, 300);
 
@@ -390,86 +428,170 @@ function GestionEmergencias() {
       cancelado = true;
       clearTimeout(timer);
     };
-  }, [formularioFamilia.direccion, direccionFamiliaSeleccionada]);
+  }, [formularioFamiliaAccion.direccion, direccionFamiliaAccionSeleccionada]);
 
   useEffect(() => {
-    const cerrarAlHacerClicFuera = (event) => {
+    const texto = formularioFamiliaSeccion.direccion.trim();
+
+    if (direccionFamiliaSeccionSeleccionada || texto.length < 3) {
+      setResultadosDireccionFamiliaSeccion([]);
+      setBuscandoDireccionFamiliaSeccion(false);
+      setBusquedaDireccionFamiliaSeccionRealizada(false);
+      setIndiceDireccionFamiliaSeccionActiva(-1);
+      return undefined;
+    }
+
+    let cancelado = false;
+    setBuscandoDireccionFamiliaSeccion(true);
+    setBusquedaDireccionFamiliaSeccionRealizada(false);
+    setIndiceDireccionFamiliaSeccionActiva(-1);
+
+    const timer = setTimeout(async () => {
+      try {
+        const resultados = await buscarDireccionesMultiples(texto);
+        if (!cancelado) {
+          setResultadosDireccionFamiliaSeccion(resultados);
+          setBusquedaDireccionFamiliaSeccionRealizada(true);
+        }
+      } catch (error) {
+        console.error("Error buscando dirección de familia desde sección:", error);
+        if (!cancelado) {
+          setResultadosDireccionFamiliaSeccion([]);
+          setBusquedaDireccionFamiliaSeccionRealizada(true);
+        }
+      } finally {
+        if (!cancelado) setBuscandoDireccionFamiliaSeccion(false);
+      }
+    }, 300);
+
+    return () => {
+      cancelado = true;
+      clearTimeout(timer);
+    };
+  }, [formularioFamiliaSeccion.direccion, direccionFamiliaSeccionSeleccionada]);
+
+  useEffect(() => {
+    const cerrarSugerenciasFamilia = (event) => {
       if (
-        contenedorDireccionFamiliaRef.current &&
-        !contenedorDireccionFamiliaRef.current.contains(event.target)
+        contenedorDireccionFamiliaAccionRef.current &&
+        !contenedorDireccionFamiliaAccionRef.current.contains(event.target)
       ) {
-        setResultadosDireccionFamilia([]);
-        setBusquedaDireccionFamiliaRealizada(false);
-        setIndiceDireccionFamiliaActiva(-1);
+        setResultadosDireccionFamiliaAccion([]);
+        setBusquedaDireccionFamiliaAccionRealizada(false);
+        setIndiceDireccionFamiliaAccionActiva(-1);
+      }
+
+      if (
+        contenedorDireccionFamiliaSeccionRef.current &&
+        !contenedorDireccionFamiliaSeccionRef.current.contains(event.target)
+      ) {
+        setResultadosDireccionFamiliaSeccion([]);
+        setBusquedaDireccionFamiliaSeccionRealizada(false);
+        setIndiceDireccionFamiliaSeccionActiva(-1);
       }
     };
 
-    document.addEventListener("mousedown", cerrarAlHacerClicFuera);
-    return () => document.removeEventListener("mousedown", cerrarAlHacerClicFuera);
+    document.addEventListener("mousedown", cerrarSugerenciasFamilia);
+    return () => document.removeEventListener("mousedown", cerrarSugerenciasFamilia);
   }, []);
 
-  const seleccionarDireccionFamilia = (resultado) => {
-    setFormularioFamilia((actual) => ({
+  const seleccionarDireccionFamiliaAccion = (resultado) => {
+    setFormularioFamiliaAccion((actual) => ({
       ...actual,
       direccion: resultado.etiqueta,
       lat: Number(resultado.lat),
       lng: Number(resultado.lng),
     }));
-    setDireccionFamiliaSeleccionada(true);
-    setResultadosDireccionFamilia([]);
-    setBuscandoDireccionFamilia(false);
-    setBusquedaDireccionFamiliaRealizada(false);
-    setIndiceDireccionFamiliaActiva(-1);
+    setDireccionFamiliaAccionSeleccionada(true);
+    setResultadosDireccionFamiliaAccion([]);
+    setBusquedaDireccionFamiliaAccionRealizada(false);
+    setIndiceDireccionFamiliaAccionActiva(-1);
   };
 
-  const manejarTeclaDireccionFamilia = (e) => {
+  const seleccionarDireccionFamiliaSeccion = (resultado) => {
+    setFormularioFamiliaSeccion((actual) => ({
+      ...actual,
+      direccion: resultado.etiqueta,
+      lat: Number(resultado.lat),
+      lng: Number(resultado.lng),
+    }));
+    setDireccionFamiliaSeccionSeleccionada(true);
+    setResultadosDireccionFamiliaSeccion([]);
+    setBusquedaDireccionFamiliaSeccionRealizada(false);
+    setIndiceDireccionFamiliaSeccionActiva(-1);
+  };
+
+  const manejarTeclaDireccionFamiliaAccion = (e) => {
     if (e.key === "Escape") {
-      setResultadosDireccionFamilia([]);
-      setBusquedaDireccionFamiliaRealizada(false);
-      setIndiceDireccionFamiliaActiva(-1);
+      setResultadosDireccionFamiliaAccion([]);
+      setBusquedaDireccionFamiliaAccionRealizada(false);
+      setIndiceDireccionFamiliaAccionActiva(-1);
       return;
     }
 
-    if (resultadosDireccionFamilia.length === 0) return;
+    if (resultadosDireccionFamiliaAccion.length === 0) return;
 
     if (e.key === "ArrowDown") {
       e.preventDefault();
-      setIndiceDireccionFamiliaActiva((actual) =>
-        actual < resultadosDireccionFamilia.length - 1 ? actual + 1 : 0
+      setIndiceDireccionFamiliaAccionActiva((actual) =>
+        actual < resultadosDireccionFamiliaAccion.length - 1 ? actual + 1 : 0
       );
-      return;
-    }
-
-    if (e.key === "ArrowUp") {
+    } else if (e.key === "ArrowUp") {
       e.preventDefault();
-      setIndiceDireccionFamiliaActiva((actual) =>
-        actual > 0 ? actual - 1 : resultadosDireccionFamilia.length - 1
+      setIndiceDireccionFamiliaAccionActiva((actual) =>
+        actual > 0 ? actual - 1 : resultadosDireccionFamiliaAccion.length - 1
       );
-      return;
-    }
-
-    if (e.key === "Enter" && indiceDireccionFamiliaActiva >= 0) {
+    } else if (e.key === "Enter" && indiceDireccionFamiliaAccionActiva >= 0) {
       e.preventDefault();
-      seleccionarDireccionFamilia(resultadosDireccionFamilia[indiceDireccionFamiliaActiva]);
+      seleccionarDireccionFamiliaAccion(
+        resultadosDireccionFamiliaAccion[indiceDireccionFamiliaAccionActiva]
+      );
     }
   };
 
-  const resaltarCoincidenciaFamilia = (texto) => {
-    const busqueda = formularioFamilia.direccion.trim();
+  const manejarTeclaDireccionFamiliaSeccion = (e) => {
+    if (e.key === "Escape") {
+      setResultadosDireccionFamiliaSeccion([]);
+      setBusquedaDireccionFamiliaSeccionRealizada(false);
+      setIndiceDireccionFamiliaSeccionActiva(-1);
+      return;
+    }
+
+    if (resultadosDireccionFamiliaSeccion.length === 0) return;
+
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      setIndiceDireccionFamiliaSeccionActiva((actual) =>
+        actual < resultadosDireccionFamiliaSeccion.length - 1 ? actual + 1 : 0
+      );
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      setIndiceDireccionFamiliaSeccionActiva((actual) =>
+        actual > 0 ? actual - 1 : resultadosDireccionFamiliaSeccion.length - 1
+      );
+    } else if (e.key === "Enter" && indiceDireccionFamiliaSeccionActiva >= 0) {
+      e.preventDefault();
+      seleccionarDireccionFamiliaSeccion(
+        resultadosDireccionFamiliaSeccion[indiceDireccionFamiliaSeccionActiva]
+      );
+    }
+  };
+
+  const resaltarCoincidenciaFamilia = (texto, busqueda) => {
     const valor = String(texto || "");
+    const termino = String(busqueda || "").trim();
+    if (!termino) return valor;
 
-    if (!busqueda) return valor;
-
-    const indice = valor.toLowerCase().indexOf(busqueda.toLowerCase());
+    const indice = valor.toLowerCase().indexOf(termino.toLowerCase());
     if (indice < 0) return valor;
 
     return (
       <>
         {valor.slice(0, indice)}
-        <mark className="bg-yellow-100 text-inherit rounded px-0.5">
-          {valor.slice(indice, indice + busqueda.length)}
+        <mark className="rounded bg-yellow-100 px-0.5 text-inherit">
+          {valor.slice(indice, indice + termino.length)}
         </mark>
-        {valor.slice(indice + busqueda.length)}
+        {valor.slice(indice + termino.length)}
       </>
     );
   };
@@ -491,26 +613,26 @@ function GestionEmergencias() {
     setIndiceDireccionActiva(-1);
   };
 
-  const limpiarFormularioFamilia = (emergencia = null) => {
-    const direccionEmergencia = emergencia?.direccion || "";
-    const latEmergencia = emergencia?.lat ?? "";
-    const lngEmergencia = emergencia?.lng ?? "";
-
-    setFormularioFamilia({
-      nombre_cabeza_familia: "",
-      direccion: direccionEmergencia,
-      lat: latEmergencia,
-      lng: lngEmergencia,
-      miembros: 1,
-      prioridad: "normal",
-    });
-    setDireccionFamiliaSeleccionada(
-      Boolean(direccionEmergencia) && latEmergencia !== "" && lngEmergencia !== ""
+  const reiniciarFormularioFamiliaAccion = (emergencia = null) => {
+    setFormularioFamiliaAccion(crearFormularioFamilia(emergencia));
+    setDireccionFamiliaAccionSeleccionada(
+      Boolean(emergencia?.direccion) && emergencia?.lat != null && emergencia?.lng != null
     );
-    setResultadosDireccionFamilia([]);
-    setBuscandoDireccionFamilia(false);
-    setBusquedaDireccionFamiliaRealizada(false);
-    setIndiceDireccionFamiliaActiva(-1);
+    setResultadosDireccionFamiliaAccion([]);
+    setBuscandoDireccionFamiliaAccion(false);
+    setBusquedaDireccionFamiliaAccionRealizada(false);
+    setIndiceDireccionFamiliaAccionActiva(-1);
+  };
+
+  const reiniciarFormularioFamiliaSeccion = (emergencia = null) => {
+    setFormularioFamiliaSeccion(crearFormularioFamilia(emergencia));
+    setDireccionFamiliaSeccionSeleccionada(
+      Boolean(emergencia?.direccion) && emergencia?.lat != null && emergencia?.lng != null
+    );
+    setResultadosDireccionFamiliaSeccion([]);
+    setBuscandoDireccionFamiliaSeccion(false);
+    setBusquedaDireccionFamiliaSeccionRealizada(false);
+    setIndiceDireccionFamiliaSeccionActiva(-1);
   };
 
   const prepararDatosEmergencia = async () => {
@@ -609,42 +731,12 @@ function GestionEmergencias() {
     }
   };
 
-  const abrirFormularioAgregarFamilia = async (emergencia) => {
-    setEmergenciaSeleccionada(emergencia);
-    limpiarFormularioFamilia(emergencia);
-    setMostrarModalFamilia(true);
-    await cargarFamilias(emergencia);
-  };
-
-  const cerrarModalFamilia = () => {
-    setMostrarModalFamilia(false);
-    limpiarFormularioFamilia();
-  };
-
-  const prepararDatosFamilia = async () => {
+  const prepararDatosFamilia = async (formularioFamilia) => {
     const direccion = formularioFamilia.direccion.trim();
     let lat = formularioFamilia.lat;
     let lng = formularioFamilia.lng;
 
-    if (!direccion) {
-      throw new Error("Ingresa una dirección para la familia.");
-    }
-
-    const direccionEmergencia = String(emergenciaSeleccionada?.direccion || "").trim();
-    const mismaDireccionEmergencia =
-      direccionEmergencia && direccion.toLowerCase() === direccionEmergencia.toLowerCase();
-
-    if (
-      mismaDireccionEmergencia &&
-      (lat === "" || lng === "" || lat == null || lng == null) &&
-      emergenciaSeleccionada?.lat != null &&
-      emergenciaSeleccionada?.lng != null
-    ) {
-      lat = emergenciaSeleccionada.lat;
-      lng = emergenciaSeleccionada.lng;
-    }
-
-    if (lat === "" || lng === "" || lat == null || lng == null) {
+    if (direccion && (lat === "" || lng === "" || lat == null || lng == null)) {
       const ubicacion = await geocodificarDireccion(`${direccion}, Chile`);
 
       if (!ubicacion) {
@@ -658,33 +750,71 @@ function GestionEmergencias() {
     }
 
     return {
-      nombre_cabeza_familia: formularioFamilia.nombre_cabeza_familia,
-      direccion,
-      lat: Number(lat),
-      lng: Number(lng),
+      nombre_cabeza_familia: formularioFamilia.nombre_cabeza_familia.trim(),
+      direccion: direccion || null,
+      lat: lat === "" || lat == null ? null : Number(lat),
+      lng: lng === "" || lng == null ? null : Number(lng),
       miembros: Number(formularioFamilia.miembros) || 1,
       prioridad: formularioFamilia.prioridad,
     };
   };
 
-  const manejarSubmitFamilia = async (e) => {
-    e.preventDefault();
+  const abrirModalFamiliaDesdeAccion = async (emergencia) => {
+    setEmergenciaFamiliaAccion(emergencia);
+    reiniciarFormularioFamiliaAccion(emergencia);
+    setMostrarModalFamiliaAccion(true);
+    await cargarFamilias(emergencia);
+  };
 
+  const cerrarModalFamiliaAccion = () => {
+    setMostrarModalFamiliaAccion(false);
+    reiniciarFormularioFamiliaAccion();
+    setEmergenciaFamiliaAccion(null);
+  };
+
+  const abrirModalFamiliaDesdeSeccion = () => {
     if (!emergenciaSeleccionada) return;
+    reiniciarFormularioFamiliaSeccion(emergenciaSeleccionada);
+    setMostrarModalFamiliaSeccion(true);
+  };
+
+  const cerrarModalFamiliaSeccion = () => {
+    setMostrarModalFamiliaSeccion(false);
+    reiniciarFormularioFamiliaSeccion();
+  };
+
+  const manejarSubmitFamiliaAccion = async (e) => {
+    e.preventDefault();
+    if (!emergenciaFamiliaAccion) return;
 
     try {
-      const datosFamilia = await prepararDatosFamilia();
-
-      await registrarFamilia(obtenerId(emergenciaSeleccionada), datosFamilia);
-      await cargarFamilias(emergenciaSeleccionada);
-      cerrarModalFamilia();
+      const datosFamilia = await prepararDatosFamilia(formularioFamiliaAccion);
+      await registrarFamilia(obtenerId(emergenciaFamiliaAccion), datosFamilia);
+      await cargarFamilias(emergenciaFamiliaAccion);
+      cerrarModalFamiliaAccion();
       mostrarMensajeExito("Familia registrada correctamente.");
     } catch (error) {
       console.error(error.response?.data || error);
       mostrarMensajeError(
-        error.response?.data?.mensaje ||
-          error.message ||
-          "No se pudo registrar la familia."
+        error.response?.data?.mensaje || error.message || "No se pudo registrar la familia."
+      );
+    }
+  };
+
+  const manejarSubmitFamiliaSeccion = async (e) => {
+    e.preventDefault();
+    if (!emergenciaSeleccionada) return;
+
+    try {
+      const datosFamilia = await prepararDatosFamilia(formularioFamiliaSeccion);
+      await registrarFamilia(obtenerId(emergenciaSeleccionada), datosFamilia);
+      await cargarFamilias(emergenciaSeleccionada);
+      cerrarModalFamiliaSeccion();
+      mostrarMensajeExito("Familia registrada correctamente.");
+    } catch (error) {
+      console.error(error.response?.data || error);
+      mostrarMensajeError(
+        error.response?.data?.mensaje || error.message || "No se pudo registrar la familia."
       );
     }
   };
@@ -707,6 +837,21 @@ function GestionEmergencias() {
       ).length,
     [emergencias]
   );
+
+  const obtenerNombreCuadrilla = (emergencia) =>
+    emergencia?.cuadrilla?.nombre ||
+    emergencia?.cuadrilla_asignada?.nombre ||
+    emergencia?.cuadrilla_nombre ||
+    emergencia?.nombre_cuadrilla ||
+    "";
+
+  const obtenerInicialesCuadrilla = (nombre) =>
+    String(nombre || "")
+      .split(/\s+/)
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((parte) => parte[0]?.toUpperCase())
+      .join("") || "C";
 
   const paginasVisibles = useMemo(() => {
     const maximo = 5;
@@ -860,93 +1005,161 @@ function GestionEmergencias() {
           </div>
         </section>
 
-        <section className="overflow-hidden rounded-xl border border-[#bec7d2] bg-white">
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[850px] border-collapse text-left">
-              <thead>
-                <tr className="border-b border-[#bec7d2] bg-[#e7e8e9]">
-                  <th className="px-6 py-3 text-xs font-bold uppercase tracking-wider text-[#3f4850]">ID</th>
-                  <th className="px-6 py-3 text-xs font-bold uppercase tracking-wider text-[#3f4850]">Descripción</th>
-                  <th className="px-6 py-3 text-xs font-bold uppercase tracking-wider text-[#3f4850]">Ubicación</th>
-                  <th className="px-6 py-3 text-xs font-bold uppercase tracking-wider text-[#3f4850]">Estado</th>
-                  <th className="px-6 py-3 text-right text-xs font-bold uppercase tracking-wider text-[#3f4850]">Acciones</th>
-                </tr>
-              </thead>
+        <section aria-label="Listado de emergencias">
+          {cargando ? (
+            <div className="rounded-xl border border-[#bec7d2] bg-white px-6 py-14 text-center text-sm text-[#3f4850]">
+              <span className="mx-auto mb-3 block h-7 w-7 animate-spin rounded-full border-2 border-[#bec7d2] border-t-[#006192]" />
+              Cargando emergencias...
+            </div>
+          ) : emergenciasPaginadas.length === 0 ? (
+            <div className="rounded-xl border border-[#bec7d2] bg-white px-6 py-14 text-center text-sm text-[#3f4850]">
+              No se encontraron emergencias con los filtros seleccionados.
+            </div>
+          ) : (
+            <div className="mb-4 grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+              {emergenciasPaginadas.map((emergencia) => {
+                const id = obtenerId(emergencia);
+                const activa = emergencia.estado === "activa";
+                const nombreCuadrilla = obtenerNombreCuadrilla(emergencia);
+                const seleccionada =
+                  emergenciaSeleccionada && obtenerId(emergenciaSeleccionada) === id;
 
-              <tbody className="divide-y divide-[#bec7d2]">
-                {cargando && (
-                  <tr>
-                    <td colSpan="5" className="px-6 py-12 text-center text-sm text-[#3f4850]">
-                      <span className="mx-auto mb-3 block h-7 w-7 animate-spin rounded-full border-2 border-[#bec7d2] border-t-[#006192]" />
-                      Cargando emergencias...
-                    </td>
-                  </tr>
-                )}
+                return (
+                  <article
+                    key={id}
+                    className={`group flex min-h-[270px] flex-col gap-4 rounded-xl border bg-white p-5 transition-shadow hover:shadow-md ${
+                      seleccionada
+                        ? "border-[#006192] ring-2 ring-[#90cdff]/45"
+                        : "border-[#bec7d2]"
+                    }`}
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <span className="text-xs font-bold text-[#3f4850]">
+                        #EM-{String(id).padStart(4, "0")}
+                      </span>
 
-                {!cargando && emergenciasPaginadas.length === 0 && (
-                  <tr>
-                    <td colSpan="5" className="px-6 py-12 text-center text-sm text-[#3f4850]">
-                      No se encontraron emergencias con los filtros seleccionados.
-                    </td>
-                  </tr>
-                )}
+                      {activa ? (
+                        <span className="inline-flex items-center gap-1.5 rounded-full bg-[#ffdad6]/70 px-2.5 py-1 text-xs font-medium text-[#ba1a1a]">
+                          <span className="h-1.5 w-1.5 rounded-full bg-[#ba1a1a]" />
+                          En curso
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1.5 rounded-full bg-[#90cdff]/30 px-2.5 py-1 text-xs font-medium text-[#007bb7]">
+                          <span className="h-1.5 w-1.5 rounded-full bg-[#007bb7]" />
+                          Finalizada
+                        </span>
+                      )}
+                    </div>
 
-                {!cargando &&
-                  Array.isArray(emergenciasPaginadas) &&
-                  emergenciasPaginadas.map((emergencia) => (
-                    <tr key={obtenerId(emergencia)} className="border-t">
-                      <td className="p-3">{emergencia.nombre}</td>
-                      <td className="p-3 text-gray-600">
+                    <div>
+                      <h3 className="mb-1 text-lg font-bold leading-6 text-[#191c1d]">
+                        {emergencia.nombre}
+                      </h3>
+                      <p className="line-clamp-2 text-sm leading-5 text-[#3f4850]">
+                        {emergencia.descripcion || "Sin descripción"}
+                      </p>
+                    </div>
+
+                    <div className="flex items-start gap-2 text-[#3f4850]">
+                      <MdLocationOn className="mt-0.5 shrink-0 text-base" aria-hidden="true" />
+                      <span className="line-clamp-2 text-sm">
                         {emergencia.direccion || "Sin dirección"}
-                      </td>
-                      <td className="p-3 capitalize">{emergencia.estado}</td>
+                      </span>
+                    </div>
 
-                      <td className="p-3 flex flex-wrap gap-2">
-                        {emergencia.estado === "activa" ? (
+                    <hr className="my-1 border-[#bec7d2]" />
+
+                    <div className="mt-auto flex items-end justify-between gap-3">
+                      <div className="flex min-w-0 items-center gap-2">
+                        {nombreCuadrilla ? (
                           <>
-                            <button
-                              onClick={() => editarEmergencia(emergencia)}
-                              className="bg-blue-600 text-white px-3 py-1 rounded"
-                            >
-                              Editar
-                            </button>
-
-                            <button
-                              onClick={() => cargarFamilias(emergencia)}
-                              className="bg-green-600 text-white px-3 py-1 rounded"
-                            >
-                              Ver familias
-                            </button>
-
-                            <button
-                              onClick={() => abrirModalFamilia(emergencia)}
-                              className="bg-emerald-600 text-white px-3 py-1 rounded"
-                            >
-                              Agregar familia
-                            </button>
-
-                            <button
-                              onClick={() =>
-                                finalizarEmergencia(obtenerId(emergencia))
-                              }
-                              className="bg-slate-800 text-white px-3 py-1 rounded"
-                            >
-                              Cerrar
-                            </button>
+                            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#007bb7] text-[10px] font-bold text-white">
+                              {obtenerInicialesCuadrilla(nombreCuadrilla)}
+                            </div>
+                            <div className="min-w-0">
+                              <span className="block text-xs font-medium text-[#3f4850]">Cuadrilla</span>
+                              <span className="block truncate text-sm font-semibold text-[#191c1d]">
+                                {nombreCuadrilla}
+                              </span>
+                            </div>
                           </>
                         ) : (
-                          <span className="text-gray-500 text-sm">
-                            Emergencia finalizada
-                          </span>
+                          <>
+                            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#e7e8e9] text-[#3f4850]">
+                              <MdPersonOff className="text-base" aria-hidden="true" />
+                            </div>
+                            <div>
+                              <span className="block text-xs font-medium text-[#3f4850]">Cuadrilla</span>
+                              <span className="block text-sm italic text-[#6f7882]">Sin asignar</span>
+                            </div>
+                          </>
                         )}
-                      </td>
-                    </tr>
-                  ))}
-              </tbody>
-            </table>
-          </div>
+                      </div>
 
-          <div className="flex flex-col gap-3 border-t border-[#bec7d2] bg-[#f8f9fa] p-4 sm:flex-row sm:items-center sm:justify-between">
+                      <div className="flex shrink-0 flex-wrap justify-end gap-1">
+                        {activa && (
+                          <button
+                            type="button"
+                            onClick={() => editarEmergencia(emergencia)}
+                            className="flex h-9 w-9 items-center justify-center rounded-lg text-[#3f4850] transition hover:bg-[#cbe6ff]/60 hover:text-[#006192]"
+                            title="Editar emergencia"
+                            aria-label={`Editar ${emergencia.nombre}`}
+                          >
+                            <MdEdit className="text-lg" aria-hidden="true" />
+                          </button>
+                        )}
+
+                        <button
+                          type="button"
+                          onClick={() => cargarFamilias(emergencia)}
+                          className="flex h-9 w-9 items-center justify-center rounded-lg text-[#003ea7] transition hover:bg-[#dbe1ff]"
+                          title="Ver familias"
+                          aria-label={`Ver familias de ${emergencia.nombre}`}
+                        >
+                          <MdGroups className="text-lg" aria-hidden="true" />
+                        </button>
+
+                        {activa && (
+                          <button
+                            type="button"
+                            onClick={() => abrirModalFamiliaDesdeAccion(emergencia)}
+                            className="flex h-9 w-9 items-center justify-center rounded-lg text-[#006192] transition hover:bg-[#cbe6ff]/60"
+                            title="Agregar familia"
+                            aria-label={`Agregar familia a ${emergencia.nombre}`}
+                          >
+                            <MdFamilyRestroom className="text-lg" aria-hidden="true" />
+                          </button>
+                        )}
+
+                        {activa ? (
+                          <button
+                            type="button"
+                            onClick={() => finalizarEmergencia(id)}
+                            className="rounded-lg bg-[#2e3132] px-2.5 py-2 text-xs font-bold text-white transition hover:bg-[#191c1d]"
+                            title="Cerrar emergencia"
+                          >
+                            Cerrar
+                          </button>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => cargarFamilias(emergencia)}
+                            className="flex h-9 w-9 items-center justify-center rounded-lg text-[#006192] transition hover:bg-[#006192]/10"
+                            title="Consultar emergencia"
+                            aria-label={`Consultar ${emergencia.nombre}`}
+                          >
+                            <MdChevronRight className="text-xl" aria-hidden="true" />
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  </article>
+                );
+              })}
+            </div>
+          )}
+
+          <div className="flex flex-col gap-4 rounded-xl border border-[#bec7d2] bg-white p-4 sm:flex-row sm:items-center sm:justify-between">
             <span className="text-sm text-[#3f4850]">
               Mostrando {inicioMostrado} a {finMostrado} de {emergenciasFiltradas.length} entradas
             </span>
@@ -989,149 +1202,543 @@ function GestionEmergencias() {
               >
                 Siguiente
               </button>
-
-              <button
-                type="button"
-                onClick={() => setPaginaActualEmergencias(totalPaginasEmergencias)}
-                disabled={paginaActualEmergencias === totalPaginasEmergencias}
-                className="border rounded-lg px-3 py-1 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                Última
-              </button>
             </div>
           </div>
-        </div>
+        </section>
 
-        <div className="mt-8 bg-white rounded-xl shadow p-4">
-          <h2 className="text-xl font-bold mb-1">Familias afectadas</h2>
-          <p className="text-sm text-gray-500 mb-4">
-            {emergenciaSeleccionada
-              ? `Emergencia seleccionada: ${emergenciaSeleccionada.nombre}`
-              : "Selecciona una emergencia para ver sus familias"}
-          </p>
+        <section className="mt-8 overflow-hidden rounded-xl border border-[#bec7d2] bg-white">
+          <div className="flex flex-col gap-2 border-b border-[#bec7d2] bg-[#f3f4f5] px-6 py-5 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <h2 className="text-lg font-bold text-[#191c1d]">Familias afectadas</h2>
+              <p className="mt-1 text-sm text-[#3f4850]">
+                {emergenciaSeleccionada
+                  ? `Emergencia seleccionada: ${emergenciaSeleccionada.nombre}`
+                  : "Selecciona una emergencia activa para consultar sus familias"}
+              </p>
+            </div>
+            {emergenciaSeleccionada && emergenciaSeleccionada.estado === "activa" && (
+              <button
+                type="button"
+                onClick={abrirModalFamiliaDesdeSeccion}
+                className="inline-flex items-center justify-center gap-2 rounded-lg bg-[#006192] px-4 py-2 text-sm font-bold text-white transition hover:bg-[#007bb7]"
+              >
+                <MdAdd aria-hidden="true" />
+                Agregar familia
+              </button>
+            )}
+          </div>
 
           {familias.length === 0 ? (
-            <p className="text-gray-500">
-              No hay familias registradas para esta emergencia
-            </p>
+            <div className="px-6 py-10 text-center text-sm text-[#6f7882]">
+              No hay familias registradas para la emergencia seleccionada.
+            </div>
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead className="bg-gray-200">
+              <table className="w-full min-w-[650px] text-left">
+                <thead className="bg-[#e7e8e9]">
                   <tr>
-                    <th className="p-3 text-left">Nombre</th>
-                    <th className="p-3 text-left">Dirección</th>
-                    <th className="p-3 text-left">Miembros</th>
-                    <th className="p-3 text-left">Prioridad</th>
+                    <th className="px-6 py-3 text-xs font-bold uppercase tracking-wider text-[#3f4850]">Nombre</th>
+                    <th className="px-6 py-3 text-xs font-bold uppercase tracking-wider text-[#3f4850]">Dirección</th>
+                    <th className="px-6 py-3 text-xs font-bold uppercase tracking-wider text-[#3f4850]">Miembros</th>
+                    <th className="px-6 py-3 text-xs font-bold uppercase tracking-wider text-[#3f4850]">Prioridad</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-[#bec7d2]">
                   {familias.map((familia) => (
-                    <tr key={familia.id} className="border-t">
-                      <td className="p-3">{familia.nombre_cabeza_familia}</td>
-                      <td className="p-3">{familia.direccion || "Sin dirección"}</td>
-                      <td className="p-3">{familia.miembros}</td>
-                      <td className="p-3 capitalize">{familia.prioridad}</td>
+                    <tr key={familia.id} className="hover:bg-[#f8f9fa]">
+                      <td className="px-6 py-4 text-sm font-semibold text-[#191c1d]">{familia.nombre_cabeza_familia}</td>
+                      <td className="px-6 py-4 text-sm text-[#3f4850]">{familia.direccion || "Sin dirección"}</td>
+                      <td className="px-6 py-4 text-sm text-[#3f4850]">{familia.miembros ?? familia.cantidad_integrantes ?? 1}</td>
+                      <td className="px-6 py-4 text-sm capitalize text-[#3f4850]">{familia.prioridad}</td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             </div>
           )}
-        </div>
-      </div>
+        </section>
+      </main>
 
-      {mostrarModalFamilia && emergenciaSeleccionada && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl">
-            <div className="flex justify-between items-center border-b px-6 py-4">
-              <h2 className="text-xl font-bold">
-                Agregar familia a {emergenciaSeleccionada.nombre}
-              </h2>
+      {mostrarFormularioEmergencia && (
+        <div className="fixed inset-0 z-[4000] flex items-center justify-center bg-black/55 p-4">
+          <div className="max-h-[92vh] w-full max-w-3xl overflow-y-auto rounded-xl border border-[#bec7d2] bg-white shadow-2xl">
+            <div className="sticky top-0 z-20 flex items-center justify-between border-b border-[#bec7d2] bg-white px-6 py-4">
+              <div>
+                <p className="text-xs font-bold uppercase tracking-wider text-[#006192]">Gestión de emergencia</p>
+                <h2 className="mt-1 text-xl font-bold text-[#191c1d]">
+                  {editandoId ? "Editar emergencia" : "Nueva emergencia"}
+                </h2>
+              </div>
               <button
                 type="button"
-                onClick={cerrarModalFamilia}
-                className="text-gray-500 hover:text-gray-800 text-2xl"
+                onClick={cerrarFormularioEmergencia}
+                className="flex h-10 w-10 items-center justify-center rounded-full text-[#3f4850] transition hover:bg-[#edeeef]"
+                aria-label="Cerrar formulario"
               >
                 <MdClose className="text-2xl" />
               </button>
             </div>
 
-            <form
-              onSubmit={manejarSubmitFamilia}
-              className="p-6 grid grid-cols-1 md:grid-cols-2 gap-4"
-            >
-              <input
-                type="text"
-                name="nombre_cabeza_familia"
-                placeholder="Nombre jefe/a de familia"
-                value={formularioFamilia.nombre_cabeza_familia}
-                onChange={manejarCambioFamilia}
-                className="border rounded-lg px-4 py-2 col-span-full"
-                required
-              />
+            <form onSubmit={manejarSubmit} className="grid grid-cols-1 gap-5 p-6 md:grid-cols-2">
+              <label className="block">
+                <span className="mb-2 block text-sm font-bold text-[#191c1d]">Nombre de la emergencia</span>
+                <input
+                  type="text"
+                  name="nombre"
+                  placeholder="Ej.: Inundación Sector Sur"
+                  value={formulario.nombre}
+                  onChange={manejarCambio}
+                  className="w-full rounded-lg border border-[#bec7d2] bg-[#f8f9fa] px-4 py-2.5 text-sm outline-none transition focus:border-[#006192] focus:ring-2 focus:ring-[#90cdff]/40"
+                  required
+                />
+              </label>
 
-              <input
-                type="text"
-                name="direccion"
-                placeholder="Dirección de la familia"
-                value={formularioFamilia.direccion}
-                onChange={manejarCambioFamilia}
-                className="border rounded-lg px-4 py-2 col-span-full"
-              />
+              <div ref={contenedorDireccionRef} className="relative">
+                <label className="block">
+                  <span className="mb-2 block text-sm font-bold text-[#191c1d]">Ubicación geográfica</span>
+                  <div className="relative">
+                    <MdLocationOn className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-xl text-[#6f7882]" />
+                    <input
+                      type="text"
+                      name="direccion"
+                      placeholder="Escribe calle, número y comuna"
+                      value={formulario.direccion}
+                      onChange={manejarCambio}
+                      onKeyDown={manejarTeclaDireccion}
+                      onFocus={() => {
+                        if (formulario.direccion.trim().length >= 3) {
+                          setDireccionSeleccionada(false);
+                        }
+                      }}
+                      autoComplete="off"
+                      role="combobox"
+                      aria-autocomplete="list"
+                      aria-expanded={
+                        !direccionSeleccionada &&
+                        formulario.direccion.trim().length >= 3 &&
+                        (buscandoDireccion || resultadosDireccion.length > 0 || busquedaDireccionRealizada)
+                      }
+                      aria-controls="lista-sugerencias-direccion"
+                      className={`w-full rounded-lg border bg-[#f8f9fa] py-2.5 pl-10 pr-10 text-sm outline-none transition ${
+                        direccionSeleccionada
+                          ? "border-[#007bb7] ring-2 ring-[#cbe6ff]"
+                          : "border-[#bec7d2] focus:border-[#006192] focus:ring-2 focus:ring-[#90cdff]/40"
+                      }`}
+                    />
 
-              <input
-                type="number"
-                step="any"
-                name="lat"
-                placeholder="Latitud"
-                value={formularioFamilia.lat}
-                onChange={manejarCambioFamilia}
-                className="border rounded-lg px-4 py-2"
-              />
+                    {buscandoDireccion ? (
+                      <span className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 animate-spin rounded-full border-2 border-[#bec7d2] border-t-[#006192]" />
+                    ) : formulario.direccion ? (
+                      <button
+                        type="button"
+                        onClick={() => manejarCambio({ target: { name: "direccion", value: "" } })}
+                        className="absolute right-2 top-1/2 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-full text-[#6f7882] hover:bg-[#edeeef]"
+                        aria-label="Limpiar dirección"
+                      >
+                        ×
+                      </button>
+                    ) : null}
+                  </div>
+                </label>
 
-              <input
-                type="number"
-                step="any"
-                name="lng"
-                placeholder="Longitud"
-                value={formularioFamilia.lng}
-                onChange={manejarCambioFamilia}
-                className="border rounded-lg px-4 py-2"
-              />
+                {!direccionSeleccionada &&
+                  formulario.direccion.trim().length >= 3 &&
+                  (buscandoDireccion || resultadosDireccion.length > 0 || busquedaDireccionRealizada) && (
+                    <div
+                      id="lista-sugerencias-direccion"
+                      role="listbox"
+                      className="absolute left-0 right-0 z-50 mt-1 overflow-hidden rounded-xl border border-[#bec7d2] bg-white shadow-2xl"
+                    >
+                      {buscandoDireccion && resultadosDireccion.length === 0 ? (
+                        <div className="flex items-center gap-3 px-5 py-4 text-sm text-[#3f4850]">
+                          <span className="h-5 w-5 animate-spin rounded-full border-2 border-[#bec7d2] border-t-[#006192]" />
+                          Buscando direcciones en Chile...
+                        </div>
+                      ) : resultadosDireccion.length > 0 ? (
+                        <div className="max-h-80 overflow-y-auto py-1">
+                          {resultadosDireccion.map((resultado, indice) => (
+                            <button
+                              key={`${resultado.lat}-${resultado.lng}-${indice}`}
+                              type="button"
+                              role="option"
+                              aria-selected={indiceDireccionActiva === indice}
+                              onMouseEnter={() => setIndiceDireccionActiva(indice)}
+                              onMouseDown={(e) => e.preventDefault()}
+                              onClick={() => seleccionarDireccion(resultado)}
+                              className={`w-full px-5 py-3.5 text-left transition ${
+                                indiceDireccionActiva === indice ? "bg-[#cbe6ff]/55" : "hover:bg-[#f3f4f5]"
+                              }`}
+                            >
+                              <span className="block text-sm leading-6">
+                                <span className="font-semibold text-[#191c1d]">
+                                  {resaltarCoincidencia(resultado.principal || resultado.etiqueta)}
+                                </span>
+                                {resultado.secundaria && (
+                                  <span className="ml-1.5 font-normal text-[#3f4850]">{resultado.secundaria}</span>
+                                )}
+                              </span>
+                            </button>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="px-5 py-4">
+                          <p className="text-sm font-semibold text-[#191c1d]">No encontramos coincidencias claras</p>
+                          <p className="mt-1 text-xs text-[#3f4850]">
+                            Prueba agregando número, comuna o región. Ejemplo: &quot;O&apos;Higgins 123, Yumbel&quot;.
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  )}
 
-              <input
-                type="number"
-                min="1"
-                name="miembros"
-                placeholder="Cantidad de miembros"
-                value={formularioFamilia.miembros}
-                onChange={manejarCambioFamilia}
-                className="border rounded-lg px-4 py-2"
-              />
+                {direccionSeleccionada && formulario.direccion && (
+                  <div className="mt-2 rounded-lg border border-[#90cdff] bg-[#cbe6ff]/60 px-3 py-2 text-xs text-[#004b72]">
+                    <strong>Dirección seleccionada.</strong> Las coordenadas se guardarán automáticamente.
+                  </div>
+                )}
+              </div>
 
-              <select
-                name="prioridad"
-                value={formularioFamilia.prioridad}
-                onChange={manejarCambioFamilia}
-                className="border rounded-lg px-4 py-2"
-              >
-                <option value="alta">Alta</option>
-                <option value="normal">Normal</option>
-                <option value="baja">Baja</option>
-              </select>
+              <label className="block md:col-span-2">
+                <span className="mb-2 block text-sm font-bold text-[#191c1d]">Descripción del evento</span>
+                <textarea
+                  name="descripcion"
+                  placeholder="Describe el evento y la situación actual..."
+                  value={formulario.descripcion}
+                  onChange={manejarCambio}
+                  className="min-h-32 w-full resize-y rounded-lg border border-[#bec7d2] bg-[#f8f9fa] px-4 py-3 text-sm outline-none transition focus:border-[#006192] focus:ring-2 focus:ring-[#90cdff]/40"
+                  required
+                />
+              </label>
 
               <div className="flex flex-col-reverse gap-3 border-t border-[#bec7d2] pt-5 md:col-span-2 sm:flex-row sm:justify-end">
                 <button
                   type="button"
-                  onClick={cerrarModalFamilia}
+                  onClick={cerrarFormularioEmergencia}
                   className="rounded-lg border border-[#bec7d2] bg-white px-5 py-2.5 text-sm font-bold text-[#3f4850] transition hover:bg-[#f3f4f5]"
                 >
                   Cancelar
                 </button>
                 <button
                   type="submit"
-                  className="bg-emerald-600 text-white px-4 py-2 rounded-lg"
+                  className="rounded-lg bg-[#006192] px-6 py-2.5 text-sm font-bold text-white transition hover:bg-[#007bb7] focus:outline-none focus:ring-2 focus:ring-[#90cdff]"
+                >
+                  {editandoId ? "Actualizar emergencia" : "Crear emergencia"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {mostrarModalFamiliaAccion && emergenciaFamiliaAccion && (
+        <div className="fixed inset-0 z-[4100] flex items-center justify-center bg-black/55 p-4">
+          <div className="max-h-[92vh] w-full max-w-2xl overflow-y-auto rounded-xl border border-[#bec7d2] bg-white shadow-2xl">
+            <div className="sticky top-0 z-20 flex items-center justify-between border-b border-[#bec7d2] bg-white px-6 py-4">
+              <div>
+                <p className="text-xs font-bold uppercase tracking-wider text-[#006192]">Acción de emergencia</p>
+                <h2 className="mt-1 text-xl font-bold text-[#191c1d]">
+                  Agregar familia a {emergenciaFamiliaAccion.nombre}
+                </h2>
+              </div>
+              <button
+                type="button"
+                onClick={cerrarModalFamiliaAccion}
+                className="flex h-10 w-10 items-center justify-center rounded-full text-[#3f4850] transition hover:bg-[#edeeef]"
+                aria-label="Cerrar formulario de familia desde acciones"
+              >
+                <MdClose className="text-2xl" />
+              </button>
+            </div>
+
+            <form onSubmit={manejarSubmitFamiliaAccion} className="grid grid-cols-1 gap-4 p-6 md:grid-cols-2">
+              <label className="block md:col-span-2">
+                <span className="mb-2 block text-sm font-bold text-[#191c1d]">Nombre jefe/a de familia</span>
+                <input
+                  type="text"
+                  name="nombre_cabeza_familia"
+                  value={formularioFamiliaAccion.nombre_cabeza_familia}
+                  onChange={manejarCambioFamiliaAccion}
+                  className="w-full rounded-lg border border-[#bec7d2] bg-[#f8f9fa] px-4 py-2.5 text-sm outline-none focus:border-[#006192] focus:ring-2 focus:ring-[#90cdff]/40"
+                  required
+                />
+              </label>
+
+              <div ref={contenedorDireccionFamiliaAccionRef} className="relative md:col-span-2">
+                <label className="block">
+                  <span className="mb-2 block text-sm font-bold text-[#191c1d]">Ubicación geográfica</span>
+                  <div className="relative">
+                    <MdLocationOn className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-xl text-[#6f7882]" />
+                    <input
+                      type="text"
+                      name="direccion"
+                      placeholder="Escribe calle, número y comuna"
+                      value={formularioFamiliaAccion.direccion}
+                      onChange={manejarCambioFamiliaAccion}
+                      onKeyDown={manejarTeclaDireccionFamiliaAccion}
+                      onFocus={() => {
+                        if (formularioFamiliaAccion.direccion.trim().length >= 3) {
+                          setDireccionFamiliaAccionSeleccionada(false);
+                        }
+                      }}
+                      autoComplete="off"
+                      className="w-full rounded-lg border border-[#bec7d2] bg-[#f8f9fa] py-2.5 pl-10 pr-4 text-sm outline-none transition focus:border-[#006192] focus:ring-2 focus:ring-[#90cdff]/40"
+                      required
+                    />
+                  </div>
+                </label>
+
+                {(buscandoDireccionFamiliaAccion ||
+                  resultadosDireccionFamiliaAccion.length > 0 ||
+                  busquedaDireccionFamiliaAccionRealizada) &&
+                  !direccionFamiliaAccionSeleccionada && (
+                    <div className="absolute left-0 right-0 top-full z-50 mt-2 overflow-hidden rounded-xl border border-[#bec7d2] bg-white shadow-2xl">
+                      {buscandoDireccionFamiliaAccion ? (
+                        <div className="flex items-center gap-3 px-5 py-4 text-sm text-[#3f4850]">
+                          <span className="h-5 w-5 animate-spin rounded-full border-2 border-[#bec7d2] border-t-[#006192]" />
+                          Buscando direcciones en Chile...
+                        </div>
+                      ) : resultadosDireccionFamiliaAccion.length > 0 ? (
+                        <div className="max-h-72 overflow-y-auto py-1">
+                          {resultadosDireccionFamiliaAccion.map((resultado, indice) => (
+                            <button
+                              key={`${resultado.lat}-${resultado.lng}-${indice}`}
+                              type="button"
+                              onMouseEnter={() => setIndiceDireccionFamiliaAccionActiva(indice)}
+                              onMouseDown={(e) => e.preventDefault()}
+                              onClick={() => seleccionarDireccionFamiliaAccion(resultado)}
+                              className={`w-full px-5 py-3.5 text-left transition ${
+                                indiceDireccionFamiliaAccionActiva === indice
+                                  ? "bg-[#cbe6ff]/55"
+                                  : "hover:bg-[#f3f4f5]"
+                              }`}
+                            >
+                              <span className="block text-sm leading-6">
+                                <span className="font-semibold text-[#191c1d]">
+                                  {resaltarCoincidenciaFamilia(
+                                    resultado.principal || resultado.etiqueta,
+                                    formularioFamiliaAccion.direccion
+                                  )}
+                                </span>
+                                {resultado.secundaria && (
+                                  <span className="ml-1.5 text-[#3f4850]">{resultado.secundaria}</span>
+                                )}
+                              </span>
+                            </button>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="px-5 py-4">
+                          <p className="text-sm font-semibold text-[#191c1d]">No encontramos coincidencias claras</p>
+                          <p className="mt-1 text-xs text-[#3f4850]">Agrega número, comuna o región para precisar la búsqueda.</p>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                {direccionFamiliaAccionSeleccionada && formularioFamiliaAccion.direccion && (
+                  <div className="mt-2 rounded-lg border border-[#90cdff] bg-[#cbe6ff]/60 px-3 py-2 text-xs text-[#004b72]">
+                    <strong>Dirección seleccionada.</strong> Latitud y longitud se determinaron automáticamente.
+                  </div>
+                )}
+              </div>
+
+              <label className="block">
+                <span className="mb-2 block text-sm font-bold text-[#191c1d]">Cantidad de miembros</span>
+                <input
+                  type="number"
+                  min="1"
+                  name="miembros"
+                  value={formularioFamiliaAccion.miembros}
+                  onChange={manejarCambioFamiliaAccion}
+                  className="w-full rounded-lg border border-[#bec7d2] bg-[#f8f9fa] px-4 py-2.5 text-sm outline-none focus:border-[#006192] focus:ring-2 focus:ring-[#90cdff]/40"
+                  required
+                />
+              </label>
+
+              <label className="block">
+                <span className="mb-2 block text-sm font-bold text-[#191c1d]">Prioridad</span>
+                <select
+                  name="prioridad"
+                  value={formularioFamiliaAccion.prioridad}
+                  onChange={manejarCambioFamiliaAccion}
+                  className="w-full rounded-lg border border-[#bec7d2] bg-[#f8f9fa] px-4 py-2.5 text-sm outline-none focus:border-[#006192] focus:ring-2 focus:ring-[#90cdff]/40"
+                >
+                  <option value="alta">Alta</option>
+                  <option value="normal">Normal</option>
+                  <option value="baja">Baja</option>
+                </select>
+              </label>
+
+              <div className="flex flex-col-reverse gap-3 border-t border-[#bec7d2] pt-5 md:col-span-2 sm:flex-row sm:justify-end">
+                <button
+                  type="button"
+                  onClick={cerrarModalFamiliaAccion}
+                  className="rounded-lg border border-[#bec7d2] bg-white px-5 py-2.5 text-sm font-bold text-[#3f4850] transition hover:bg-[#f3f4f5]"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  className="rounded-lg bg-[#006192] px-6 py-2.5 text-sm font-bold text-white transition hover:bg-[#007bb7]"
+                >
+                  Guardar familia
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {mostrarModalFamiliaSeccion && emergenciaSeleccionada && (
+        <div className="fixed inset-0 z-[4200] flex items-center justify-center bg-black/55 p-4">
+          <div className="max-h-[92vh] w-full max-w-2xl overflow-y-auto rounded-xl border border-[#bec7d2] bg-white shadow-2xl">
+            <div className="sticky top-0 z-20 flex items-center justify-between border-b border-[#bec7d2] bg-white px-6 py-4">
+              <div>
+                <p className="text-xs font-bold uppercase tracking-wider text-[#006192]">Familias afectadas</p>
+                <h2 className="mt-1 text-xl font-bold text-[#191c1d]">
+                  Registrar familia en {emergenciaSeleccionada.nombre}
+                </h2>
+              </div>
+              <button
+                type="button"
+                onClick={cerrarModalFamiliaSeccion}
+                className="flex h-10 w-10 items-center justify-center rounded-full text-[#3f4850] transition hover:bg-[#edeeef]"
+                aria-label="Cerrar formulario de familia de la sección"
+              >
+                <MdClose className="text-2xl" />
+              </button>
+            </div>
+
+            <form onSubmit={manejarSubmitFamiliaSeccion} className="grid grid-cols-1 gap-4 p-6 md:grid-cols-2">
+              <label className="block md:col-span-2">
+                <span className="mb-2 block text-sm font-bold text-[#191c1d]">Nombre jefe/a de familia</span>
+                <input
+                  type="text"
+                  name="nombre_cabeza_familia"
+                  value={formularioFamiliaSeccion.nombre_cabeza_familia}
+                  onChange={manejarCambioFamiliaSeccion}
+                  className="w-full rounded-lg border border-[#bec7d2] bg-[#f8f9fa] px-4 py-2.5 text-sm outline-none focus:border-[#006192] focus:ring-2 focus:ring-[#90cdff]/40"
+                  required
+                />
+              </label>
+
+              <div ref={contenedorDireccionFamiliaSeccionRef} className="relative md:col-span-2">
+                <label className="block">
+                  <span className="mb-2 block text-sm font-bold text-[#191c1d]">Ubicación geográfica</span>
+                  <div className="relative">
+                    <MdLocationOn className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-xl text-[#6f7882]" />
+                    <input
+                      type="text"
+                      name="direccion"
+                      placeholder="Escribe calle, número y comuna"
+                      value={formularioFamiliaSeccion.direccion}
+                      onChange={manejarCambioFamiliaSeccion}
+                      onKeyDown={manejarTeclaDireccionFamiliaSeccion}
+                      onFocus={() => {
+                        if (formularioFamiliaSeccion.direccion.trim().length >= 3) {
+                          setDireccionFamiliaSeccionSeleccionada(false);
+                        }
+                      }}
+                      autoComplete="off"
+                      className="w-full rounded-lg border border-[#bec7d2] bg-[#f8f9fa] py-2.5 pl-10 pr-4 text-sm outline-none transition focus:border-[#006192] focus:ring-2 focus:ring-[#90cdff]/40"
+                      required
+                    />
+                  </div>
+                </label>
+
+                {(buscandoDireccionFamiliaSeccion ||
+                  resultadosDireccionFamiliaSeccion.length > 0 ||
+                  busquedaDireccionFamiliaSeccionRealizada) &&
+                  !direccionFamiliaSeccionSeleccionada && (
+                    <div className="absolute left-0 right-0 top-full z-50 mt-2 overflow-hidden rounded-xl border border-[#bec7d2] bg-white shadow-2xl">
+                      {buscandoDireccionFamiliaSeccion ? (
+                        <div className="flex items-center gap-3 px-5 py-4 text-sm text-[#3f4850]">
+                          <span className="h-5 w-5 animate-spin rounded-full border-2 border-[#bec7d2] border-t-[#006192]" />
+                          Buscando direcciones en Chile...
+                        </div>
+                      ) : resultadosDireccionFamiliaSeccion.length > 0 ? (
+                        <div className="max-h-72 overflow-y-auto py-1">
+                          {resultadosDireccionFamiliaSeccion.map((resultado, indice) => (
+                            <button
+                              key={`${resultado.lat}-${resultado.lng}-${indice}`}
+                              type="button"
+                              onMouseEnter={() => setIndiceDireccionFamiliaSeccionActiva(indice)}
+                              onMouseDown={(e) => e.preventDefault()}
+                              onClick={() => seleccionarDireccionFamiliaSeccion(resultado)}
+                              className={`w-full px-5 py-3.5 text-left transition ${
+                                indiceDireccionFamiliaSeccionActiva === indice
+                                  ? "bg-[#cbe6ff]/55"
+                                  : "hover:bg-[#f3f4f5]"
+                              }`}
+                            >
+                              <span className="block text-sm leading-6">
+                                <span className="font-semibold text-[#191c1d]">
+                                  {resaltarCoincidenciaFamilia(
+                                    resultado.principal || resultado.etiqueta,
+                                    formularioFamiliaSeccion.direccion
+                                  )}
+                                </span>
+                                {resultado.secundaria && (
+                                  <span className="ml-1.5 text-[#3f4850]">{resultado.secundaria}</span>
+                                )}
+                              </span>
+                            </button>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="px-5 py-4">
+                          <p className="text-sm font-semibold text-[#191c1d]">No encontramos coincidencias claras</p>
+                          <p className="mt-1 text-xs text-[#3f4850]">Agrega número, comuna o región para precisar la búsqueda.</p>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                {direccionFamiliaSeccionSeleccionada && formularioFamiliaSeccion.direccion && (
+                  <div className="mt-2 rounded-lg border border-[#90cdff] bg-[#cbe6ff]/60 px-3 py-2 text-xs text-[#004b72]">
+                    <strong>Dirección seleccionada.</strong> Latitud y longitud se determinaron automáticamente.
+                  </div>
+                )}
+              </div>
+
+              <label className="block">
+                <span className="mb-2 block text-sm font-bold text-[#191c1d]">Cantidad de miembros</span>
+                <input
+                  type="number"
+                  min="1"
+                  name="miembros"
+                  value={formularioFamiliaSeccion.miembros}
+                  onChange={manejarCambioFamiliaSeccion}
+                  className="w-full rounded-lg border border-[#bec7d2] bg-[#f8f9fa] px-4 py-2.5 text-sm outline-none focus:border-[#006192] focus:ring-2 focus:ring-[#90cdff]/40"
+                  required
+                />
+              </label>
+
+              <label className="block">
+                <span className="mb-2 block text-sm font-bold text-[#191c1d]">Prioridad</span>
+                <select
+                  name="prioridad"
+                  value={formularioFamiliaSeccion.prioridad}
+                  onChange={manejarCambioFamiliaSeccion}
+                  className="w-full rounded-lg border border-[#bec7d2] bg-[#f8f9fa] px-4 py-2.5 text-sm outline-none focus:border-[#006192] focus:ring-2 focus:ring-[#90cdff]/40"
+                >
+                  <option value="alta">Alta</option>
+                  <option value="normal">Normal</option>
+                  <option value="baja">Baja</option>
+                </select>
+              </label>
+
+              <div className="flex flex-col-reverse gap-3 border-t border-[#bec7d2] pt-5 md:col-span-2 sm:flex-row sm:justify-end">
+                <button
+                  type="button"
+                  onClick={cerrarModalFamiliaSeccion}
+                  className="rounded-lg border border-[#bec7d2] bg-white px-5 py-2.5 text-sm font-bold text-[#3f4850] transition hover:bg-[#f3f4f5]"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  className="rounded-lg bg-[#006192] px-6 py-2.5 text-sm font-bold text-white transition hover:bg-[#007bb7]"
                 >
                   Guardar familia
                 </button>
