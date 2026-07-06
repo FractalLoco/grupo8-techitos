@@ -15,9 +15,9 @@ function Presentacion() {
         <div className="w-full max-w-2xl mx-auto text-center">
           {/* Logo */}
           <img
-            src="/logo.svg"
+            src="/logo-color.svg"
             alt="TECHO Chile"
-            className="w-20 sm:w-24 mx-auto mb-5"
+            className="w-52 sm:w-64 mx-auto mb-5"
             onError={(e) => (e.target.style.display = 'none')}
           />
 
