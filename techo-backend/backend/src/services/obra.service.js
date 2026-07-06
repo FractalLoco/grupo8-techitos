@@ -28,6 +28,11 @@ export class ObraService {
     return ObraRepository.listarPorEmergencia(emergenciaId);
   }
 
+  // Se traen todas las obras del sistema para una vista global del mapa
+  static async listarTodas() {
+    return ObraRepository.listarTodas();
+  }
+
   // Se busca una obra por su ID; si no existe se lanza error para que el frontend lo maneje
   static async obtenerDetalle(id) {
     const obra = await ObraRepository.buscarPorId(id);

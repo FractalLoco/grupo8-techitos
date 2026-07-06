@@ -95,6 +95,18 @@ export const reasignarVoluntario = async (solicitud, respuesta) => {
   }
 };
 
+// Devuelvo todas las cuadrillas del sistema con su color de estado (vista global sin filtrar por emergencia).
+// Acepta ?color=verde|amarillo|rojo|gris para filtrar.
+export const obtenerTodasCuadrillasConEstado = async (solicitud, respuesta) => {
+  try {
+    const { color } = solicitud.query;
+    const cuadrillas = await CuadrillaService.obtenerTodasConEstado(color || null);
+    return respuestaExito(respuesta, 200, 'Cuadrillas obtenidas', { cuadrillas });
+  } catch (error) {
+    return respuestaError(respuesta, 500, error.message);
+  }
+};
+
 // Devuelvo las cuadrillas de una emergencia con su color de estado (verde/amarillo/rojo/gris).
 // Acepta ?color=verde|amarillo|rojo|gris para filtrar por prioridad desde el mapa del coordinador.
 export const obtenerCuadrillasConEstado = async (solicitud, respuesta) => {

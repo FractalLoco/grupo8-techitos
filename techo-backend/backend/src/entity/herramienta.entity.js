@@ -33,6 +33,13 @@ export const HerramientaEntity = new EntitySchema({
       createDate: true,
       default: () => 'CURRENT_TIMESTAMP',
     },
+    // Categoría del ítem para poder filtrar por tipo en el inventario (herramienta, epp, material, otro)
+    tipo_item: {
+      type: 'varchar',
+      length: 20,
+      default: 'herramienta',
+      nullable: true,
+    },
     // Anoto aquí cualquier detalle sobre el estado de la herramienta al momento de devolverla
     observaciones: {
       type: 'text',
@@ -41,6 +48,7 @@ export const HerramientaEntity = new EntitySchema({
   },
   checks: [
     { expression: `"estado" IN ('entregada', 'buena', 'danada', 'perdida', 'no_devuelta')` },
+    { expression: `"tipo_item" IN ('herramienta', 'epp', 'material', 'otro')` },
   ],
   relations: {
     // Cada herramienta pertenece a una sola cuadrilla

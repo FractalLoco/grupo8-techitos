@@ -8,6 +8,7 @@ export class HerramientaRepository {
   }
 
   // Registro una herramienta nueva asociándola a la cuadrilla que la recibe
+  // datos puede incluir tipo_item (herramienta | epp | material | otro)
   static async registrar(datos) {
     const repo = this.getRepository();
     const herramienta = repo.create(datos);
@@ -39,7 +40,7 @@ export class HerramientaRepository {
       noDevueltas: herramientas.filter((h) => h.estado === 'no_devuelta').length,
       conDiferencias: false,
     };
-    balance.conDiferencias = balance.danadas + balance.perdidas + balance.noDevueltas > 0;
+    balance.conDiferencias = balance.danadas + balance.perdidas + balance.noDevueltas + balance.entregadas > 0;
     return balance;
   }
 
@@ -74,6 +75,56 @@ export class HerramientaRepository {
     }
 
     return { resumen, totales };
+  }
+
+  // Devuelvo el catálogo completo agrupado por nombre y tipo_item.
+  // Cada entrada tiene los conteos por estado para que el coordinador vea el inventario global.
+  static async catalogoInventario() {
+    const herramientas = await this.getRepository().find();
+
+    // Agrupa por nombre (normalizado) + tipo_item
+    const mapaItems = {};
+    for (const h of herramientas) {
+      const tipo = h.tipo_item || 'herramienta';
+      const key = `${h.nombre.toLowerCase()}__${tipo}`;
+      if (!mapaItems[key]) {
+        mapaItems[key] = {
+          nombre: h.nombre,
+          tipo_item: tipo,
+          total: 0,
+          entregadas: 0,
+          buenas: 0,
+          danadas: 0,
+          perdidas: 0,
+          no_devueltas: 0,
+        };
+      }
+      mapaItems[key].total += 1;
+      if (h.estado === 'entregada')   mapaItems[key].entregadas += 1;
+      if (h.estado === 'buena')       mapaItems[key].buenas += 1;
+      if (h.estado === 'danada')      mapaItems[key].danadas += 1;
+      if (h.estado === 'perdida')     mapaItems[key].perdidas += 1;
+      if (h.estado === 'no_devuelta') mapaItems[key].no_devueltas += 1;
+    }
+
+    const catalogo = Object.values(mapaItems).sort((a, b) =>
+      a.tipo_item.localeCompare(b.tipo_item) || a.nombre.localeCompare(b.nombre)
+    );
+
+    // Resumen por tipo para las tarjetas de la UI
+    const porTipo = {};
+    for (const item of catalogo) {
+      if (!porTipo[item.tipo_item]) {
+        porTipo[item.tipo_item] = { total: 0, buenas: 0, danadas: 0, perdidas: 0, no_devueltas: 0 };
+      }
+      porTipo[item.tipo_item].total        += item.total;
+      porTipo[item.tipo_item].buenas       += item.buenas;
+      porTipo[item.tipo_item].danadas      += item.danadas;
+      porTipo[item.tipo_item].perdidas     += item.perdidas;
+      porTipo[item.tipo_item].no_devueltas += item.no_devueltas;
+    }
+
+    return { catalogo, porTipo };
   }
 
   static async resumenPorEmergencia(emergenciaId) {

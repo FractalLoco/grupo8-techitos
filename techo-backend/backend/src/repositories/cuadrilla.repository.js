@@ -102,6 +102,18 @@ export class CuadrillaRepository {
     );
   }
 
+  // Igual que obtenerConEstado pero sin filtrar por emergencia (vista global)
+  static async obtenerTodasConEstado() {
+    const cuadrillas = await this.listarTodas();
+    return Promise.all(
+      cuadrillas.map(async (cuadrilla) => {
+        const miembrosCount = await this.contarMiembros(cuadrilla.id);
+        const estadoColor = this.calcularEstadoColor(cuadrilla);
+        return { ...cuadrilla, miembrosCount, estadoColor };
+      })
+    );
+  }
+
   // Calculo el color de estado según los días transcurridos respecto al plazo total asignado.
   // Azul = sin obra asignada, Verde = en plazo, Amarillo = >70% del tiempo usado, Rojo = vencida, Gris = completada.
   static calcularEstadoColor(cuadrilla) {

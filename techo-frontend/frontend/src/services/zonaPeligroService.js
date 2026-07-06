@@ -12,6 +12,9 @@ export const crearZona = (datos) =>
 export const listarZonasPorEmergencia = (emergenciaId) =>
   axios.get(`${API}/emergencia/${emergenciaId}`, headers()).then((r) => r.data);
 
+export const listarTodasLasZonas = () =>
+  axios.get(`${API}/todas`, headers()).then((r) => r.data);
+
 export const actualizarZona = (id, datos) =>
   axios.put(`${API}/${id}`, datos, headers()).then((r) => r.data);
 

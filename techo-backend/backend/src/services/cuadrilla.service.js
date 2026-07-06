@@ -170,6 +170,15 @@ export class CuadrillaService {
       throw new Error('Cuadrilla no encontrada');
     }
 
+    const herramientas = await HerramientaRepository.listarPorCuadrilla(cuadrillaId);
+    const sinClasificar = herramientas.filter((h) => h.estado === 'entregada').length;
+    if (sinClasificar > 0) {
+      throw new Error(`Hay ${sinClasificar} herramienta(s) sin clasificar. Cierra el balance antes de completar la cuadrilla.`);
+    }
+    if (cuadrilla.alerta_herramienta) {
+      throw new Error('Hay una alerta de herramientas activa. Resuelve las diferencias antes de completar la cuadrilla.');
+    }
+
     if (cuadrilla.obra_asignada_id) {
       await ObraRepository.actualizar(cuadrilla.obra_asignada_id, { estado: 'completada' });
     }
@@ -210,6 +219,15 @@ export class CuadrillaService {
   // Obtengo las cuadrillas de una emergencia enriquecidas con color de estado y opcionalmente filtradas
   static async obtenerCuadrillasConEstado(emergenciaId, filtroColor = null) {
     const cuadrillas = await CuadrillaRepository.obtenerConEstado(emergenciaId);
+    if (filtroColor) {
+      return cuadrillas.filter((c) => c.estadoColor === filtroColor);
+    }
+    return cuadrillas;
+  }
+
+  // Obtengo todas las cuadrillas del sistema con su estado (vista global, sin filtrar por emergencia)
+  static async obtenerTodasConEstado(filtroColor = null) {
+    const cuadrillas = await CuadrillaRepository.obtenerTodasConEstado();
     if (filtroColor) {
       return cuadrillas.filter((c) => c.estadoColor === filtroColor);
     }

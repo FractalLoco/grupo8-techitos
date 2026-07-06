@@ -3,6 +3,7 @@ import { Router } from 'express';
 import {
   crearZona,
   listarZonasPorEmergencia,
+  listarTodasZonas,
   actualizarZona,
   eliminarZona,
 } from '../controllers/zona-peligro.controller.js';
@@ -17,6 +18,12 @@ const router = Router();
  * Body: { emergencia_id, tipo, lat, lng, radio, descripcion?, comentarios? }
  */
 router.post('/', authMiddleware, roleMiddleware('coordinador'), crearZona);
+
+/**
+ * GET /api/zonas-peligro/todas
+ * Listar todas las zonas de peligro del sistema (vista global del mapa)
+ */
+router.get('/todas', authMiddleware, listarTodasZonas);
 
 /**
  * GET /api/zonas-peligro/emergencia/:emergenciaId
