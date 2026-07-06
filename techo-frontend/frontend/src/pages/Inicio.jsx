@@ -173,6 +173,11 @@ export default function Inicio() {
           <h1 className="text-white font-black text-2xl tracking-tight">
             {primerNombre}
           </h1>
+          <img
+            src="/logo.svg"
+            alt="TECHO, un techo para Chile"
+            className="absolute left-1/2 top-1/2 h-9 w-auto max-w-[120px] -translate-x-1/2 -translate-y-1/2 sm:h-14 sm:max-w-[190px]"
+          />
           <button
             type="button"
             onClick={abrirNotificaciones}
