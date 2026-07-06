@@ -43,14 +43,14 @@ const iconosPorPath = {
 };
 
 const coloresPorPath = {
-  '/cuadrillas':    'from-techo-primary to-techo-secondary',
-  '/mapa':          'from-techo-secondary to-cyan-600',
-  '/herramientas':  'from-techo-accent to-orange-500',
-  '/emergencias':   'from-techo-danger to-red-700',
-  '/comunicaciones':'from-purple-600 to-indigo-700',
-  '/usuarios':      'from-techo-success to-emerald-700',
-  '/inventario':    'from-slate-500 to-slate-700',
-  '/reportes':      'from-techo-accent to-amber-600',
+  '/cuadrillas':    'from-primary to-primary-container',
+  '/mapa':          'from-primary-container to-primary-container',
+  '/herramientas':  'from-tertiary to-tertiary-container',
+  '/emergencias':   'from-error to-error',
+  '/comunicaciones':'from-tertiary to-primary-dark',
+  '/usuarios':      'from-secondary to-secondary',
+  '/inventario':    'from-outline to-on-surface-variant',
+  '/reportes':      'from-tertiary to-tertiary',
 };
 
 export default function Inicio() {
@@ -60,13 +60,13 @@ export default function Inicio() {
   const primerNombre = usuario?.nombre?.split(' ')[0] || 'Panel de Control';
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-surface-container-low">
       <Navbar />
 
       <div className="pt-[60px]">
         {/* Hero header */}
-        <div className="bg-gradient-to-r from-techo-primary via-techo-primaryDark to-techo-dark px-8 py-8">
-          <p className="text-techo-secondary text-xs font-bold uppercase tracking-widest mb-1">
+        <div className="bg-gradient-to-r from-primary via-primary-dark to-inverse-surface px-8 py-8">
+          <p className="text-primary text-xs font-bold uppercase tracking-widest mb-1">
             {etiquetaRol[usuario?.rol] || 'Bienvenido'}
           </p>
           <h1 className="text-white font-black text-2xl tracking-tight">
@@ -78,8 +78,8 @@ export default function Inicio() {
 
           {/* Accesos rápidos */}
           <div>
-            <h2 className="text-xs font-bold text-techo-primary uppercase tracking-widest mb-4 flex items-center gap-2">
-              <span className="w-3 h-0.5 bg-techo-secondary rounded-full inline-block" />
+            <h2 className="text-xs font-bold text-primary uppercase tracking-widest mb-4 flex items-center gap-2">
+              <span className="w-3 h-0.5 bg-primary-container rounded-full inline-block" />
               Accesos rápidos
             </h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -88,9 +88,9 @@ export default function Inicio() {
                   key={acceso.path}
                   to={acceso.path}
                   style={{ animationDelay: `${i * 60}ms` }}
-                  className="group animate-fadeInUp bg-white rounded-2xl border border-gray-100 p-5 flex flex-col gap-3 hover:shadow-xl hover:-translate-y-1 transition-all duration-200 no-underline"
+                  className="group animate-fadeInUp bg-white rounded-2xl border border-outline-variant/60 p-5 flex flex-col gap-3 hover:shadow-xl hover:-translate-y-1 transition-all duration-200 no-underline"
                 >
-                  <div className={`w-11 h-11 rounded-xl bg-gradient-to-br ${coloresPorPath[acceso.path] || 'from-gray-500 to-gray-700'} flex items-center justify-center shadow-md group-hover:scale-110 transition-transform duration-200`}>
+                  <div className={`w-11 h-11 rounded-xl bg-gradient-to-br ${coloresPorPath[acceso.path] || 'from-outline to-on-surface-variant'} flex items-center justify-center shadow-md group-hover:scale-110 transition-transform duration-200`}>
                     <svg
                       xmlns="http://www.w3.org/2000/svg"
                       className="text-white"
@@ -108,10 +108,10 @@ export default function Inicio() {
                     </svg>
                   </div>
                   <div>
-                    <div className="font-bold text-gray-900 text-sm">{acceso.label}</div>
-                    <div className="text-xs text-gray-400 mt-0.5 leading-relaxed">{acceso.desc}</div>
+                    <div className="font-bold text-on-surface text-sm">{acceso.label}</div>
+                    <div className="text-xs text-outline mt-0.5 leading-relaxed">{acceso.desc}</div>
                   </div>
-                  <div className="flex items-center gap-1 text-xs font-semibold text-techo-secondary group-hover:gap-2 transition-all mt-auto">
+                  <div className="flex items-center gap-1 text-xs font-semibold text-primary group-hover:gap-2 transition-all mt-auto">
                     Ir <span>→</span>
                   </div>
                 </Link>
@@ -124,4 +124,3 @@ export default function Inicio() {
     </div>
   );
 }
-

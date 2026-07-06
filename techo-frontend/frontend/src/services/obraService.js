@@ -12,6 +12,9 @@ export const crearObra = (datos) =>
 export const listarObrasPorEmergencia = (emergenciaId) =>
   axios.get(`${API}/emergencia/${emergenciaId}`, headers()).then((r) => r.data);
 
+export const listarTodasLasObras = () =>
+  axios.get(`${API}/todas`, headers()).then((r) => r.data);
+
 export const obtenerObra = (id) =>
   axios.get(`${API}/${id}`, headers()).then((r) => r.data);
 

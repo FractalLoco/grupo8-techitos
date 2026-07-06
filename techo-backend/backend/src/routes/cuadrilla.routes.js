@@ -10,6 +10,7 @@ import {
   completarCuadrilla,
   reasignarVoluntario,
   obtenerCuadrillasConEstado,
+  obtenerTodasCuadrillasConEstado,
   obtenerBalanceHerramientas,
   cerrarBalanceDia,
   listarPorEmergencia,
@@ -18,6 +19,12 @@ import { authMiddleware } from '../middleware/auth.middleware.js';
 import { roleMiddleware } from '../middleware/role.middleware.js';
 
 const router = Router();
+
+/**
+ * GET /api/cuadrillas/todas/estado
+ * Obtener todas las cuadrillas del sistema con color de estado (vista global, sin filtrar por emergencia)
+ */
+router.get('/todas/estado', authMiddleware, obtenerTodasCuadrillasConEstado);
 
 /**
  * GET /api/cuadrillas/emergencia/:emergenciaId

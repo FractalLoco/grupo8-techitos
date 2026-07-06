@@ -27,6 +27,7 @@ import { obtenerEmergencias } from '../services/emergenciaService';
 import { obtenerUsuarios } from '../services/usuarioService';
 import {
   listarCuadrillasConEstado,
+  listarTodasLasCuadrillasConEstado,
   crearCuadrilla,
   agregarMiembro,
   eliminarMiembro,
@@ -47,22 +48,29 @@ import {
 } from '../services/herramientaService';
 
 const COLORES = {
-  verde:    { bg: 'bg-green-100',  borde: 'border-green-500',  texto: 'text-green-700',  dot: 'bg-green-500',  label: 'En plazo' },
-  amarillo: { bg: 'bg-yellow-100', borde: 'border-yellow-500', texto: 'text-yellow-700', dot: 'bg-yellow-500', label: 'Riesgo de retraso' },
-  rojo:     { bg: 'bg-red-100',    borde: 'border-red-500',    texto: 'text-red-700',    dot: 'bg-red-500',    label: 'Requiere intervención' },
-  azul:     { bg: 'bg-blue-100',   borde: 'border-blue-500',   texto: 'text-blue-700',   dot: 'bg-blue-500',   label: 'Sin obra asignada' },
-  gris:     { bg: 'bg-gray-100',   borde: 'border-gray-400',   texto: 'text-gray-600',   dot: 'bg-gray-400',   label: 'Completada' },
+  verde:    { bg: 'bg-secondary/10',  borde: 'border-secondary',  texto: 'text-secondary',  dot: 'bg-secondary/50',  label: 'En plazo' },
+  amarillo: { bg: 'bg-tertiary/10', borde: 'border-tertiary', texto: 'text-tertiary', dot: 'bg-tertiary/50', label: 'Riesgo de retraso' },
+  rojo:     { bg: 'bg-error-container',    borde: 'border-error',    texto: 'text-on-error-container',    dot: 'bg-error-container/400',    label: 'Requiere intervención' },
+  azul:     { bg: 'bg-primary/10',   borde: 'border-primary',   texto: 'text-primary',   dot: 'bg-primary/50',   label: 'Sin obra asignada' },
+  gris:     { bg: 'bg-surface-container',   borde: 'border-outline',   texto: 'text-on-surface-variant',   dot: 'bg-outline',   label: 'Completada' },
 };
 
 const FASES = ['limpieza', 'montaje', 'terminaciones'];
 
 const ESTILOS_HERR = {
-  entregada:   { borde: 'border-techo-secondary', badge: 'bg-blue-100 text-blue-800',   label: 'Entregada' },
-  buena:       { borde: 'border-techo-success',   badge: 'bg-green-100 text-green-800', label: 'Buena' },
-  danada:      { borde: 'border-techo-accent',    badge: 'bg-orange-100 text-orange-800', label: 'Dañada' },
-  perdida:     { borde: 'border-techo-danger',    badge: 'bg-red-100 text-red-800',     label: 'Perdida' },
-  no_devuelta: { borde: 'border-purple-500',      badge: 'bg-purple-100 text-purple-800', label: 'No devuelta' },
+  entregada:   { borde: 'border-primary',  badge: 'bg-primary/10 text-primary',     label: 'Entregada' },
+  buena:       { borde: 'border-secondary', badge: 'bg-secondary/10 text-secondary',   label: 'Buena' },
+  danada:      { borde: 'border-tertiary', badge: 'bg-tertiary/10 text-tertiary', label: 'Dañada' },
+  perdida:     { borde: 'border-error', badge: 'bg-error-container text-on-error-container',       label: 'Perdida' },
+  no_devuelta: { borde: 'border-tertiary',      badge: 'bg-tertiary/10 text-tertiary', label: 'No devuelta' },
 };
+
+const TABS = [
+  { key: 'personal',     label: 'Personal',         icon: <MdPeople /> },
+  { key: 'obra',         label: 'Obra & Fase',       icon: <MdAssignment /> },
+  { key: 'herramientas', label: 'Herramientas',      icon: <FaWrench /> },
+  { key: 'alertas',      label: 'Alertas & Balance', icon: <MdWarning /> },
+];
 
 function GestionCuadrillas() {
   const { usuario } = useAutenticacion();
@@ -82,7 +90,10 @@ function GestionCuadrillas() {
   const [mostrarFormCuadrilla, setMostrarFormCuadrilla] = useState(false);
 
   const [cuadrillaActiva, setCuadrillaActiva] = useState(null);
-  const [panel, setPanel] = useState(null);
+  const [drawerAbierto, setDrawerAbierto] = useState(false);
+  const [tabActivo, setTabActivo] = useState('personal');
+  const [herramientasCache, setHerramientasCache] = useState(new Map());
+  const [mostrarReasignar, setMostrarReasignar] = useState(false);
 
   const [voluntarioId, setVoluntarioId] = useState('');
   const [habilidades, setHabilidades] = useState('');
@@ -95,7 +106,6 @@ function GestionCuadrillas() {
   const [herramientas, setHerramientas] = useState([]);
   const [nombresHerramientas, setNombresHerramientas] = useState('');
   const [nombreHerramientaIndividual, setNombreHerramientaIndividual] = useState('');
-  const [modoReg, setModoReg] = useState('masivo');
   const [filtroHerr, setFiltroHerr] = useState('todos');
   const [balance, setBalance] = useState(null);
 
@@ -118,17 +128,23 @@ function GestionCuadrillas() {
   }, [esCoordinador]);
 
   const cargarCuadrillas = useCallback(async () => {
-    if (!emergenciaId) return;
     setCargando(true);
     try {
-      const data = await listarCuadrillasConEstado(emergenciaId, filtroColor || null);
-      const lista = data?.datos?.cuadrillas || [];
-      setCuadrillas(lista);
-      if (esCoordinador) {
-        const dataObras = await listarObrasPorEmergencia(emergenciaId);
-        const listaObras = dataObras?.datos?.obras || dataObras?.datos || [];
-        setObras(Array.isArray(listaObras) ? listaObras : []);
+      let lista = [];
+      if (emergenciaId) {
+        const data = await listarCuadrillasConEstado(emergenciaId, filtroColor || null);
+        lista = data?.datos?.cuadrillas || [];
+        if (esCoordinador) {
+          const dataObras = await listarObrasPorEmergencia(emergenciaId);
+          const listaObras = dataObras?.datos?.obras || dataObras?.datos || [];
+          setObras(Array.isArray(listaObras) ? listaObras : []);
+        }
+      } else {
+        const data = await listarTodasLasCuadrillasConEstado(filtroColor || null);
+        lista = data?.datos?.cuadrillas || [];
+        setObras([]);
       }
+      setCuadrillas(lista);
     } catch {
       mostrarMensaje('error', 'Error al cargar cuadrillas');
     } finally {
@@ -150,35 +166,42 @@ function GestionCuadrillas() {
     en_progreso: cuadrillasVisibles.filter((c) => c.estado === 'en_progreso').length,
     completadas: cuadrillasVisibles.filter((c) => c.estado === 'completada').length,
   };
+  const cuadrillasConAlerta = cuadrillasVisibles.filter((c) => c.alerta_emergencia || c.alerta_herramienta).length;
 
   const mostrarMensaje = (tipo, texto) => {
     setMensaje({ tipo, texto });
     setTimeout(() => setMensaje(null), 4000);
   };
 
-  const abrirPanel = (cuadrilla, tipo) => {
-    setCuadrillaActiva(cuadrilla);
-    setPanel(tipo);
-    setBalance(null);
-    setHerramientas([]);
-    if (tipo === 'herramientas' || tipo === 'balance') {
-      cargarHerramientas(cuadrilla.id);
-    }
-  };
-
-  const cerrarPanel = () => {
-    setPanel(null);
-    setCuadrillaActiva(null);
-  };
-
   const cargarHerramientas = async (cuadrillaId) => {
     try {
       const data = await listarHerramientas(cuadrillaId);
       const lista = data?.datos?.herramientas || data?.datos || [];
-      setHerramientas(Array.isArray(lista) ? lista : []);
+      const resultado = Array.isArray(lista) ? lista : [];
+      setHerramientas(resultado);
+      setHerramientasCache((prev) => {
+        const m = new Map(prev);
+        m.set(cuadrillaId, resultado.length);
+        return m;
+      });
     } catch {
       mostrarMensaje('error', 'Error al cargar herramientas');
     }
+  };
+
+  const abrirGestionar = (cuadrilla, tabInicial = 'personal') => {
+    setCuadrillaActiva(cuadrilla);
+    setTabActivo(tabInicial);
+    setDrawerAbierto(true);
+    setBalance(null);
+    setHerramientas([]);
+    setMostrarReasignar(false);
+    cargarHerramientas(cuadrilla.id);
+  };
+
+  const cerrarGestionar = () => {
+    setDrawerAbierto(false);
+    setCuadrillaActiva(null);
   };
 
   const handleCrearCuadrilla = async (e) => {
@@ -224,7 +247,7 @@ function GestionCuadrillas() {
       await asignarObra(cuadrillaActiva.id, obraId);
       mostrarMensaje('exito', 'Obra asignada y notificaciones enviadas');
       setObraId('');
-      cerrarPanel();
+      cerrarGestionar();
       cargarCuadrillas();
     } catch (err) {
       mostrarMensaje('error', err.response?.data?.mensaje || err.message);
@@ -249,7 +272,7 @@ function GestionCuadrillas() {
       mostrarMensaje('exito', 'Voluntario reasignado');
       setCuadrillaDestinoId('');
       setVoluntarioReasignarId('');
-      cerrarPanel();
+      setMostrarReasignar(false);
       cargarCuadrillas();
     } catch (err) {
       mostrarMensaje('error', err.response?.data?.mensaje || err.message);
@@ -262,7 +285,7 @@ function GestionCuadrillas() {
       await actualizarFase(cuadrillaActiva.id, faseSeleccionada);
       mostrarMensaje('exito', `Fase actualizada a "${faseSeleccionada}"`);
       setFaseSeleccionada('');
-      cerrarPanel();
+      cerrarGestionar();
       cargarCuadrillas();
     } catch (err) {
       mostrarMensaje('error', err.response?.data?.mensaje || err.message);
@@ -275,7 +298,7 @@ function GestionCuadrillas() {
       await enviarAlertaEmergencia(cuadrillaActiva.id, descripcionAlerta);
       mostrarMensaje('exito', 'Alerta enviada al coordinador');
       setDescripcionAlerta('');
-      cerrarPanel();
+      cerrarGestionar();
       cargarCuadrillas();
     } catch (err) {
       mostrarMensaje('error', err.response?.data?.mensaje || err.message);
@@ -333,65 +356,127 @@ function GestionCuadrillas() {
     try {
       const data = await obtenerBalanceHerramientas(cuadrillaActiva.id);
       setBalance(data?.datos?.balance || {});
-      setPanel('balance');
+      setTabActivo('alertas');
     } catch (err) {
       mostrarMensaje('error', err.response?.data?.mensaje || err.message);
     }
   };
 
   const colorInfo = (c) => COLORES[c] || COLORES.gris;
+  const nombreJefe = (jefe_id) => { const u = usuarios.find((u) => u.id === jefe_id); return u ? u.nombre : '—'; };
+  const nombreObra = (obra_id) => { const o = obras.find((o) => o.id === obra_id); return o ? o.nombre : null; };
 
-  const nombreJefe = (jefe_id) => {
-    const u = usuarios.find((u) => u.id === jefe_id);
-    return u ? u.nombre : '—';
+  const getPrimaryAction = (c) => {
+    if (c.estado === 'completada' || c.estado === 'desarmada') return null;
+
+    if (esCoordinador) {
+      if ((c.miembrosCount ?? 0) < 10)
+        return {
+          label: `Agregar miembros (${c.miembrosCount ?? 0}/10 mín.)`,
+          icon: <MdPersonAdd />,
+          color: 'bg-primary hover:bg-primary/90 text-white',
+          onClick: () => abrirGestionar(c, 'personal'),
+        };
+      if (!c.obra_asignada_id && emergenciaId)
+        return {
+          label: 'Asignar obra',
+          icon: <MdAssignment />,
+          color: 'bg-primary hover:bg-primary-dark text-white',
+          onClick: () => abrirGestionar(c, 'obra'),
+        };
+      if (c.fase === 'terminaciones' || c.estado === 'en_progreso')
+        return {
+          label: 'Marcar completada',
+          icon: <MdDone />,
+          color: 'bg-secondary hover:bg-secondary/90 text-white',
+          onClick: () => handleCompletarCuadrilla(c.id),
+        };
+      return {
+        label: 'En progreso',
+        icon: <MdConstruction />,
+        color: 'bg-surface-container text-outline cursor-default',
+        onClick: () => {},
+      };
+    }
+
+    if (esJefe && c.jefe_id === usuario?.id) {
+      if (!c.obra_asignada_id)
+        return {
+          label: 'Esperando obra',
+          icon: <MdSchedule />,
+          color: 'bg-surface-container text-outline cursor-default',
+          onClick: () => {},
+        };
+      if (!c.fase)
+        return {
+          label: 'Iniciar — elegir fase',
+          icon: <MdBuild />,
+          color: 'bg-secondary hover:bg-secondary/90 text-white',
+          onClick: () => abrirGestionar(c, 'obra'),
+        };
+      if (c.fase !== 'terminaciones')
+        return {
+          label: `Avanzar desde ${c.fase}`,
+          icon: <MdArrowForward />,
+          color: 'bg-secondary hover:bg-secondary/90 text-white',
+          onClick: () => abrirGestionar(c, 'obra'),
+        };
+      return {
+        label: 'Cerrar balance del día',
+        icon: <MdDone />,
+        color: 'bg-primary hover:bg-primary-dark text-white',
+        onClick: () => abrirGestionar(c, 'alertas'),
+      };
+    }
+
+    return null;
   };
 
-  const nombreObra = (obra_id) => {
-    const o = obras.find((o) => o.id === obra_id);
-    return o ? o.nombre : null;
+  const tabsVisibles = (cuadrilla) => {
+    if (!cuadrilla) return TABS;
+    const puedePersonal = esCoordinador || (esJefe && cuadrilla.jefe_id === usuario?.id);
+    const puedeHerr = esCoordinador || (esJefe && cuadrilla.jefe_id === usuario?.id);
+    return TABS.filter((t) => {
+      if (t.key === 'personal' && !puedePersonal) return false;
+      if (t.key === 'herramientas' && !puedeHerr) return false;
+      return true;
+    });
   };
 
   return (
-    <div className="min-h-screen bg-techo-light">
+    <div className="min-h-screen bg-background">
       <Navbar />
 
-      {/* ── Header bar ────────────────────────────────────────────────────── */}
-      <div className="pt-[76px]">
-        <div className="bg-techo-primary shadow-lg">
+      <div className="pt-[60px]">
+        {/* Header */}
+        <div className="bg-primary shadow-lg">
           <div className="max-w-6xl mx-auto px-4 py-4 flex flex-wrap items-center gap-3">
             <div className="flex items-center gap-2 mr-1">
-              <MdGroups className="text-techo-secondary text-2xl flex-shrink-0" />
+              <MdGroups className="text-white/80 text-2xl flex-shrink-0" />
               <h1 className="text-white font-bold text-lg tracking-tight">Gestión de Cuadrillas</h1>
             </div>
-
             <div className="flex items-center gap-1.5">
               <label className="text-white/60 text-xs font-medium whitespace-nowrap">Emergencia</label>
               <select
-                className="bg-white/10 text-white border border-white/25 rounded-xl px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-techo-secondary min-w-[190px]"
+                className="bg-white/10 text-white border border-white/25 rounded-xl px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-white/40 min-w-[190px]"
                 value={emergenciaId}
                 onChange={(e) => { setEmergenciaId(e.target.value); setFiltroColor(''); }}
               >
-                <option value="" className="text-gray-800 bg-white">— Selecciona emergencia —</option>
+                <option value="" className="text-on-surface bg-white">— Selecciona emergencia —</option>
                 {emergencias.map((em) => (
-                  <option key={em.id} value={em.id} className="text-gray-800 bg-white">{em.nombre}</option>
+                  <option key={em.id} value={em.id} className="text-on-surface bg-white">{em.nombre}</option>
                 ))}
               </select>
             </div>
-
             {esCoordinador && (
               <button
                 onClick={() => {
-                  if (!emergenciaId) {
-                    mostrarMensaje('error', 'Selecciona una emergencia primero');
-                    return;
-                  }
+                  if (!emergenciaId) { mostrarMensaje('error', 'Selecciona una emergencia primero'); return; }
                   setMostrarFormCuadrilla(true);
                 }}
                 title={!emergenciaId ? 'Selecciona una emergencia primero' : 'Crear nueva cuadrilla'}
-                className={`ml-auto flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-semibold transition shadow-sm ${
-                  emergenciaId
-                    ? 'bg-techo-secondary hover:bg-blue-500 text-white'
-                    : 'bg-white/20 text-white/50 cursor-not-allowed'
+                className={`ml-auto flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-semibold transition shadow-sm border ${
+                  emergenciaId ? 'bg-white/20 hover:bg-white/30 text-white border-white/30' : 'bg-white/10 text-white/40 border-white/15 cursor-not-allowed'
                 }`}
               >
                 <MdAdd className="text-base" /> Nueva cuadrilla
@@ -400,204 +485,271 @@ function GestionCuadrillas() {
           </div>
         </div>
 
-        {/* ── Toast fijo ────────────────────────────────────────────────────── */}
+        {/* Toast */}
         {mensaje && (
-          <div className={`fixed top-[86px] left-1/2 -translate-x-1/2 z-[9999] flex items-center gap-2 px-5 py-2.5 rounded-xl shadow-xl text-sm font-semibold animate-fadeIn ${
-            mensaje.tipo === 'exito' ? 'bg-techo-success text-white' : 'bg-techo-danger text-white'
+          <div className={`fixed top-[122px] left-1/2 -translate-x-1/2 z-[9999] flex items-center gap-2 px-5 py-2.5 rounded-xl shadow-xl text-sm font-semibold animate-fadeIn ${
+            mensaje.tipo === 'exito' ? 'bg-secondary text-white' : 'bg-error text-white'
           }`}>
             {mensaje.tipo === 'exito' ? <MdCheckCircle className="text-lg" /> : <MdError className="text-lg" />}
             {mensaje.texto}
           </div>
         )}
 
-        <div className="max-w-6xl mx-auto px-4 py-6">
+        <div className="max-w-6xl mx-auto px-4 py-5">
+          <>
+            {!emergenciaId && cuadrillasVisibles.length > 0 && (
+              <div className="mb-4 flex items-center gap-2 bg-primary/5 border border-primary/30 rounded-xl px-4 py-2.5 text-xs text-primary font-medium">
+                <MdInfo className="text-base flex-shrink-0" />
+                Vista global — mostrando todas las cuadrillas del sistema. Selecciona una emergencia para crear o asignar obras.
+              </div>
+            )}
 
-          {!emergenciaId ? (
-            /* ── Empty state: sin emergencia ─────────────────────────────── */
-            <div className="flex flex-col items-center justify-center py-28 text-gray-400">
-              <MdGroups className="text-7xl mb-4 opacity-20" />
-              <p className="text-base font-medium text-gray-500">Selecciona una emergencia</p>
-              <p className="text-sm text-gray-400 mt-1">para ver y gestionar las cuadrillas asignadas</p>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-5">
+              <StatCard valor={stats.total}        etiqueta="Total equipos"  icono={<MdGroups />}      colorClase="text-primary"  bgClase="bg-primary-fixed" />
+              <StatCard valor={stats.activas}      etiqueta="Activas"        icono={<MdPeople />}      colorClase="text-primary"  bgClase="bg-primary-fixed/40" />
+              <StatCard valor={stats.en_progreso}  etiqueta="En marcha"      icono={<MdConstruction />} colorClase="text-tertiary" bgClase="bg-tertiary-fixed" />
+              <StatCard valor={cuadrillasConAlerta} etiqueta="Con alertas"   icono={<MdWarning />}     colorClase="text-error"  bgClase="bg-error-container" />
             </div>
-          ) : (
-            <>
-              {/* ── Stats dashboard ──────────────────────────────────────── */}
-              {cuadrillasVisibles.length > 0 && (
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-5">
-                  <StatCard valor={stats.total} etiqueta="Total" icono={<MdGroups />} colorClase="text-techo-primary" bgClase="bg-blue-50" />
-                  <StatCard valor={stats.activas} etiqueta="Activas" icono={<MdPeople />} colorClase="text-blue-600" bgClase="bg-blue-50" />
-                  <StatCard valor={stats.en_progreso} etiqueta="En progreso" icono={<MdConstruction />} colorClase="text-orange-600" bgClase="bg-orange-50" />
-                  <StatCard valor={stats.completadas} etiqueta="Completadas" icono={<MdCheckCircle />} colorClase="text-techo-success" bgClase="bg-green-50" />
-                </div>
-              )}
 
-              {/* ── Filtros ──────────────────────────────────────────────── */}
-              <div className="bg-white rounded-xl border border-gray-100 shadow-sm px-4 py-3 mb-5 flex flex-wrap items-center gap-2">
-                <span className="text-xs text-gray-500 font-medium flex items-center gap-1 mr-1">
-                  <MdOutlineFilterList className="text-base" /> Filtrar:
-                </span>
+            <div className="bg-white rounded-xl border border-outline-variant px-4 py-3 mb-5 flex flex-wrap items-center gap-2">
+              <span className="text-xs text-on-surface-variant font-medium flex items-center gap-1.5">
+                <MdOutlineFilterList className="text-base text-primary" /> Filtrar:
+              </span>
+              <button
+                onClick={() => setFiltroColor('')}
+                className={`px-3 py-1 rounded-full text-xs font-semibold border transition-all ${
+                  filtroColor === '' ? 'bg-primary text-white border-primary' : 'bg-white text-on-surface-variant border-outline-variant hover:border-primary'
+                }`}
+              >
+                Todos
+              </button>
+              {Object.entries(COLORES).map(([clave, info]) => (
                 <button
-                  onClick={() => setFiltroColor('')}
-                  className={`px-3 py-1 rounded-full text-xs font-semibold border transition-all ${
-                    filtroColor === '' ? 'bg-techo-primary text-white border-techo-primary' : 'bg-white text-gray-600 border-gray-200 hover:border-techo-primary'
+                  key={clave}
+                  onClick={() => setFiltroColor(clave)}
+                  className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold border transition-all ${
+                    filtroColor === clave ? `${info.bg} ${info.texto} ${info.borde}` : 'bg-white text-on-surface-variant border-outline-variant hover:border-outline'
                   }`}
                 >
-                  Todos
+                  <span className={`w-2 h-2 rounded-full ${info.dot}`} />
+                  {info.label}
                 </button>
-                {Object.entries(COLORES).map(([clave, info]) => (
-                  <button
-                    key={clave}
-                    onClick={() => setFiltroColor(clave)}
-                    className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold border transition-all ${
-                      filtroColor === clave ? `${info.bg} ${info.texto} ${info.borde}` : 'bg-white text-gray-600 border-gray-200 hover:border-gray-400'
-                    }`}
-                  >
-                    <span className={`w-2 h-2 rounded-full ${info.dot}`} />
-                    {info.label}
-                  </button>
-                ))}
-                <button
-                  onClick={cargarCuadrillas}
-                  className="ml-auto flex items-center gap-1 px-3 py-1.5 bg-gray-100 hover:bg-gray-200 rounded-xl text-xs text-gray-600 transition border border-gray-100"
-                >
-                  <MdRefresh /> Actualizar
-                </button>
-              </div>
+              ))}
+              <button
+                onClick={cargarCuadrillas}
+                className="ml-auto flex items-center gap-1 px-3 py-1.5 bg-surface-container hover:bg-surface-container-highest rounded-xl text-xs text-on-surface-variant transition border border-outline-variant"
+              >
+                <MdRefresh /> Actualizar
+              </button>
+            </div>
 
-              {/* ── Lista de cuadrillas ───────────────────────────────────── */}
-              {cargando ? (
-                <div className="flex flex-col items-center justify-center py-20 gap-3 text-gray-400">
-                  <div className="w-10 h-10 border-2 border-techo-secondary border-t-transparent rounded-full animate-spin" />
-                  <span className="text-sm">Cargando cuadrillas...</span>
-                </div>
-              ) : cuadrillasVisibles.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-20 text-gray-400">
-                  <MdGroups className="text-6xl mb-3 opacity-20" />
-                  <p className="text-sm font-medium text-gray-500">
-                    {filtroColor ? `No hay cuadrillas con estado "${COLORES[filtroColor]?.label}"` : 'No hay cuadrillas en esta emergencia'}
-                  </p>
-                  {esCoordinador && !filtroColor && (
-                    <button
-                      onClick={() => setMostrarFormCuadrilla(true)}
-                      className="mt-4 flex items-center gap-1.5 px-4 py-2 bg-techo-primary text-white rounded-xl text-sm font-semibold hover:bg-techo-primaryDark transition"
-                    >
-                      <MdAdd /> Crear primera cuadrilla
-                    </button>
+            {cargando ? (
+              <div className="flex flex-col items-center justify-center py-20 gap-3 text-outline">
+                <div className="w-10 h-10 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                <span className="text-sm">Cargando cuadrillas...</span>
+              </div>
+            ) : cuadrillasVisibles.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-20 text-outline">
+                <MdGroups className="text-6xl mb-3 opacity-20" />
+                <p className="text-sm font-medium text-on-surface-variant">
+                  {filtroColor
+                    ? `No hay cuadrillas con estado "${COLORES[filtroColor]?.label}"`
+                    : emergenciaId ? 'No hay cuadrillas en esta emergencia' : 'No hay cuadrillas registradas en el sistema'}
+                </p>
+                {esCoordinador && !filtroColor && emergenciaId && (
+                  <button
+                    onClick={() => setMostrarFormCuadrilla(true)}
+                    className="mt-4 flex items-center gap-1.5 px-4 py-2 bg-primary text-white rounded-xl text-sm font-semibold hover:bg-primary-dark transition"
+                  >
+                    <MdAdd /> Crear primera cuadrilla
+                  </button>
+                )}
+              </div>
+            ) : (
+              <>
+                <div className="flex items-center gap-2.5 mb-4">
+                  <h2 className="text-sm font-bold text-on-surface">Cuadrillas activas</h2>
+                  {cuadrillasConAlerta > 0 && (
+                    <span className="ml-2 flex items-center gap-1 text-[10px] font-bold text-white bg-error px-2 py-0.5 rounded-full">
+                      <FaExclamationTriangle className="text-[8px]" /> {cuadrillasConAlerta} alerta{cuadrillasConAlerta > 1 ? 's' : ''}
+                    </span>
                   )}
                 </div>
-              ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {cuadrillasVisibles.map((c, idx) => {
-                    const ci = colorInfo(c.estadoColor);
-                    const jefe = nombreJefe(c.jefe_id);
-                    const obra = c.obra_asignada_id ? nombreObra(c.obra_asignada_id) : null;
-                    return (
-                      <div
-                        key={c.id}
-                        style={{ animationDelay: `${idx * 50}ms` }}
-                        className={`animate-fadeInUp bg-white rounded-2xl border-l-4 ${ci.borde} shadow-sm flex flex-col gap-0 overflow-hidden hover:-translate-y-0.5 hover:shadow-md transition-all duration-200`}
-                      >
-                        {/* Encabezado tarjeta */}
-                        <div className="px-4 pt-4 pb-3 flex items-start justify-between gap-2">
-                          <div className="flex items-center gap-2 min-w-0">
-                            <span className={`w-3 h-3 rounded-full flex-shrink-0 ${ci.dot}`} />
-                            <h2 className="font-bold text-gray-800 text-base truncate">{c.nombre}</h2>
-                          </div>
-                          <span className={`flex-shrink-0 text-xs font-semibold px-2.5 py-0.5 rounded-full ${ci.bg} ${ci.texto}`}>
-                            {ci.label}
-                          </span>
-                        </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {cuadrillasVisibles.map((c, idx) => {
+                  const ci = colorInfo(c.estadoColor);
+                  const jefe = nombreJefe(c.jefe_id);
+                  const obra = c.obra_asignada_id ? nombreObra(c.obra_asignada_id) : null;
+                  const cta = getPrimaryAction(c);
+                  const herrCount = herramientasCache.get(c.id);
+                  const puedeGestionar =
+                    c.estado !== 'completada' && c.estado !== 'desarmada' &&
+                    (esCoordinador || (esJefe && c.jefe_id === usuario?.id));
+                  const puedeBalance = esCoordinador || (esJefe && c.jefe_id === usuario?.id);
 
-                        {/* Jefe y obra */}
-                        <div className="px-4 pb-3 flex flex-col gap-1">
-                          <div className="flex items-center gap-1.5 text-xs text-gray-500">
-                            <FaHardHat className="text-techo-accent flex-shrink-0" />
-                            <span>Jefe: <strong className="text-gray-700">{jefe}</strong></span>
+                  return (
+                    <div
+                      key={c.id}
+                      style={{ animationDelay: `${idx * 50}ms` }}
+                      className={`animate-fadeInUp bg-white rounded-xl border border-outline-variant shadow-sm flex flex-col overflow-hidden hover:-translate-y-0.5 hover:shadow-md transition-all duration-200`}
+                    >
+                      {/* Franja de color por estado */}
+                      <div className={`h-1 flex-shrink-0 ${
+                        c.estadoColor === 'verde' ? 'bg-secondary' :
+                        c.estadoColor === 'amarillo' ? 'bg-tertiary-container' :
+                        c.estadoColor === 'rojo' ? 'bg-error' :
+                        c.estadoColor === 'azul' ? 'bg-primary' :
+                        'bg-outline'
+                      }`} />
+
+                      {/* Header con avatar */}
+                      <div className="px-4 pt-3 pb-2 flex items-start justify-between gap-2">
+                        <div className="min-w-0 flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-full bg-primary text-white text-sm font-bold flex items-center justify-center flex-shrink-0 uppercase">
+                            {c.nombre.slice(0, 2)}
                           </div>
-                          {obra && (
-                            <div className="flex items-center gap-1.5 text-xs text-gray-500">
-                              <MdLocationOn className="text-techo-secondary flex-shrink-0" />
-                              <span className="truncate">Obra: <strong className="text-gray-700">{obra}</strong></span>
+                          <div className="min-w-0">
+                            <h2 className="font-bold text-on-surface text-sm truncate">{c.nombre}</h2>
+                            <div className="flex items-center gap-1.5 mt-0.5">
+                              <FaHardHat className="text-tertiary text-[10px] flex-shrink-0" />
+                              <span className="text-xs text-on-surface-variant truncate">{jefe}</span>
                             </div>
-                          )}
+                            {obra && (
+                              <div className="flex items-center gap-1.5 mt-0.5">
+                                <MdLocationOn className="text-primary text-xs flex-shrink-0" />
+                                <span className="text-xs text-on-surface-variant truncate">{obra}</span>
+                              </div>
+                            )}
+                          </div>
                         </div>
-
-                        {/* Info rápida */}
-                        <div className="px-4 py-2.5 border-t border-gray-100 flex flex-wrap gap-x-4 gap-y-1">
-                          <div className="flex items-center gap-1 text-xs text-gray-500">
-                            <MdPeople className="text-techo-primary text-sm" />
-                            <span><strong className="text-gray-700">{c.miembrosCount ?? '?'}</strong> miembros</span>
-                          </div>
-                          <div className="flex items-center gap-1 text-xs text-gray-500">
-                            <MdSchedule className="text-techo-primary text-sm" />
-                            <span><strong className="text-gray-700">{c.plazo_dias}</strong> días</span>
-                          </div>
-                          {c.fase && (
-                            <div className="flex items-center gap-1 text-xs text-gray-500">
-                              <MdConstruction className="text-techo-primary text-sm" />
-                              <span>Fase: <strong className="text-gray-700 capitalize">{c.fase}</strong></span>
-                            </div>
-                          )}
-                        </div>
-
-                        {/* Progreso de fase */}
-                        {c.fase && (
-                          <div className="px-4 py-3 border-t border-gray-100">
-                            <ProgresoFase fase={c.fase} />
-                          </div>
-                        )}
-
-                        {/* Alertas */}
-                        {c.alerta_emergencia && (
-                          <div className="mx-4 mb-2 flex items-start gap-2 bg-red-50 border border-red-200 rounded-xl px-3 py-2 text-xs text-red-700">
-                            <FaExclamationTriangle className="flex-shrink-0 mt-0.5" />
-                            <span><strong>Alerta:</strong> {c.descripcion_emergencia}</span>
-                          </div>
-                        )}
-                        {c.alerta_herramienta && (
-                          <div className="mx-4 mb-2 flex items-start gap-2 bg-orange-50 border border-orange-200 rounded-xl px-3 py-2 text-xs text-orange-700">
-                            <FaWrench className="flex-shrink-0 mt-0.5" />
-                            <span><strong>Herramientas:</strong> {c.descripcion_alerta_herramienta}</span>
-                          </div>
-                        )}
-
-                        {/* Botones de acción */}
-                        <div className="px-4 pb-4 pt-2 border-t border-gray-100 flex flex-wrap gap-2">
-                          {esCoordinador && c.estado !== 'completada' && (
-                            <>
-                              <BtnAccion icono={<MdPersonAdd />} label="Miembros" onClick={() => abrirPanel(c, 'miembros')} color="blue" />
-                              <BtnAccion icono={<MdAssignment />} label="Asignar obra" onClick={() => abrirPanel(c, 'obra')} color="indigo" />
-                              <BtnAccion icono={<MdSwapHoriz />} label="Reasignar" onClick={() => abrirPanel(c, 'reasignar')} color="purple" />
-                              <BtnAccion icono={<MdDone />} label="Completar" onClick={() => handleCompletarCuadrilla(c.id)} color="green" />
-                            </>
-                          )}
-                          {esJefe && c.jefe_id === usuario?.id && c.estado !== 'completada' && (
-                            <>
-                              <BtnAccion icono={<MdBuild />} label="Fase" onClick={() => abrirPanel(c, 'fase')} color="teal" />
-                              <BtnAccion icono={<MdWarning />} label="Alerta" onClick={() => abrirPanel(c, 'alerta')} color="red" />
-                              <BtnAccion icono={<FaWrench />} label="Herramientas" onClick={() => abrirPanel(c, 'herramientas')} color="orange" />
-                            </>
-                          )}
-                          {(esCoordinador || (esJefe && c.jefe_id === usuario?.id)) && (
-                            <BtnAccion icono={<MdInfo />} label="Balance" onClick={() => { setCuadrillaActiva(c); handleVerBalance(); }} color="gray" />
-                          )}
-                        </div>
+                        <span className={`flex-shrink-0 text-xs font-semibold px-2.5 py-0.5 rounded-full ${ci.bg} ${ci.texto}`}>
+                          {ci.label}
+                        </span>
                       </div>
-                    );
-                  })}
-                </div>
-              )}
-            </>
-          )}
+
+                      {/* Meta info con barra de miembros */}
+                      <div className="px-4 py-2 border-t border-surface-container flex flex-wrap gap-x-4 gap-y-2">
+                        <div className="flex flex-col gap-1">
+                          <div className="flex items-center gap-1 text-xs text-on-surface-variant">
+                            <MdPeople className="text-primary text-sm" />
+                            <span>
+                              <strong className={(c.miembrosCount ?? 0) < 10 ? 'text-tertiary' : 'text-on-surface'}>
+                                {c.miembrosCount ?? '?'}
+                              </strong>
+                              <span className="text-outline">/11</span>
+                            </span>
+                          </div>
+                          <div className="w-28 h-1.5 bg-surface-container rounded-full overflow-hidden">
+                            <div
+                              className={`h-full rounded-full transition-all ${(c.miembrosCount ?? 0) >= 10 ? 'bg-secondary' : (c.miembrosCount ?? 0) >= 6 ? 'bg-tertiary-container' : 'bg-error'}`}
+                              style={{ width: `${Math.min(((c.miembrosCount ?? 0) / 11) * 100, 100)}%` }}
+                            />
+                          </div>
+                        </div>
+                        {herrCount !== undefined && (
+                          <div className="flex items-center gap-1 text-xs text-on-surface-variant">
+                            <FaWrench className="text-tertiary text-[11px]" />
+                            <span><strong className="text-on-surface">{herrCount}</strong> herr.</span>
+                          </div>
+                        )}
+                        <div className="flex items-center gap-1 text-xs text-on-surface-variant">
+                          <MdSchedule className="text-primary text-sm" />
+                          <span><strong className="text-on-surface">{c.plazo_dias}</strong>d</span>
+                        </div>
+                        {c.fase && (
+                          <span className={`self-center px-2 py-0.5 rounded-full font-semibold text-[10px] ${
+                            c.fase === 'terminaciones' ? 'bg-secondary-container/30 text-secondary' :
+                            c.fase === 'montaje' ? 'bg-primary-fixed text-primary' :
+                            'bg-surface-container text-on-surface-variant'
+                          }`}>
+                            {c.fase}
+                          </span>
+                        )}
+                      </div>
+
+                      {c.fase && (
+                        <div className="px-4 py-3 border-t border-surface-container">
+                          <ProgresoFase fase={c.fase} />
+                        </div>
+                      )}
+
+                      {c.alerta_emergencia && (
+                        <div className="mx-4 mb-2 flex items-start gap-2 bg-error-container border border-error/30 rounded-xl px-3 py-2 text-xs text-error">
+                          <FaExclamationTriangle className="flex-shrink-0 mt-0.5" />
+                          <span><strong>Alerta:</strong> {c.descripcion_emergencia}</span>
+                        </div>
+                      )}
+                      {c.alerta_herramienta && (
+                        <div className="mx-4 mb-2 flex items-start gap-2 bg-tertiary-fixed/50 border border-tertiary/30 rounded-xl px-3 py-2 text-xs text-tertiary">
+                          <FaWrench className="flex-shrink-0 mt-0.5" />
+                          <span><strong>Herramientas:</strong> {c.descripcion_alerta_herramienta}</span>
+                        </div>
+                      )}
+
+                      {/* Barra de acciones con divisor */}
+                      <div className="border-t border-surface-container flex divide-x divide-surface-container mt-auto">
+                        {cta && (
+                          <button
+                            onClick={cta.onClick}
+                            className={`flex-1 flex items-center justify-center gap-1.5 py-3 text-xs font-semibold transition ${cta.color}`}
+                          >
+                            {cta.icon} {cta.label}
+                          </button>
+                        )}
+                        {puedeGestionar && (
+                          <button
+                            onClick={() => abrirGestionar(c)}
+                            className="flex items-center gap-1.5 px-4 py-3 text-primary text-xs font-semibold hover:bg-surface-container transition flex-shrink-0"
+                          >
+                            <MdBuild className="text-sm" /> Gestionar
+                          </button>
+                        )}
+                        {puedeBalance && (
+                          <button
+                            onClick={() => {
+                              setCuadrillaActiva(c);
+                              setDrawerAbierto(true);
+                              setTabActivo('alertas');
+                              setBalance(null);
+                              setHerramientas([]);
+                              cargarHerramientas(c.id);
+                            }}
+                            className="px-3 py-3 text-outline hover:text-primary hover:bg-surface-container transition flex-shrink-0"
+                            title="Ver balance"
+                          >
+                            <MdInfo className="text-base" />
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+              </>
+            )}
+          </>
         </div>
       </div>
 
-      {/* ── Modal: nueva cuadrilla ─────────────────────────────────────────── */}
+      {/* FAB: nueva cuadrilla (solo coordinador, se oculta cuando el modal está abierto) */}
+      {esCoordinador && !mostrarFormCuadrilla && !drawerAbierto && (
+        <button
+          onClick={() => {
+            if (!emergenciaId) { mostrarMensaje('error', 'Selecciona una emergencia primero'); return; }
+            setMostrarFormCuadrilla(true);
+          }}
+          className="fixed bottom-6 right-6 z-[400] flex items-center gap-2.5 px-5 py-3.5 bg-primary hover:bg-primary-dark text-white rounded-2xl shadow-xl hover:shadow-2xl hover:-translate-y-0.5 transition-all duration-200 font-semibold text-sm active:scale-95"
+        >
+          <MdAdd className="text-xl" /> Nueva cuadrilla
+        </button>
+      )}
+
+      {/* Modal: nueva cuadrilla */}
       {mostrarFormCuadrilla && (
         <Modal
           titulo="Nueva cuadrilla"
           subtitulo="Completa los datos para crear un nuevo equipo de trabajo"
-          icono={<MdGroups className="text-techo-secondary text-xl" />}
+          icono={<MdGroups className="text-primary text-xl" />}
           onCerrar={() => setMostrarFormCuadrilla(false)}
         >
           <form onSubmit={handleCrearCuadrilla} className="flex flex-col gap-4">
@@ -630,8 +782,8 @@ function GestionCuadrillas() {
                     key={dias}
                     className={`flex items-center gap-2 p-3 rounded-xl border-2 cursor-pointer text-sm font-medium transition ${
                       formCuadrilla.plazo_dias === dias
-                        ? 'border-techo-primary bg-blue-50 text-techo-primary'
-                        : 'border-gray-200 text-gray-500 hover:border-gray-300'
+                        ? 'border-primary bg-primary-fixed/40 text-primary'
+                        : 'border-outline-variant text-on-surface-variant hover:border-outline-variant'
                     }`}
                   >
                     <input
@@ -647,282 +799,382 @@ function GestionCuadrillas() {
                 ))}
               </div>
             </Campo>
-            <button type="submit" className="w-full py-2.5 bg-techo-primary hover:bg-techo-primaryDark text-white font-semibold rounded-xl transition flex items-center justify-center gap-2">
+            <button type="submit" className="w-full py-2.5 bg-primary hover:bg-primary-dark text-white font-semibold rounded-xl transition flex items-center justify-center gap-2">
               <MdAdd /> Crear cuadrilla
             </button>
           </form>
         </Modal>
       )}
 
-      {/* ── Paneles de acción ─────────────────────────────────────────────── */}
-      {panel && cuadrillaActiva && (
-        <Modal titulo={tituloPanel(panel, cuadrillaActiva)} onCerrar={cerrarPanel}>
+      {/* Drawer de gestión */}
+      {drawerAbierto && cuadrillaActiva && (
+        <div className="fixed inset-0 z-[500] flex">
+          <div className="flex-1 bg-black/40 cursor-pointer" onClick={cerrarGestionar} />
+          <div className="w-full max-w-lg bg-white shadow-2xl flex flex-col" style={{ height: '100vh' }}>
 
-          {/* Miembros */}
-          {panel === 'miembros' && (
-            <div className="flex flex-col gap-4">
-              <div className="flex items-center gap-2 bg-blue-50 border border-blue-200 rounded-xl px-3 py-2 text-xs text-blue-700">
-                <MdPeople />
-                <span>La cuadrilla necesita entre <strong>10 y 11 integrantes</strong>. Actualmente tiene <strong>{cuadrillaActiva.miembrosCount ?? 0}</strong>.</span>
+            {/* Drawer header */}
+            <div className="flex items-center justify-between px-5 py-4 bg-primary flex-shrink-0">
+              <div className="min-w-0">
+                <p className="text-[10px] text-white/50 uppercase tracking-widest">Cuadrilla</p>
+                <h2 className="font-bold text-white text-base leading-tight truncate">{cuadrillaActiva.nombre}</h2>
+                <div className="flex items-center gap-1.5 mt-0.5">
+                  <span className={`w-2 h-2 rounded-full ${colorInfo(cuadrillaActiva.estadoColor)?.dot || 'bg-outline'}`} />
+                  <span className="text-xs text-white/70">{colorInfo(cuadrillaActiva.estadoColor)?.label}</span>
+                </div>
               </div>
-              <form onSubmit={handleAgregarMiembro} className="flex flex-col gap-3">
-                <Campo label="Voluntario a agregar">
-                  <select required className={estiloInput} value={voluntarioId} onChange={(e) => setVoluntarioId(e.target.value)}>
-                    <option value="">— Selecciona voluntario —</option>
-                    {usuarios.filter((u) => u.rol === 'voluntario' && u.activo).map((u) => (
-                      <option key={u.id} value={u.id}>{u.nombre} · {u.rut}</option>
-                    ))}
-                  </select>
-                </Campo>
-                <Campo label="Habilidades (opcional)">
-                  <input className={estiloInput} placeholder="Ej: carpintería, primeros auxilios" value={habilidades} onChange={(e) => setHabilidades(e.target.value)} />
-                </Campo>
-                <button type="submit" className="flex items-center justify-center gap-2 py-2.5 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition text-sm font-semibold">
-                  <MdPersonAdd /> Agregar miembro
+              <button onClick={cerrarGestionar} className="text-white/70 hover:text-white transition ml-3 flex-shrink-0">
+                <MdClose className="text-2xl" />
+              </button>
+            </div>
+
+            {/* Tabs */}
+            <div className="flex border-b border-outline-variant/60 bg-white flex-shrink-0 overflow-x-auto">
+              {tabsVisibles(cuadrillaActiva).map((tab) => (
+                <button
+                  key={tab.key}
+                  onClick={() => setTabActivo(tab.key)}
+                  className={`flex-shrink-0 flex items-center gap-1.5 px-4 py-3 text-xs font-semibold border-b-2 transition whitespace-nowrap ${
+                    tabActivo === tab.key
+                      ? 'border-primary text-primary'
+                      : 'border-transparent text-outline hover:text-on-surface hover:border-outline-variant'
+                  }`}
+                >
+                  {tab.icon} {tab.label}
                 </button>
-              </form>
+              ))}
             </div>
-          )}
 
-          {/* Asignar obra */}
-          {panel === 'obra' && (
-            <form onSubmit={handleAsignarObra} className="flex flex-col gap-4">
-              <div className="flex items-center gap-2 bg-indigo-50 border border-indigo-200 rounded-xl px-3 py-2 text-xs text-indigo-700">
-                <MdAssignment />
-                Al asignar, todos los integrantes recibirán notificación con la ubicación y el plazo.
-              </div>
-              <Campo label="Obra disponible">
-                <select required className={estiloInput} value={obraId} onChange={(e) => setObraId(e.target.value)}>
-                  <option value="">— Selecciona obra —</option>
-                  {obras.filter((o) => o.estado === 'disponible').map((o) => (
-                    <option key={o.id} value={o.id}>
-                      {o.nombre}{o.direccion ? ` — ${o.direccion}` : ''}
-                    </option>
-                  ))}
-                </select>
-              </Campo>
-              <button type="submit" className="flex items-center justify-center gap-2 py-2.5 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 transition text-sm font-semibold">
-                <MdAssignment /> Asignar obra
-              </button>
-            </form>
-          )}
+            {/* Tab content */}
+            <div className="flex-1 overflow-y-auto p-5">
 
-          {/* Actualizar fase */}
-          {panel === 'fase' && (
-            <form onSubmit={handleActualizarFase} className="flex flex-col gap-5">
-              <div>
-                <p className="text-xs font-semibold text-gray-600 mb-3">Selecciona la fase actual del trabajo en terreno</p>
-                <div className="flex flex-col gap-2">
-                  {FASES.map((f, i) => (
-                    <label
-                      key={f}
-                      className={`flex items-center gap-3 p-3 rounded-xl border-2 cursor-pointer transition ${
-                        faseSeleccionada === f
-                          ? 'border-techo-primary bg-blue-50'
-                          : 'border-gray-200 hover:border-gray-300'
-                      }`}
-                    >
-                      <input type="radio" className="sr-only" value={f} checked={faseSeleccionada === f} onChange={() => setFaseSeleccionada(f)} />
-                      <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 ${
-                        faseSeleccionada === f ? 'bg-techo-primary text-white' : 'bg-gray-200 text-gray-500'
-                      }`}>{i + 1}</div>
-                      <div>
-                        <p className={`text-sm font-semibold capitalize ${faseSeleccionada === f ? 'text-techo-primary' : 'text-gray-700'}`}>{f}</p>
-                      </div>
-                    </label>
-                  ))}
-                </div>
-              </div>
-              <button type="submit" disabled={!faseSeleccionada} className="flex items-center justify-center gap-2 py-2.5 bg-techo-primary text-white rounded-xl hover:bg-techo-primaryDark transition text-sm font-semibold disabled:opacity-50 disabled:cursor-not-allowed">
-                <MdBuild /> Actualizar fase
-              </button>
-            </form>
-          )}
-
-          {/* Alerta de emergencia */}
-          {panel === 'alerta' && (
-            <form onSubmit={handleEnviarAlerta} className="flex flex-col gap-4">
-              <div className="flex items-start gap-2 bg-red-50 border border-red-300 rounded-xl px-3 py-3 text-sm text-red-700">
-                <MdWarning className="text-lg flex-shrink-0 mt-0.5" />
-                <p>Esta alerta llega <strong>inmediatamente</strong> al coordinador con la ubicación de la cuadrilla. Úsala solo en situaciones que requieran intervención urgente.</p>
-              </div>
-              <Campo label="Descripción del incidente">
-                <textarea
-                  required
-                  rows={4}
-                  className={estiloInput}
-                  placeholder="Describe con detalle qué está ocurriendo en terreno..."
-                  value={descripcionAlerta}
-                  onChange={(e) => setDescripcionAlerta(e.target.value)}
-                />
-              </Campo>
-              <button type="submit" className="flex items-center justify-center gap-2 py-2.5 bg-red-600 text-white rounded-xl hover:bg-red-700 transition text-sm font-semibold">
-                <FaExclamationTriangle /> Enviar alerta de emergencia
-              </button>
-            </form>
-          )}
-
-          {/* Reasignar voluntario */}
-          {panel === 'reasignar' && (
-            <form onSubmit={handleReasignar} className="flex flex-col gap-4">
-              <Campo label="Voluntario a reasignar">
-                <select required className={estiloInput} value={voluntarioReasignarId} onChange={(e) => setVoluntarioReasignarId(e.target.value)}>
-                  <option value="">— Selecciona voluntario —</option>
-                  {usuarios.filter((u) => u.rol === 'voluntario' && u.activo).map((u) => (
-                    <option key={u.id} value={u.id}>{u.nombre}</option>
-                  ))}
-                </select>
-              </Campo>
-              <div className="flex items-center justify-center gap-2 text-gray-400 text-sm">
-                <span className="font-medium text-gray-600 text-xs">{cuadrillaActiva.nombre}</span>
-                <MdArrowForward />
-                <span className="text-xs text-gray-500">cuadrilla destino</span>
-              </div>
-              <Campo label="Cuadrilla destino">
-                <select required className={estiloInput} value={cuadrillaDestinoId} onChange={(e) => setCuadrillaDestinoId(e.target.value)}>
-                  <option value="">— Selecciona cuadrilla —</option>
-                  {cuadrillas.filter((c) => c.id !== cuadrillaActiva.id && c.estado !== 'completada').map((c) => (
-                    <option key={c.id} value={c.id}>{c.nombre}</option>
-                  ))}
-                </select>
-              </Campo>
-              <button type="submit" className="flex items-center justify-center gap-2 py-2.5 bg-purple-600 text-white rounded-xl hover:bg-purple-700 transition text-sm font-semibold">
-                <MdSwapHoriz /> Reasignar voluntario
-              </button>
-            </form>
-          )}
-
-          {/* Herramientas */}
-          {panel === 'herramientas' && (
-            <div className="flex flex-col gap-4">
-              {/* Tabs individual/masivo */}
-              <div className="flex gap-1 bg-gray-100 p-1 rounded-xl">
-                {['individual', 'masivo'].map((modo) => (
-                  <button
-                    key={modo}
-                    onClick={() => setModoReg(modo)}
-                    className={`flex-1 py-1.5 text-xs font-semibold rounded-lg transition capitalize ${
-                      modoReg === modo ? 'bg-techo-primary text-white shadow-sm' : 'text-gray-500 hover:text-gray-700'
-                    }`}
-                  >
-                    {modo}
-                  </button>
-                ))}
-              </div>
-
-              {/* Registro individual */}
-              {modoReg === 'individual' && (
-                <div className="flex gap-2">
-                  <input
-                    type="text"
-                    value={nombreHerramientaIndividual}
-                    onChange={(e) => setNombreHerramientaIndividual(e.target.value)}
-                    onKeyDown={(e) => e.key === 'Enter' && handleRegistrarIndividual()}
-                    placeholder="Nombre de la herramienta"
-                    className={estiloInput}
-                  />
-                  <button
-                    onClick={handleRegistrarIndividual}
-                    className="px-4 py-2 bg-techo-success text-white text-sm font-bold rounded-xl hover:bg-green-700 transition"
-                  >
-                    +
-                  </button>
-                </div>
-              )}
-
-              {/* Registro masivo */}
-              {modoReg === 'masivo' && (
-                <form onSubmit={handleRegistrarHerramientas} className="flex flex-col gap-2">
-                  <textarea
-                    rows={3}
-                    className={estiloInput}
-                    placeholder={"Martillo\nEspátula\nCasco de seguridad"}
-                    value={nombresHerramientas}
-                    onChange={(e) => setNombresHerramientas(e.target.value)}
-                  />
-                  <button type="submit" className="flex items-center justify-center gap-2 py-2.5 bg-techo-accent text-white rounded-xl hover:bg-orange-600 transition text-sm font-semibold">
-                    <FaWrench /> Registrar todas
-                  </button>
-                </form>
-              )}
-
-              {/* Lista de herramientas con cards coloreadas */}
-              {herramientas.length > 0 && (
-                <div className="flex flex-col gap-2">
-                  <div className="flex items-center justify-between">
-                    <p className="text-xs font-semibold text-gray-500">
-                      Herramientas registradas <span className="text-techo-primary font-bold">({herramientas.length})</span>
-                    </p>
-                    <select
-                      value={filtroHerr}
-                      onChange={(e) => setFiltroHerr(e.target.value)}
-                      className="border border-gray-200 rounded-lg px-2 py-0.5 text-xs focus:outline-none focus:ring-1 focus:ring-techo-secondary"
-                    >
-                      <option value="todos">Todos</option>
-                      {Object.entries(ESTILOS_HERR).map(([val, { label }]) => (
-                        <option key={val} value={val}>{label}</option>
-                      ))}
-                    </select>
+              {/* Personal */}
+              {tabActivo === 'personal' && (
+                <div className="flex flex-col gap-5">
+                  <div className={`flex items-center gap-2 rounded-xl px-3 py-2 text-xs font-medium border ${
+                    (cuadrillaActiva.miembrosCount ?? 0) < 10
+                      ? 'bg-tertiary/5 border-tertiary/30 text-tertiary'
+                      : 'bg-secondary/5 border-secondary/30 text-secondary'
+                  }`}>
+                    <MdPeople />
+                    <span>
+                      <strong>{cuadrillaActiva.miembrosCount ?? 0}</strong> de 10–11 integrantes requeridos
+                      {(cuadrillaActiva.miembrosCount ?? 0) < 10 && ` — faltan ${10 - (cuadrillaActiva.miembrosCount ?? 0)} para el mínimo`}
+                    </span>
                   </div>
-                  <div className="flex flex-col gap-1.5 max-h-56 overflow-y-auto pr-1">
-                    {herramientas
-                      .filter((h) => filtroHerr === 'todos' || h.estado === filtroHerr)
-                      .map((h) => {
-                        const est = ESTILOS_HERR[h.estado] || ESTILOS_HERR.entregada;
-                        return (
-                          <div key={h.id} className={`border-l-4 ${est.borde} bg-gray-50 rounded-r-xl px-3 py-2 flex items-center justify-between gap-2`}>
-                            <span className="font-medium text-gray-700 text-sm truncate">{h.nombre}</span>
-                            <div className="flex items-center gap-1.5 flex-shrink-0">
-                              <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${est.badge}`}>{est.label}</span>
-                              <select
-                                value={h.estado}
-                                onChange={(e) => handleCambiarEstadoHerramienta(h.id, e.target.value)}
-                                className="border border-gray-200 rounded-lg px-1.5 py-0.5 text-xs focus:outline-none"
-                              >
-                                {Object.entries(ESTILOS_HERR).map(([val, { label }]) => (
-                                  <option key={val} value={val}>{label}</option>
-                                ))}
-                              </select>
-                            </div>
+
+                  {esCoordinador && (
+                    <div>
+                      <p className="text-xs font-semibold text-on-surface-variant uppercase tracking-wide mb-2">Agregar voluntario</p>
+                      <form onSubmit={handleAgregarMiembro} className="flex flex-col gap-2">
+                        <select required className={estiloInput} value={voluntarioId} onChange={(e) => setVoluntarioId(e.target.value)}>
+                          <option value="">— Selecciona voluntario —</option>
+                          {usuarios.filter((u) => u.rol === 'voluntario' && u.activo).map((u) => (
+                            <option key={u.id} value={u.id}>{u.nombre} · {u.rut}</option>
+                          ))}
+                        </select>
+                        <input
+                          className={estiloInput}
+                          placeholder="Habilidades (opcional) — ej: carpintería"
+                          value={habilidades}
+                          onChange={(e) => setHabilidades(e.target.value)}
+                        />
+                        <button type="submit" className="flex items-center justify-center gap-2 py-2.5 bg-primary text-white rounded-xl hover:bg-primary/90 transition text-sm font-semibold">
+                          <MdPersonAdd /> Agregar a cuadrilla
+                        </button>
+                      </form>
+                    </div>
+                  )}
+
+                  {esCoordinador && (
+                    <div>
+                      <button
+                        onClick={() => setMostrarReasignar(!mostrarReasignar)}
+                        className="flex items-center gap-1.5 text-xs font-semibold text-tertiary hover:text-tertiary transition"
+                      >
+                        <MdSwapHoriz />
+                        {mostrarReasignar ? 'Cancelar reasignación' : 'Reasignar voluntario a otra cuadrilla'}
+                      </button>
+
+                      {mostrarReasignar && (
+                        <form onSubmit={handleReasignar} className="mt-3 flex flex-col gap-2 p-3 bg-tertiary/5 border border-tertiary/30 rounded-xl">
+                          <p className="text-xs text-tertiary font-medium">
+                            Mueve un voluntario desde <strong>{cuadrillaActiva.nombre}</strong> a otra cuadrilla activa.
+                          </p>
+                          <select required className={estiloInput} value={voluntarioReasignarId} onChange={(e) => setVoluntarioReasignarId(e.target.value)}>
+                            <option value="">— Voluntario a mover —</option>
+                            {usuarios.filter((u) => u.rol === 'voluntario' && u.activo).map((u) => (
+                              <option key={u.id} value={u.id}>{u.nombre}</option>
+                            ))}
+                          </select>
+                          <div className="flex items-center gap-2 text-outline text-xs">
+                            <MdArrowForward />
+                            <span>hacia</span>
                           </div>
-                        );
-                      })}
+                          <select required className={estiloInput} value={cuadrillaDestinoId} onChange={(e) => setCuadrillaDestinoId(e.target.value)}>
+                            <option value="">— Cuadrilla destino —</option>
+                            {cuadrillas
+                              .filter((c) => c.id !== cuadrillaActiva.id && c.estado !== 'completada')
+                              .map((c) => (
+                                <option key={c.id} value={c.id}>{c.nombre} ({c.miembrosCount ?? '?'}/11)</option>
+                              ))}
+                          </select>
+                          <button type="submit" className="flex items-center justify-center gap-2 py-2 bg-tertiary text-white rounded-xl hover:bg-tertiary/90 transition text-sm font-semibold">
+                            <MdSwapHoriz /> Confirmar reasignación
+                          </button>
+                        </form>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Obra & Fase */}
+              {tabActivo === 'obra' && (
+                <div className="flex flex-col gap-5">
+                  {esCoordinador && (
+                    <div className="flex flex-col gap-3">
+                      <p className="text-xs font-semibold text-on-surface-variant uppercase tracking-wide">Asignar obra</p>
+                      {cuadrillaActiva.obra_asignada_id ? (
+                        <div className="flex items-center gap-2 bg-secondary/5 border border-secondary/30 rounded-xl px-3 py-2 text-xs text-secondary">
+                          <MdCheckCircle /> Obra ya asignada: <strong className="ml-1">{nombreObra(cuadrillaActiva.obra_asignada_id) || '—'}</strong>
+                        </div>
+                      ) : (
+                        <form onSubmit={handleAsignarObra} className="flex flex-col gap-2">
+                          <div className="flex items-center gap-2 bg-primary/5 border border-primary/30 rounded-xl px-3 py-2 text-xs text-primary">
+                            <MdAssignment />
+                            Al asignar, todos los integrantes recibirán notificación con la ubicación y el plazo.
+                          </div>
+                          <select required className={estiloInput} value={obraId} onChange={(e) => setObraId(e.target.value)}>
+                            <option value="">— Selecciona obra —</option>
+                            {obras.filter((o) => o.estado === 'disponible').map((o) => (
+                              <option key={o.id} value={o.id}>{o.nombre}{o.direccion ? ` — ${o.direccion}` : ''}</option>
+                            ))}
+                          </select>
+                          <button type="submit" className="flex items-center justify-center gap-2 py-2.5 bg-primary text-white rounded-xl hover:bg-primary-dark transition text-sm font-semibold">
+                            <MdAssignment /> Asignar obra
+                          </button>
+                        </form>
+                      )}
+                    </div>
+                  )}
+
+                  {esCoordinador && <hr className="border-outline-variant/60" />}
+
+                  {esJefe && cuadrillaActiva.jefe_id === usuario?.id && (
+                    <div className="flex flex-col gap-3">
+                      <p className="text-xs font-semibold text-on-surface-variant uppercase tracking-wide">Fase del trabajo</p>
+                      {!cuadrillaActiva.obra_asignada_id && (
+                        <div className="bg-tertiary/5 border border-tertiary/30 rounded-xl px-3 py-2 text-xs text-tertiary">
+                          No hay obra asignada aún. Espera la asignación del coordinador.
+                        </div>
+                      )}
+                      {cuadrillaActiva.fase && (
+                        <div className="py-2">
+                          <ProgresoFase fase={cuadrillaActiva.fase} />
+                        </div>
+                      )}
+                      <form onSubmit={handleActualizarFase} className="flex flex-col gap-2">
+                        {FASES.map((f, i) => (
+                          <label
+                            key={f}
+                            className={`flex items-center gap-3 p-3 rounded-xl border-2 cursor-pointer transition ${
+                              faseSeleccionada === f ? 'border-primary bg-primary-fixed/40' : 'border-outline-variant hover:border-outline'
+                            } ${!cuadrillaActiva.obra_asignada_id ? 'opacity-50 pointer-events-none' : ''}`}
+                          >
+                            <input type="radio" className="sr-only" value={f} checked={faseSeleccionada === f} onChange={() => setFaseSeleccionada(f)} />
+                            <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 ${
+                              faseSeleccionada === f ? 'bg-primary text-white' :
+                              FASES.indexOf(cuadrillaActiva.fase ?? '') >= i ? 'bg-secondary text-white' :
+                              'bg-surface-container-highest text-on-surface-variant'
+                            }`}>{i + 1}</div>
+                            <p className={`flex-1 text-sm font-semibold capitalize ${faseSeleccionada === f ? 'text-primary' : 'text-on-surface'}`}>{f}</p>
+                            {cuadrillaActiva.fase === f && <span className="text-[10px] text-secondary font-bold">ACTUAL</span>}
+                          </label>
+                        ))}
+                        <button
+                          type="submit"
+                          disabled={!faseSeleccionada || !cuadrillaActiva.obra_asignada_id}
+                          className="flex items-center justify-center gap-2 py-2.5 bg-secondary text-white rounded-xl hover:bg-secondary/90 transition text-sm font-semibold disabled:opacity-40 disabled:cursor-not-allowed"
+                        >
+                          <MdBuild /> Actualizar fase
+                        </button>
+                      </form>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Herramientas */}
+              {tabActivo === 'herramientas' && (
+                <div className="flex flex-col gap-4">
+                  <div>
+                    <p className="text-xs font-semibold text-on-surface-variant uppercase tracking-wide mb-1.5">Registro rápido</p>
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        value={nombreHerramientaIndividual}
+                        onChange={(e) => setNombreHerramientaIndividual(e.target.value)}
+                        onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleRegistrarIndividual(); } }}
+                        placeholder="Nombre — Enter para agregar"
+                        className={estiloInput}
+                        autoFocus
+                      />
+                      <button
+                        onClick={handleRegistrarIndividual}
+                        className="px-4 py-2 bg-secondary text-white text-sm font-bold rounded-xl hover:bg-secondary/90 transition flex-shrink-0"
+                      >
+                        +
+                      </button>
+                    </div>
+                  </div>
+
+                  <details className="group">
+                    <summary className="text-xs font-semibold text-on-surface-variant cursor-pointer hover:text-on-surface flex items-center gap-1 list-none select-none">
+                      <MdAdd className="text-sm" /> Registrar varias a la vez
+                    </summary>
+                    <form onSubmit={handleRegistrarHerramientas} className="mt-2 flex flex-col gap-2">
+                      <textarea
+                        rows={3}
+                        className={estiloInput}
+                        placeholder={"Martillo\nEspátula\nCasco de seguridad"}
+                        value={nombresHerramientas}
+                        onChange={(e) => setNombresHerramientas(e.target.value)}
+                      />
+                      <button type="submit" className="flex items-center justify-center gap-2 py-2 bg-tertiary text-white rounded-xl hover:bg-tertiary/90 transition text-sm font-semibold">
+                        <FaWrench /> Registrar todas
+                      </button>
+                    </form>
+                  </details>
+
+                  {herramientas.length > 0 && (
+                    <div className="flex flex-col gap-2">
+                      <div className="flex items-center justify-between">
+                        <p className="text-xs font-semibold text-on-surface-variant">
+                          Registradas <span className="text-primary font-bold">({herramientas.length})</span>
+                        </p>
+                        <select
+                          value={filtroHerr}
+                          onChange={(e) => setFiltroHerr(e.target.value)}
+                          className="border border-outline-variant rounded-lg px-2 py-0.5 text-xs focus:outline-none focus:ring-1 focus:ring-primary"
+                        >
+                          <option value="todos">Todos</option>
+                          {Object.entries(ESTILOS_HERR).map(([val, { label }]) => (
+                            <option key={val} value={val}>{label}</option>
+                          ))}
+                        </select>
+                      </div>
+                      <div className="flex flex-col gap-1.5 max-h-72 overflow-y-auto pr-1">
+                        {herramientas
+                          .filter((h) => filtroHerr === 'todos' || h.estado === filtroHerr)
+                          .map((h) => {
+                            const est = ESTILOS_HERR[h.estado] || ESTILOS_HERR.entregada;
+                            return (
+                              <div key={h.id} className={`border-l-4 ${est.borde} bg-surface-container-low rounded-r-xl px-3 py-2`}>
+                                <div className="flex items-center justify-between gap-2 mb-1.5">
+                                  <span className="font-medium text-on-surface text-sm truncate">{h.nombre}</span>
+                                  <span className={`px-2 py-0.5 rounded-full text-xs font-bold flex-shrink-0 ${est.badge}`}>
+                                    {est.label}
+                                  </span>
+                                </div>
+                                <div className="flex gap-1 flex-wrap">
+                                  {Object.entries(ESTILOS_HERR)
+                                    .filter(([val]) => val !== h.estado)
+                                    .map(([val, info]) => (
+                                      <button
+                                        key={val}
+                                        onClick={() => handleCambiarEstadoHerramienta(h.id, val)}
+                                        className={`px-2 py-0.5 rounded-full text-[10px] font-semibold border transition hover:opacity-75 ${info.badge}`}
+                                      >
+                                        {info.label}
+                                      </button>
+                                    ))}
+                                </div>
+                              </div>
+                            );
+                          })}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Alertas & Balance */}
+              {tabActivo === 'alertas' && (
+                <div className="flex flex-col gap-5">
+                  {esJefe && cuadrillaActiva.jefe_id === usuario?.id && (
+                    <div className="flex flex-col gap-3">
+                      <p className="text-xs font-semibold text-on-surface-variant uppercase tracking-wide">Enviar alerta al coordinador</p>
+                      {cuadrillaActiva.alerta_emergencia && (
+                        <div className="flex items-center gap-2 bg-error-container/40 border border-error/30 rounded-xl px-3 py-2 text-xs text-on-error-container">
+                          <FaExclamationTriangle /> Ya hay una alerta activa. Enviar otra la sobreescribirá.
+                        </div>
+                      )}
+                      <form onSubmit={handleEnviarAlerta} className="flex flex-col gap-2">
+                        <div className="flex items-start gap-2 bg-error-container/40 border border-error/40 rounded-xl px-3 py-2 text-xs text-on-error-container">
+                          <MdWarning className="text-base flex-shrink-0 mt-0.5" />
+                          <span>Esta alerta llega <strong>inmediatamente</strong> al coordinador. Úsala solo en emergencias urgentes.</span>
+                        </div>
+                        <textarea
+                          required
+                          rows={3}
+                          className={estiloInput}
+                          placeholder="Describe qué está ocurriendo en terreno..."
+                          value={descripcionAlerta}
+                          onChange={(e) => setDescripcionAlerta(e.target.value)}
+                        />
+                        <button type="submit" className="flex items-center justify-center gap-2 py-2.5 bg-error text-white rounded-xl hover:bg-error/90 transition text-sm font-semibold">
+                          <FaExclamationTriangle /> Enviar alerta de emergencia
+                        </button>
+                      </form>
+                      <hr className="border-outline-variant/60" />
+                    </div>
+                  )}
+
+                  <div className="flex flex-col gap-3">
+                    <p className="text-xs font-semibold text-on-surface-variant uppercase tracking-wide">Balance de herramientas</p>
+                    {balance ? (
+                      <>
+                        <div className="grid grid-cols-2 gap-2">
+                          <FilaBalance label="Total" valor={balance.total} color="gray" />
+                          <FilaBalance label="Entregadas" valor={balance.entregadas} color="blue" />
+                          <FilaBalance label="Buenas" valor={balance.buenas} color="green" />
+                          <FilaBalance label="Dañadas" valor={balance.danadas} color="yellow" />
+                          <FilaBalance label="Perdidas" valor={balance.perdidas} color="red" />
+                          <FilaBalance label="No devueltas" valor={balance.noDevueltas} color="orange" />
+                        </div>
+                        {balance.conDiferencias ? (
+                          <div className="flex items-center gap-2 bg-error-container/40 border border-error/30 rounded-xl px-3 py-2 text-sm text-on-error-container">
+                            <MdWarning /> Hay diferencias. El coordinador fue notificado.
+                          </div>
+                        ) : (
+                          <div className="flex items-center gap-2 bg-secondary/5 border border-secondary/30 rounded-xl px-3 py-2 text-sm text-secondary">
+                            <MdCheckCircle /> Sin diferencias en el inventario.
+                          </div>
+                        )}
+                      </>
+                    ) : (
+                      <p className="text-sm text-outline italic">Balance no cargado aún.</p>
+                    )}
+                    <div className="flex gap-2">
+                      <button
+                        onClick={handleVerBalance}
+                        className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-surface-container text-on-surface rounded-xl hover:bg-surface-container-highest transition text-sm font-semibold border border-outline-variant"
+                      >
+                        <MdInfo /> Ver balance
+                      </button>
+                      <button
+                        onClick={handleCerrarBalance}
+                        className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-primary text-white rounded-xl hover:bg-primary-dark transition text-sm font-semibold"
+                      >
+                        <MdDone /> Cerrar balance
+                      </button>
+                    </div>
                   </div>
                 </div>
               )}
-
-              <button
-                onClick={handleCerrarBalance}
-                className="flex items-center justify-center gap-2 py-2.5 bg-techo-primary text-white rounded-xl hover:bg-techo-primaryDark transition text-sm font-semibold"
-              >
-                <MdDone /> Cerrar balance del día
-              </button>
             </div>
-          )}
-
-          {/* Balance */}
-          {panel === 'balance' && balance && (
-            <div className="flex flex-col gap-3">
-              <div className="grid grid-cols-2 gap-2.5">
-                <FilaBalance label="Total" valor={balance.total} color="gray" />
-                <FilaBalance label="Entregadas" valor={balance.entregadas} color="blue" />
-                <FilaBalance label="Buenas" valor={balance.buenas} color="green" />
-                <FilaBalance label="Dañadas" valor={balance.danadas} color="yellow" />
-                <FilaBalance label="Perdidas" valor={balance.perdidas} color="red" />
-                <FilaBalance label="No devueltas" valor={balance.noDevueltas} color="orange" />
-              </div>
-              {balance.conDiferencias ? (
-                <div className="flex items-center gap-2 bg-red-50 border border-red-200 rounded-xl px-3 py-2 text-sm text-red-700">
-                  <MdWarning /> Hay diferencias. El coordinador fue notificado automáticamente.
-                </div>
-              ) : (
-                <div className="flex items-center gap-2 bg-green-50 border border-green-200 rounded-xl px-3 py-2 text-sm text-green-700">
-                  <MdCheckCircle /> Todo en orden. Sin diferencias en el inventario.
-                </div>
-              )}
-            </div>
-          )}
-        </Modal>
+          </div>
+        </div>
       )}
     </div>
   );
@@ -939,17 +1191,15 @@ function ProgresoFase({ fase }) {
         <Fragment key={f}>
           <div className="flex flex-col items-center gap-1">
             <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold transition ${
-              i <= idx ? 'bg-techo-primary text-white' : 'bg-gray-200 text-gray-400'
+              i <= idx ? 'bg-primary text-white' : 'bg-surface-container text-outline'
             }`}>
               {i + 1}
             </div>
-            <span className={`text-[10px] capitalize whitespace-nowrap ${i <= idx ? 'text-techo-primary font-semibold' : 'text-gray-400'}`}>
+            <span className={`text-[10px] capitalize whitespace-nowrap ${i <= idx ? 'text-primary font-semibold' : 'text-outline'}`}>
               {f}
             </span>
           </div>
-          {i < 2 && (
-            <div className={`flex-1 h-0.5 mb-3.5 ${i < idx ? 'bg-techo-primary' : 'bg-gray-200'}`} />
-          )}
+          {i < 2 && <div className={`flex-1 h-0.5 mb-3.5 ${i < idx ? 'bg-primary' : 'bg-surface-container'}`} />}
         </Fragment>
       ))}
     </div>
@@ -958,13 +1208,13 @@ function ProgresoFase({ fase }) {
 
 function StatCard({ valor, etiqueta, icono, colorClase, bgClase }) {
   return (
-    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 flex items-center gap-3">
-      <div className={`w-10 h-10 rounded-xl ${bgClase} flex items-center justify-center text-xl ${colorClase}`}>
+    <div className="bg-white rounded-2xl shadow-card hover:shadow-card-hover transition-shadow border border-outline-variant/60 p-4 flex items-center gap-3">
+      <div className={`w-10 h-10 rounded-xl ${bgClase} flex items-center justify-center text-xl ${colorClase} flex-shrink-0`}>
         {icono}
       </div>
       <div>
-        <p className={`text-2xl font-bold ${colorClase}`}>{valor}</p>
-        <p className="text-xs text-gray-400">{etiqueta}</p>
+        <p className={`text-2xl font-black tabular-nums ${colorClase}`}>{valor}</p>
+        <p className="text-xs text-on-surface-variant font-medium">{etiqueta}</p>
       </div>
     </div>
   );
@@ -974,15 +1224,15 @@ function Modal({ titulo, subtitulo, icono, onCerrar, children }) {
   return (
     <div className="fixed inset-0 bg-black/50 z-[500] flex items-center justify-center p-4">
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] flex flex-col">
-        <div className="flex items-start justify-between px-5 py-4 border-b border-gray-100">
+        <div className="flex items-start justify-between px-5 py-4 border-b border-outline-variant/60">
           <div className="flex items-center gap-2">
             {icono}
             <div>
-              <h2 className="font-bold text-gray-800 text-sm leading-tight">{titulo}</h2>
-              {subtitulo && <p className="text-xs text-gray-400 mt-0.5">{subtitulo}</p>}
+              <h2 className="font-bold text-on-surface text-sm leading-tight">{titulo}</h2>
+              {subtitulo && <p className="text-xs text-outline mt-0.5">{subtitulo}</p>}
             </div>
           </div>
-          <button onClick={onCerrar} className="text-gray-400 hover:text-gray-600 transition ml-2 flex-shrink-0">
+          <button onClick={onCerrar} className="text-outline hover:text-on-surface-variant transition ml-2 flex-shrink-0">
             <MdClose className="text-xl" />
           </button>
         </div>
@@ -995,42 +1245,21 @@ function Modal({ titulo, subtitulo, icono, onCerrar, children }) {
 function Campo({ label, ayuda, children }) {
   return (
     <div>
-      <label className="block text-xs font-semibold text-gray-600 mb-1">{label}</label>
+      <label className="block text-xs font-semibold text-on-surface-variant mb-1">{label}</label>
       {children}
-      {ayuda && <p className="text-xs text-gray-400 mt-1">{ayuda}</p>}
+      {ayuda && <p className="text-xs text-outline mt-1">{ayuda}</p>}
     </div>
-  );
-}
-
-function BtnAccion({ icono, label, onClick, color }) {
-  const colores = {
-    blue:   'bg-blue-50   text-blue-700   border-blue-200   hover:bg-blue-100',
-    indigo: 'bg-indigo-50 text-indigo-700 border-indigo-200 hover:bg-indigo-100',
-    purple: 'bg-purple-50 text-purple-700 border-purple-200 hover:bg-purple-100',
-    green:  'bg-green-50  text-green-700  border-green-200  hover:bg-green-100',
-    teal:   'bg-teal-50   text-teal-700   border-teal-200   hover:bg-teal-100',
-    red:    'bg-red-50    text-red-700    border-red-200    hover:bg-red-100',
-    orange: 'bg-orange-50 text-orange-700 border-orange-200 hover:bg-orange-100',
-    gray:   'bg-gray-50   text-gray-600   border-gray-200   hover:bg-gray-100',
-  };
-  return (
-    <button
-      onClick={onClick}
-      className={`flex items-center gap-1 px-2.5 py-1.5 rounded-xl border text-xs font-semibold transition ${colores[color] || colores.gray}`}
-    >
-      {icono} {label}
-    </button>
   );
 }
 
 function FilaBalance({ label, valor, color }) {
   const c = {
-    gray:   'bg-gray-100   text-gray-700',
-    blue:   'bg-blue-100   text-blue-700',
-    green:  'bg-green-100  text-green-700',
-    yellow: 'bg-yellow-100 text-yellow-700',
-    red:    'bg-red-100    text-red-700',
-    orange: 'bg-orange-100 text-orange-700',
+    gray:   'bg-surface-container   text-on-surface',
+    blue:   'bg-primary/10   text-primary',
+    green:  'bg-secondary/10  text-secondary',
+    yellow: 'bg-tertiary/10 text-tertiary',
+    red:    'bg-error-container    text-on-error-container',
+    orange: 'bg-tertiary/10 text-tertiary',
   };
   return (
     <div className={`rounded-xl p-3 flex justify-between items-center ${c[color] || c.gray}`}>
@@ -1040,34 +1269,6 @@ function FilaBalance({ label, valor, color }) {
   );
 }
 
-const tituloPanel = (panel, cuadrilla) => {
-  const titulos = {
-    miembros:     `Miembros — ${cuadrilla.nombre}`,
-    obra:         `Asignar obra — ${cuadrilla.nombre}`,
-    fase:         `Actualizar fase — ${cuadrilla.nombre}`,
-    alerta:       `Alerta de emergencia — ${cuadrilla.nombre}`,
-    reasignar:    `Reasignar voluntario — ${cuadrilla.nombre}`,
-    herramientas: `Herramientas — ${cuadrilla.nombre}`,
-    balance:      `Balance del día — ${cuadrilla.nombre}`,
-  };
-  return titulos[panel] || cuadrilla.nombre;
-};
-
-const estadoHerramientaActivo = (estado) => {
-  const m = {
-    buena:      'bg-green-100  text-green-700  border-green-400',
-    danada:     'bg-yellow-100 text-yellow-700 border-yellow-400',
-    perdida:    'bg-red-100    text-red-700    border-red-400',
-    no_devuelta:'bg-orange-100 text-orange-700 border-orange-400',
-  };
-  return m[estado] || '';
-};
-
-const etiquetaEstado = (estado) => {
-  const m = { buena: 'Buena', danada: 'Dañada', perdida: 'Perdida', no_devuelta: 'No dev.' };
-  return m[estado] || estado;
-};
-
-const estiloInput = 'w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-techo-secondary';
+const estiloInput = 'w-full border border-outline-variant rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary';
 
 export default GestionCuadrillas;

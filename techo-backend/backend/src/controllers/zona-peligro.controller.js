@@ -12,6 +12,16 @@ export const crearZona = async (solicitud, respuesta) => {
   }
 };
 
+// Traigo todas las zonas del sistema para la vista global del mapa.
+export const listarTodasZonas = async (solicitud, respuesta) => {
+  try {
+    const zonas = await ZonaPeligroService.listarTodas();
+    return respuestaExito(respuesta, 200, 'Zonas de peligro obtenidas', { zonas });
+  } catch (error) {
+    return respuestaError(respuesta, 500, error.message);
+  }
+};
+
 // Traigo todas las zonas de una emergencia para que el mapa las pinte como círculos.
 export const listarZonasPorEmergencia = async (solicitud, respuesta) => {
   try {

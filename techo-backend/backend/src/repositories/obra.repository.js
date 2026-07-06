@@ -26,6 +26,11 @@ export class ObraRepository {
     });
   }
 
+  // Se listan todas las obras del sistema sin filtrar por emergencia
+  static async listarTodas() {
+    return this.getRepository().find({ order: { fecha_creacion: 'DESC' } });
+  }
+
   // Se actualiza lo que se necesite y se devuelve el registro ya modificado
   static async actualizar(id, datos) {
     const repo = this.getRepository();

@@ -145,20 +145,21 @@ function Navbar() {
     { label: 'Emergencias', path: '/emergencias', icon: 'M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z' },
     { label: 'Usuarios', path: '/usuarios', icon: 'M18 9a3 3 0 11-6 0 3 3 0 016 0zm-9 11a4 4 0 118 0H9zm-2-8a2 2 0 100-4 2 2 0 000 4z' },
     { label: 'Herramientas', path: '/herramientas', icon: 'M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z' },
-    { label: 'Inventario', path: '/inventario', icon: 'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01' },
+    { label: 'Inventario', path: '/catalogo', icon: 'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2M9 12h6m-6 4h6' },
+    { label: 'Solicitudes', path: '/solicitudes', icon: 'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 6h6m-6 4h4' },
     { label: 'Reportes', path: '/reportes', icon: 'M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z' },
   ];
 
   const esCoordinador = usuario?.rol === 'coordinador';
   const esJefe = usuario?.rol === 'jefe_cuadrilla';
-  // Los voluntarios solo ven Inicio, Mapa y Comunicaciones; el jefe además ve Cuadrillas
-  const enlacesJefe = ['Inicio', 'Comunicaciones', 'Cuadrillas', 'Mapa', 'Herramientas'];
+  // Los voluntarios solo ven Inicio, Mapa y Comunicaciones; el jefe además ve Cuadrillas y Solicitudes
+  const enlacesJefe = ['Inicio', 'Comunicaciones', 'Cuadrillas', 'Mapa', 'Herramientas', 'Inventario', 'Solicitudes'];
   const enlacesVoluntario = ['Inicio', 'Comunicaciones', 'Mapa'];
 
   return (
     <>
       {/* Barra superior fija — z-[1000] para quedar sobre los tiles y controles de Leaflet (que llegan a z-index 800) */}
-      <nav className="fixed top-0 left-0 right-0 h-[60px] bg-techo-primary/95 backdrop-blur-sm flex items-center justify-between px-6 z-[1000] shadow-lg">
+      <nav className="fixed top-0 left-0 right-0 h-[60px] bg-primary/95 backdrop-blur-sm flex items-center justify-between px-6 z-[1000] shadow-lg">
         {/* Botón de tres líneas que abre el menú lateral */}
         <button
           className="bg-transparent border-none cursor-pointer flex flex-col gap-[5px] p-1"
@@ -290,7 +291,7 @@ function Navbar() {
       )}
 
       {/* Panel lateral deslizante — z-[3000] para estar siempre encima del overlay y del mapa */}
-      <div className={`fixed top-0 bottom-0 w-[300px] bg-gradient-to-b from-techo-primary to-techo-dark z-[3000] transition-all duration-300 flex flex-col ${menuAbierto ? 'left-0' : '-left-[300px]'}`}>
+      <div className={`fixed top-0 bottom-0 w-[300px] bg-gradient-to-b from-primary to-inverse-surface z-[3000] transition-all duration-300 flex flex-col ${menuAbierto ? 'left-0' : '-left-[300px]'}`}>
         {/* Botón X para cerrar el panel desde adentro */}
         <button className="self-end text-white text-xl cursor-pointer bg-transparent border-none p-2 mb-4 hover:bg-white/10 rounded" onClick={cerrarMenu}>
           ✕
@@ -360,7 +361,7 @@ function Navbar() {
               <Link
                 to="/auth/registro"
                 onClick={cerrarMenu}
-                className="flex items-center gap-3 px-3 py-2.5 text-techo-secondary hover:bg-white/10 rounded-lg transition-all text-sm"
+                className="flex items-center gap-3 px-3 py-2.5 text-primary hover:bg-white/10 rounded-lg transition-all text-sm"
               >
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />

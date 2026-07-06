@@ -3,11 +3,12 @@ import { HerramientaService } from '../services/herramienta.service.js';
 import { respuestaExito, respuestaError } from '../utils/response.utils.js';
 
 // Registro una herramienta individual asignándola a la cuadrilla indicada en la URL.
+// Body: { nombre, tipo_item? } — tipo_item por defecto es 'herramienta'
 export const registrarHerramienta = async (solicitud, respuesta) => {
   try {
     const { cuadrillaId } = solicitud.params;
-    const { nombre } = solicitud.body;
-    const herramienta = await HerramientaService.registrar(parseInt(cuadrillaId), nombre);
+    const { nombre, tipo_item = 'herramienta' } = solicitud.body;
+    const herramienta = await HerramientaService.registrar(parseInt(cuadrillaId), nombre, tipo_item);
     return respuestaExito(respuesta, 201, 'Herramienta registrada correctamente', { herramienta });
   } catch (error) {
     return respuestaError(respuesta, 400, error.message);
@@ -15,18 +16,28 @@ export const registrarHerramienta = async (solicitud, respuesta) => {
 };
 
 // Registro múltiples herramientas de una sola vez para agilizar la preparación de la cuadrilla.
-// Recibo un arreglo de nombres y los persisto uno a uno.
+// Body: { nombres: ['martillo', ...] | [{ nombre, tipo_item }, ...], tipo_item? }
 export const registrarHerramientasMasivas = async (solicitud, respuesta) => {
   try {
     const { cuadrillaId } = solicitud.params;
-    const { nombres } = solicitud.body;
+    const { nombres, tipo_item = 'herramienta' } = solicitud.body;
     if (!Array.isArray(nombres) || nombres.length === 0) {
       return respuestaError(respuesta, 400, 'Debes enviar un arreglo de nombres no vacío');
     }
-    const herramientas = await HerramientaService.registrarHerramientasMasivas(parseInt(cuadrillaId), nombres);
+    const herramientas = await HerramientaService.registrarHerramientasMasivas(parseInt(cuadrillaId), nombres, tipo_item);
     return respuestaExito(respuesta, 201, 'Herramientas registradas correctamente', { herramientas });
   } catch (error) {
     return respuestaError(respuesta, 400, error.message);
+  }
+};
+
+// Devuelvo el catálogo completo de ítems agrupado por nombre y tipo para la vista de inventario.
+export const getCatalogo = async (solicitud, respuesta) => {
+  try {
+    const datos = await HerramientaService.catalogoInventario();
+    return respuestaExito(respuesta, 200, 'Catálogo de inventario obtenido', datos);
+  } catch (error) {
+    return respuestaError(respuesta, 500, error.message);
   }
 };
 

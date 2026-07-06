@@ -26,6 +26,11 @@ export class ZonaPeligroRepository {
     });
   }
 
+  // Traigo todas las zonas del sistema sin filtrar por emergencia (vista global)
+  static async listarTodas() {
+    return this.getRepository().find({ order: { creado_en: 'DESC' } });
+  }
+
   // Actualizo los campos editables de una zona: radio, tipo, descripcion, comentarios
   static async actualizar(id, datos) {
     const repo = this.getRepository();
