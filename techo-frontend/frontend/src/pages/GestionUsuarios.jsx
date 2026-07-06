@@ -13,6 +13,8 @@ import {
   MdRefresh,
   MdSearch,
   MdVolunteerActivism,
+  MdVisibility,
+  MdVisibilityOff,
 } from "react-icons/md";
 import {
   obtenerUsuarios,
@@ -26,6 +28,7 @@ const FORMULARIO_INICIAL = {
   nombre: "",
   rut: "",
   correo: "",
+  contrasena: "",
   rol: "voluntario",
 };
 
@@ -41,6 +44,7 @@ function GestionUsuarios() {
   const [mostrarFormulario, setMostrarFormulario] = useState(false);
   const [editandoId, setEditandoId] = useState(null);
   const [guardando, setGuardando] = useState(false);
+  const [mostrarContrasena, setMostrarContrasena] = useState(false);
   const [formulario, setFormulario] = useState(FORMULARIO_INICIAL);
 
   const usuariosPorPagina = 8;
@@ -157,16 +161,19 @@ function GestionUsuarios() {
 
   const abrirNuevoUsuario = () => {
     setEditandoId(null);
+    setMostrarContrasena(false);
     setFormulario(FORMULARIO_INICIAL);
     setMostrarFormulario(true);
   };
 
   const abrirEdicion = (usuario) => {
     setEditandoId(obtenerId(usuario));
+    setMostrarContrasena(false);
     setFormulario({
       nombre: usuario.nombre || "",
       rut: usuario.rut || "",
       correo: usuario.correo || "",
+      contrasena: "",
       rol: usuario.rol || "voluntario",
     });
     setMostrarFormulario(true);
@@ -176,6 +183,7 @@ function GestionUsuarios() {
     if (guardando) return;
     setMostrarFormulario(false);
     setEditandoId(null);
+    setMostrarContrasena(false);
     setFormulario(FORMULARIO_INICIAL);
   };
 
@@ -186,15 +194,43 @@ function GestionUsuarios() {
       setGuardando(true);
 
       if (editandoId) {
-        await actualizarUsuario(editandoId, {
+        const contrasena = formulario.contrasena.trim();
+
+        if (contrasena && contrasena.length < 6) {
+          throw new Error("La contraseña debe tener al menos 6 caracteres.");
+        }
+
+        const datosActualizacion = {
           nombre: formulario.nombre,
           rut: formulario.rut,
           correo: formulario.correo,
           rol: formulario.rol,
-        });
-        mostrarMensajeExito("Usuario actualizado correctamente.");
+        };
+
+        if (contrasena) {
+          datosActualizacion.contrasena = contrasena;
+        }
+
+        await actualizarUsuario(editandoId, datosActualizacion);
+        mostrarMensajeExito(
+          contrasena
+            ? "Usuario y contraseña actualizados correctamente."
+            : "Usuario actualizado correctamente."
+        );
       } else {
-        await crearUsuario(formulario);
+        const contrasena = formulario.contrasena.trim();
+
+        if (contrasena.length < 6) {
+          throw new Error("La contraseña debe tener al menos 6 caracteres.");
+        }
+
+        await crearUsuario({
+          nombre: formulario.nombre,
+          rut: formulario.rut,
+          correo: formulario.correo,
+          contrasena,
+          rol: formulario.rol,
+        });
         mostrarMensajeExito("Usuario creado y credenciales enviadas por correo.");
       }
 
@@ -685,6 +721,51 @@ function GestionUsuarios() {
                     className="w-full rounded-lg border border-outline-variant bg-surface px-4 py-2.5 text-sm outline-none transition focus:border-primary focus:ring-1 focus:ring-primary"
                     required
                   />
+                </label>
+
+                <label className="md:col-span-2">
+                  <span className="mb-1.5 block text-sm font-semibold text-on-surface">
+                    {editandoId ? "Nueva contraseña" : "Contraseña"}
+                    {editandoId && (
+                      <span className="ml-1 font-normal text-on-surface-variant">
+                        (opcional)
+                      </span>
+                    )}
+                  </span>
+                  <div className="relative">
+                    <input
+                      type={mostrarContrasena ? "text" : "password"}
+                      name="contrasena"
+                      value={formulario.contrasena}
+                      onChange={manejarCambio}
+                      placeholder={
+                        editandoId
+                          ? "Déjala vacía para conservar la actual"
+                          : "Mínimo 6 caracteres"
+                      }
+                      minLength={6}
+                      autoComplete="new-password"
+                      className="w-full rounded-lg border border-outline-variant bg-surface px-4 py-2.5 pr-12 text-sm outline-none transition focus:border-primary focus:ring-1 focus:ring-primary"
+                      required={!editandoId}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setMostrarContrasena((visible) => !visible)}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full p-2 text-on-surface-variant transition hover:bg-surface-container-high"
+                      aria-label={mostrarContrasena ? "Ocultar contraseña" : "Mostrar contraseña"}
+                    >
+                      {mostrarContrasena ? (
+                        <MdVisibilityOff className="text-xl" />
+                      ) : (
+                        <MdVisibility className="text-xl" />
+                      )}
+                    </button>
+                  </div>
+                  <span className="mt-1.5 block text-xs text-on-surface-variant">
+                    {editandoId
+                      ? "Escribe una nueva contraseña para reemplazar la actual. Si el usuario quedó sin contraseña, úsala para definir una."
+                      : "Esta contraseña se guardará cifrada y se enviará al correo del usuario."}
+                  </span>
                 </label>
               </div>
 

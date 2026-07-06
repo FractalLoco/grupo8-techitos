@@ -19,9 +19,11 @@ import GestionUsuarios from './pages/GestionUsuarios';
 import GestionCuadrillas from './pages/GestionCuadrillas';
 import MapaInteractivo from './pages/MapaInteractivo';
 import GestionHerramientas from './pages/GestionHerramientas';
+import GestionInventario from './pages/GestionInventario';
 import CatalogoInventario from './pages/CatalogoInventario';
 import SolicitudesHerramientas from './pages/SolicitudesHerramientas';
 import Reportes from './pages/Reportes';
+import HistorialAuditorias from './pages/HistorialAuditorias';
 
 function Aplicacion() {
   return (
@@ -90,6 +92,15 @@ function Aplicacion() {
           <Route
             path="/inventario"
             element={
+              <RutaProtegida rolesPermitidos={['coordinador']}>
+                <GestionInventario />
+              </RutaProtegida>
+            }
+          />
+
+          <Route
+            path="/catalogo"
+            element={
               <RutaProtegida rolesPermitidos={['coordinador', 'jefe_cuadrilla']}>
                 <CatalogoInventario />
               </RutaProtegida>
@@ -99,7 +110,7 @@ function Aplicacion() {
           <Route
             path="/solicitudes"
             element={
-              <RutaProtegida rolesPermitidos={['coordinador', 'jefe_cuadrilla', 'voluntario']}>
+              <RutaProtegida rolesPermitidos={['coordinador', 'jefe_cuadrilla']}>
                 <SolicitudesHerramientas />
               </RutaProtegida>
             }
@@ -110,6 +121,15 @@ function Aplicacion() {
             element={
               <RutaProtegida rolesPermitidos={['coordinador']}>
                 <GestionUsuarios />
+              </RutaProtegida>
+            }
+          />
+
+          <Route
+            path="/auditorias"
+            element={
+              <RutaProtegida rolesPermitidos={['coordinador']}>
+                <HistorialAuditorias />
               </RutaProtegida>
             }
           />

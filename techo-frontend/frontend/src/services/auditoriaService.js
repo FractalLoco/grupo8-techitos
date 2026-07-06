@@ -1,0 +1,36 @@
+const API_URL = 'http://localhost:3000/api/auditorias';
+
+function obtenerHeaders() {
+  const token = localStorage.getItem('token');
+  return {
+    Authorization: `Bearer ${token}`,
+  };
+}
+
+export async function obtenerAuditorias({
+  modulo = 'todos',
+  accion = 'todos',
+  busqueda = '',
+  pagina = 1,
+  limite = 15,
+} = {}) {
+  const parametros = new URLSearchParams({
+    modulo,
+    accion,
+    busqueda,
+    pagina: String(pagina),
+    limite: String(limite),
+  });
+
+  const respuesta = await fetch(`${API_URL}?${parametros.toString()}`, {
+    headers: obtenerHeaders(),
+  });
+
+  const data = await respuesta.json();
+
+  if (!respuesta.ok) {
+    throw new Error(data.mensaje || 'No se pudo obtener el historial de auditorías');
+  }
+
+  return data;
+}

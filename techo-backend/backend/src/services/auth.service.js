@@ -4,14 +4,12 @@ import { hashContrasena, compararContrasena } from '../helpers/bcrypt.helper.js'
 import { generarToken } from '../helpers/jwt.helper.js';
 import { UserResponseDTO } from '../dtos/user-response.dto.js';
 import { CorreoService } from './correo.service.js';
+import { AuditoriaService } from './auditoria.service.js';
 
 export class AuthService {
-  // Autentico al usuario buscándolo por RUT, verificando que esté activo y comparando su contraseña con bcrypt.
-  // Si todo es correcto genero un JWT con su ID y rol para las siguientes solicitudes.
   static async iniciarSesion(rut, contrasena) {
     const usuario = await UsuarioRepository.buscarPorRut(rut);
 
-    // Uso el mismo mensaje para rut y contraseña incorrectos para no revelar cuál falló
     if (!usuario) {
       throw new Error('RUT o contraseña incorrectos');
     }
@@ -25,7 +23,6 @@ export class AuthService {
       throw new Error('RUT o contraseña incorrectos');
     }
 
-    // Firmo solo el ID y el rol; no incluyo datos sensibles en el payload del token
     const token = generarToken({ id: usuario.id, rol: usuario.rol });
 
     return {
@@ -34,8 +31,6 @@ export class AuthService {
     };
   }
 
-  // Busco el usuario por ID para confirmar que sigue existiendo y que su cuenta es válida.
-  // El frontend llama a esto al recargar para restaurar la sesión sin pedir credenciales nuevamente.
   static async verificarToken(usuarioId) {
     const usuario = await UsuarioRepository.buscarPorId(usuarioId);
     if (!usuario) {
@@ -44,8 +39,6 @@ export class AuthService {
     return UserResponseDTO.fromEntity(usuario);
   }
 
-  // Registro un nuevo usuario con contraseña hasheada y cuenta inactiva.
-  // Envío inmediatamente un correo de confirmación con las credenciales ingresadas.
   static async registrarUsuario(datos) {
     const existente = await UsuarioRepository.buscarPorRut(datos.rut);
     if (existente) {
@@ -77,11 +70,25 @@ export class AuthService {
         motivo: 'registro',
       });
     } catch (error) {
-      // Mantengo registro + entrega de credenciales como una sola operación funcional.
-      // Si no se puede enviar el correo, retiro la cuenta recién creada.
       await UsuarioRepository.eliminar(nuevoUsuario.id).catch(() => {});
       throw new Error(`No se pudo enviar el correo de credenciales. Registro cancelado: ${error.message}`);
     }
+
+    await AuditoriaService.registrarSeguro({
+      modulo: 'usuarios',
+      accion: 'REGISTRO_PUBLICO',
+      entidadId: nuevoUsuario.id,
+      entidadNombre: nuevoUsuario.nombre,
+      actor: { nombre: 'Registro público', rol: 'publico' },
+      descripcion: `${nuevoUsuario.nombre} creó una solicitud de cuenta mediante el registro público.`,
+      detalles: {
+        rut: nuevoUsuario.rut,
+        correo: nuevoUsuario.correo,
+        rol: nuevoUsuario.rol,
+        activo: nuevoUsuario.activo,
+        credenciales_enviadas_por_correo: true,
+      },
+    });
 
     return UserResponseDTO.fromEntity(nuevoUsuario);
   }
