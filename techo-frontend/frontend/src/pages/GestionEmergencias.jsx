@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Navbar from "../components/Navbar";
 
 import {
@@ -9,6 +9,10 @@ import {
   obtenerFamilias,
   registrarFamilia,
 } from "../services/emergenciaService";
+import {
+  buscarDireccionesMultiples,
+  geocodificarDireccion,
+} from "../services/mapaService";
 
 function GestionEmergencias() {
   const [emergencias, setEmergencias] = useState([]);
@@ -27,6 +31,12 @@ function GestionEmergencias() {
     lat: "",
     lng: "",
   });
+  const [resultadosDireccion, setResultadosDireccion] = useState([]);
+  const [buscandoDireccion, setBuscandoDireccion] = useState(false);
+  const [direccionSeleccionada, setDireccionSeleccionada] = useState(false);
+  const [busquedaDireccionRealizada, setBusquedaDireccionRealizada] = useState(false);
+  const [indiceDireccionActiva, setIndiceDireccionActiva] = useState(-1);
+  const contenedorDireccionRef = useRef(null);
 
   const [familias, setFamilias] = useState([]);
   const [emergenciaSeleccionada, setEmergenciaSeleccionada] = useState(null);
@@ -145,10 +155,156 @@ function GestionEmergencias() {
   };
 
   const manejarCambio = (e) => {
-    setFormulario({
-      ...formulario,
-      [e.target.name]: e.target.value,
-    });
+    const { name, value } = e.target;
+
+    if (name === "direccion") {
+      // Al editar el texto invalidamos las coordenadas anteriores para evitar
+      // guardar una ubicación que ya no corresponde a la dirección visible.
+      setDireccionSeleccionada(false);
+      setResultadosDireccion([]);
+      setBusquedaDireccionRealizada(false);
+      setIndiceDireccionActiva(-1);
+      setFormulario((actual) => ({
+        ...actual,
+        direccion: value,
+        lat: "",
+        lng: "",
+      }));
+      return;
+    }
+
+    setFormulario((actual) => ({
+      ...actual,
+      [name]: value,
+    }));
+  };
+
+  // Predicción de direcciones: reutiliza la misma búsqueda Photon/OpenStreetMap
+  // que ya usa el módulo de mapa del proyecto. Espera 300 ms para evitar
+  // consultas excesivas y despliega resultados enriquecidos y navegables.
+  useEffect(() => {
+    const texto = formulario.direccion.trim();
+
+    if (direccionSeleccionada || texto.length < 3) {
+      setResultadosDireccion([]);
+      setBuscandoDireccion(false);
+      setBusquedaDireccionRealizada(false);
+      setIndiceDireccionActiva(-1);
+      return undefined;
+    }
+
+    let cancelado = false;
+    setBuscandoDireccion(true);
+    setBusquedaDireccionRealizada(false);
+    setIndiceDireccionActiva(-1);
+
+    const timer = setTimeout(async () => {
+      try {
+        const resultados = await buscarDireccionesMultiples(texto);
+        if (!cancelado) {
+          setResultadosDireccion(resultados);
+          setBusquedaDireccionRealizada(true);
+        }
+      } catch (error) {
+        console.error("Error buscando direcciones:", error);
+        if (!cancelado) {
+          setResultadosDireccion([]);
+          setBusquedaDireccionRealizada(true);
+        }
+      } finally {
+        if (!cancelado) {
+          setBuscandoDireccion(false);
+        }
+      }
+    }, 300);
+
+    return () => {
+      cancelado = true;
+      clearTimeout(timer);
+    };
+  }, [formulario.direccion, direccionSeleccionada]);
+
+  // Cierra el panel de sugerencias al hacer clic fuera del campo.
+  useEffect(() => {
+    const cerrarAlHacerClicFuera = (event) => {
+      if (
+        contenedorDireccionRef.current &&
+        !contenedorDireccionRef.current.contains(event.target)
+      ) {
+        setResultadosDireccion([]);
+        setBusquedaDireccionRealizada(false);
+        setIndiceDireccionActiva(-1);
+      }
+    };
+
+    document.addEventListener("mousedown", cerrarAlHacerClicFuera);
+    return () => document.removeEventListener("mousedown", cerrarAlHacerClicFuera);
+  }, []);
+
+  const seleccionarDireccion = (resultado) => {
+    setFormulario((actual) => ({
+      ...actual,
+      direccion: resultado.etiqueta,
+      lat: Number(resultado.lat),
+      lng: Number(resultado.lng),
+    }));
+    setDireccionSeleccionada(true);
+    setResultadosDireccion([]);
+    setBuscandoDireccion(false);
+    setBusquedaDireccionRealizada(false);
+    setIndiceDireccionActiva(-1);
+  };
+
+  const manejarTeclaDireccion = (e) => {
+    if (e.key === "Escape") {
+      setResultadosDireccion([]);
+      setBusquedaDireccionRealizada(false);
+      setIndiceDireccionActiva(-1);
+      return;
+    }
+
+    if (resultadosDireccion.length === 0) return;
+
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      setIndiceDireccionActiva((actual) =>
+        actual < resultadosDireccion.length - 1 ? actual + 1 : 0
+      );
+      return;
+    }
+
+    if (e.key === "ArrowUp") {
+      e.preventDefault();
+      setIndiceDireccionActiva((actual) =>
+        actual > 0 ? actual - 1 : resultadosDireccion.length - 1
+      );
+      return;
+    }
+
+    if (e.key === "Enter" && indiceDireccionActiva >= 0) {
+      e.preventDefault();
+      seleccionarDireccion(resultadosDireccion[indiceDireccionActiva]);
+    }
+  };
+
+  const resaltarCoincidencia = (texto) => {
+    const busqueda = formulario.direccion.trim();
+    const valor = String(texto || "");
+
+    if (!busqueda) return valor;
+
+    const indice = valor.toLowerCase().indexOf(busqueda.toLowerCase());
+    if (indice < 0) return valor;
+
+    return (
+      <>
+        {valor.slice(0, indice)}
+        <mark className="bg-yellow-100 text-inherit rounded px-0.5">
+          {valor.slice(indice, indice + busqueda.length)}
+        </mark>
+        {valor.slice(indice + busqueda.length)}
+      </>
+    );
   };
 
   const manejarCambioFamilia = (e) => {
@@ -168,6 +324,11 @@ function GestionEmergencias() {
     });
 
     setEditandoId(null);
+    setDireccionSeleccionada(false);
+    setResultadosDireccion([]);
+    setBuscandoDireccion(false);
+    setBusquedaDireccionRealizada(false);
+    setIndiceDireccionActiva(-1);
   };
 
   const limpiarFormularioFamilia = () => {
@@ -181,19 +342,41 @@ function GestionEmergencias() {
     });
   };
 
-  const prepararDatosEmergencia = () => ({
-    nombre: formulario.nombre,
-    descripcion: formulario.descripcion,
-    direccion: formulario.direccion === "" ? null : formulario.direccion,
-    lat: formulario.lat === "" ? null : Number(formulario.lat),
-    lng: formulario.lng === "" ? null : Number(formulario.lng),
-  });
+  const prepararDatosEmergencia = async () => {
+    const direccion = formulario.direccion.trim();
+    let lat = formulario.lat;
+    let lng = formulario.lng;
+
+    // Si el usuario escribió una dirección pero no escogió una sugerencia,
+    // intentamos geocodificarla automáticamente con Nominatim, servicio que
+    // ya forma parte de mapaService. Así nunca pedimos coordenadas manuales.
+    if (direccion && (lat === "" || lng === "" || lat == null || lng == null)) {
+      const ubicacion = await geocodificarDireccion(`${direccion}, Chile`);
+
+      if (!ubicacion) {
+        throw new Error(
+          "No se pudo ubicar la dirección. Selecciona una sugerencia de la lista."
+        );
+      }
+
+      lat = ubicacion.lat;
+      lng = ubicacion.lng;
+    }
+
+    return {
+      nombre: formulario.nombre,
+      descripcion: formulario.descripcion,
+      direccion: direccion || null,
+      lat: lat === "" || lat == null ? null : Number(lat),
+      lng: lng === "" || lng == null ? null : Number(lng),
+    };
+  };
 
   const manejarSubmit = async (e) => {
     e.preventDefault();
 
     try {
-      const datos = prepararDatosEmergencia();
+      const datos = await prepararDatosEmergencia();
 
       if (editandoId) {
         await actualizarEmergencia(editandoId, datos);
@@ -211,7 +394,9 @@ function GestionEmergencias() {
     } catch (error) {
       console.error(error.response?.data || error);
       mostrarMensajeError(
-        error.response?.data?.mensaje || "No se pudo guardar la emergencia."
+        error.response?.data?.mensaje ||
+          error.message ||
+          "No se pudo guardar la emergencia."
       );
     }
   };
@@ -229,6 +414,12 @@ function GestionEmergencias() {
       lng: emergencia.lng ?? "",
     });
 
+    setDireccionSeleccionada(
+      emergencia.lat != null && emergencia.lng != null && Boolean(emergencia.direccion)
+    );
+    setResultadosDireccion([]);
+    setBusquedaDireccionRealizada(false);
+    setIndiceDireccionActiva(-1);
     setEditandoId(obtenerId(emergencia));
   };
 
@@ -318,34 +509,146 @@ function GestionEmergencias() {
             required
           />
 
-          <input
-            type="text"
-            name="direccion"
-            placeholder="Dirección de la emergencia"
-            value={formulario.direccion}
-            onChange={manejarCambio}
-            className="border rounded-lg px-4 py-2"
-          />
+          <div ref={contenedorDireccionRef} className="relative md:col-span-1">
+            <div className="relative">
+              <input
+                type="text"
+                name="direccion"
+                placeholder="Escribe calle, número y comuna"
+                value={formulario.direccion}
+                onChange={manejarCambio}
+                onKeyDown={manejarTeclaDireccion}
+                onFocus={() => {
+                  if (formulario.direccion.trim().length >= 3) {
+                    setDireccionSeleccionada(false);
+                  }
+                }}
+                autoComplete="off"
+                role="combobox"
+                aria-autocomplete="list"
+                aria-expanded={
+                  !direccionSeleccionada &&
+                  formulario.direccion.trim().length >= 3 &&
+                  (buscandoDireccion ||
+                    resultadosDireccion.length > 0 ||
+                    busquedaDireccionRealizada)
+                }
+                aria-controls="lista-sugerencias-direccion"
+                className={`border rounded-lg pl-10 pr-10 py-2 w-full transition ${
+                  direccionSeleccionada
+                    ? "border-green-400 ring-1 ring-green-200"
+                    : "focus:border-red-400 focus:ring-2 focus:ring-red-100"
+                }`}
+              />
 
-          <input
-            type="number"
-            step="any"
-            name="lat"
-            placeholder="Latitud"
-            value={formulario.lat}
-            onChange={manejarCambio}
-            className="border rounded-lg px-4 py-2"
-          />
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400 pointer-events-none"
+                aria-hidden="true"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth="2"
+                  d="M12 21s7-4.35 7-11a7 7 0 10-14 0c0 6.65 7 11 7 11z"
+                />
+                <circle cx="12" cy="10" r="2.25" strokeWidth="2" />
+              </svg>
 
-          <input
-            type="number"
-            step="any"
-            name="lng"
-            placeholder="Longitud"
-            value={formulario.lng}
-            onChange={manejarCambio}
-            className="border rounded-lg px-4 py-2"
-          />
+              {buscandoDireccion ? (
+                <span className="absolute right-3 top-1/2 -translate-y-1/2">
+                  <span className="block h-4 w-4 animate-spin rounded-full border-2 border-gray-300 border-t-red-600" />
+                </span>
+              ) : formulario.direccion ? (
+                <button
+                  type="button"
+                  onClick={() =>
+                    manejarCambio({ target: { name: "direccion", value: "" } })
+                  }
+                  className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-700"
+                  aria-label="Limpiar dirección"
+                >
+                  ×
+                </button>
+              ) : null}
+            </div>
+
+            {!direccionSeleccionada &&
+              formulario.direccion.trim().length >= 3 &&
+              (buscandoDireccion ||
+                resultadosDireccion.length > 0 ||
+                busquedaDireccionRealizada) && (
+                <div
+                  id="lista-sugerencias-direccion"
+                  role="listbox"
+                  className="absolute z-50 left-0 right-0 mt-1 bg-white border border-gray-200 rounded-2xl shadow-2xl overflow-hidden"
+                >
+                  {buscandoDireccion && resultadosDireccion.length === 0 ? (
+                    <div className="px-5 py-4 text-sm text-gray-500 flex items-center gap-3">
+                      <span className="h-5 w-5 animate-spin rounded-full border-2 border-gray-300 border-t-red-600" />
+                      Buscando direcciones en Chile...
+                    </div>
+                  ) : resultadosDireccion.length > 0 ? (
+                    <div className="max-h-96 overflow-y-auto overscroll-contain py-1">
+                      {resultadosDireccion.map((resultado, indice) => (
+                        <button
+                          key={`${resultado.lat}-${resultado.lng}-${indice}`}
+                          type="button"
+                          role="option"
+                          aria-selected={indiceDireccionActiva === indice}
+                          onMouseEnter={() => setIndiceDireccionActiva(indice)}
+                          onMouseDown={(e) => e.preventDefault()}
+                          onClick={() => seleccionarDireccion(resultado)}
+                          className={`w-full text-left px-5 py-3.5 transition ${
+                            indiceDireccionActiva === indice
+                              ? "bg-red-50"
+                              : "hover:bg-gray-50"
+                          }`}
+                        >
+                          <span className="block min-w-0 text-sm leading-6">
+                            <span className="font-semibold text-gray-900">
+                              {resaltarCoincidencia(
+                                resultado.principal || resultado.etiqueta
+                              )}
+                            </span>
+                            {resultado.secundaria && (
+                              <span className="ml-1.5 font-normal text-gray-500">
+                                {resultado.secundaria}
+                              </span>
+                            )}
+                          </span>
+                        </button>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="px-5 py-4">
+                      <p className="text-sm font-medium text-gray-700">
+                        No encontramos coincidencias claras
+                      </p>
+                      <p className="mt-1 text-xs text-gray-500">
+                        Prueba agregando número, comuna o región. Ejemplo: "O'Higgins 123, Yumbel".
+                      </p>
+                    </div>
+                  )}
+                </div>
+              )}
+
+            {direccionSeleccionada && formulario.direccion && (
+              <div className="mt-2 flex items-start gap-2 rounded-lg border border-green-200 bg-green-50 px-3 py-2">
+                <span className="mt-0.5 text-green-600">✓</span>
+                <div>
+                  <p className="text-xs font-semibold text-green-700">
+                    Dirección seleccionada
+                  </p>
+                  <p className="text-[11px] text-green-600">
+                    La latitud y longitud se guardarán automáticamente.
+                  </p>
+                </div>
+              </div>
+            )}
+          </div>
 
           <textarea
             name="descripcion"

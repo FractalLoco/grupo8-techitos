@@ -1,11 +1,11 @@
 // Servicio para obtener y manipular datos del mapa: obras, cuadrillas con estado y zonas de peligro
 
-const BASE_URL = 'http://localhost:3000/api';
+const BASE_URL = "http://localhost:3000/api";
 
 // Cabeceras con el token JWT almacenado en localStorage
 const obtenerHeaders = () => ({
-  Authorization: `Bearer ${localStorage.getItem('token')}`,
-  'Content-Type': 'application/json',
+  Authorization: `Bearer ${localStorage.getItem("token")}`,
+  "Content-Type": "application/json",
 });
 
 // Obtiene las cuadrillas de una emergencia con su color de estado (verde/amarillo/rojo/gris/azul)
@@ -13,7 +13,7 @@ const obtenerHeaders = () => ({
 export const obtenerCuadrillasConEstado = async (emergenciaId) => {
   const res = await fetch(
     `${BASE_URL}/cuadrillas/emergencia/${emergenciaId}/estado`,
-    { headers: obtenerHeaders() }
+    { headers: obtenerHeaders() },
   );
   return res.json();
 };
@@ -21,10 +21,9 @@ export const obtenerCuadrillasConEstado = async (emergenciaId) => {
 // Obtiene las obras de una emergencia para pintarlas como puntos en el mapa
 // Cada obra tiene lat y lng que Leaflet usa para posicionarla
 export const obtenerObrasPorEmergencia = async (emergenciaId) => {
-  const res = await fetch(
-    `${BASE_URL}/obras/emergencia/${emergenciaId}`,
-    { headers: obtenerHeaders() }
-  );
+  const res = await fetch(`${BASE_URL}/obras/emergencia/${emergenciaId}`, {
+    headers: obtenerHeaders(),
+  });
   return res.json();
 };
 
@@ -32,7 +31,7 @@ export const obtenerObrasPorEmergencia = async (emergenciaId) => {
 export const obtenerZonasPeligro = async (emergenciaId) => {
   const res = await fetch(
     `${BASE_URL}/zonas-peligro/emergencia/${emergenciaId}`,
-    { headers: obtenerHeaders() }
+    { headers: obtenerHeaders() },
   );
   return res.json();
 };
@@ -41,7 +40,7 @@ export const obtenerZonasPeligro = async (emergenciaId) => {
 // Body: { lat, lng, radio, tipo ('amarilla'|'roja'), comentario, emergencia_id }
 export const crearZonaPeligro = async (datos) => {
   const res = await fetch(`${BASE_URL}/zonas-peligro`, {
-    method: 'POST',
+    method: "POST",
     headers: obtenerHeaders(),
     body: JSON.stringify(datos),
   });
@@ -51,7 +50,7 @@ export const crearZonaPeligro = async (datos) => {
 // Elimina una zona de peligro del mapa segun su ID
 export const eliminarZonaPeligro = async (zonaId) => {
   const res = await fetch(`${BASE_URL}/zonas-peligro/${zonaId}`, {
-    method: 'DELETE',
+    method: "DELETE",
     headers: obtenerHeaders(),
   });
   return res.json();
@@ -61,7 +60,7 @@ export const eliminarZonaPeligro = async (zonaId) => {
 // Body: { nombre, descripcion, lat, lng, emergencia_id }
 export const crearObra = async (datos) => {
   const res = await fetch(`${BASE_URL}/obras`, {
-    method: 'POST',
+    method: "POST",
     headers: obtenerHeaders(),
     body: JSON.stringify(datos),
   });
@@ -73,7 +72,7 @@ export const crearObra = async (datos) => {
 export const geocodificarDireccion = async (direccion) => {
   const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(direccion)}&format=json&limit=1&countrycodes=cl`;
   const res = await fetch(url, {
-    headers: { 'Accept-Language': 'es', 'User-Agent': 'techo-app/1.0' },
+    headers: { "Accept-Language": "es", "User-Agent": "techo-app/1.0" },
   });
   const data = await res.json();
   if (!data || data.length === 0) return null;
@@ -88,25 +87,98 @@ export const geocodificarDireccion = async (direccion) => {
 // que reconoce abreviaciones como "Pje.", "Av.", "Psje." mejor que Nominatim.
 // El bbox limita resultados al territorio de Chile (lon_min, lat_min, lon_max, lat_max).
 export const buscarDireccionesMultiples = async (texto) => {
-  const url = `https://photon.komoot.io/api/?q=${encodeURIComponent(texto)}&limit=5&lang=es&bbox=-75.7,-56.0,-66.9,-17.5`;
-  const res = await fetch(url, { headers: { 'Accept-Language': 'es' } });
-  const data = await res.json();
-  if (!data?.features || data.features.length === 0) return [];
-  return data.features.map((feature) => {
-    const p = feature.properties || {};
-    // GeoJSON: coordinates es [lng, lat]
-    const lng = feature.geometry.coordinates[0];
-    const lat = feature.geometry.coordinates[1];
-    const partes = [
-      p.street || p.name || '',
-      p.housenumber || '',
-      p.suburb || p.district || '',
-      p.city || p.town || p.village || p.municipality || '',
-      p.state || '',
-    ].filter(Boolean);
-    const etiqueta = partes.join(', ') || p.name || 'Ubicacion sin nombre';
-    return { lat, lng, etiqueta, detalle: etiqueta };
+  const consulta = texto.trim();
+
+  if (consulta.length < 2) {
+    return [];
+  }
+
+  const params = new URLSearchParams({
+    q: consulta,
+    limit: "8",
+    bbox: "-75.7,-56.0,-66.9,-17.5",
   });
+
+  const res = await fetch(
+    `https://photon.komoot.io/api/?${params.toString()}`,
+    {
+      headers: {
+        "Accept-Language": "es",
+      },
+    },
+  );
+
+  if (!res.ok) {
+    const mensaje = await res.text();
+    throw new Error(`Photon respondió ${res.status}: ${mensaje}`);
+  }
+
+  const data = await res.json();
+
+  if (!Array.isArray(data?.features)) {
+    return [];
+  }
+
+  const resultados = data.features
+    .map((feature, index) => {
+      const p = feature.properties || {};
+      const coordinates = feature.geometry?.coordinates;
+
+      if (!Array.isArray(coordinates) || coordinates.length < 2) {
+        return null;
+      }
+
+      const lng = Number(coordinates[0]);
+      const lat = Number(coordinates[1]);
+
+      if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
+        return null;
+      }
+
+      const calleONombre = p.street || p.name || p.locality || "";
+
+      const numero = p.housenumber || "";
+
+      const principal =
+        [calleONombre, numero].filter(Boolean).join(" ").trim() || "Ubicación";
+
+      const secundaria = [
+        p.suburb || p.district || p.locality || "",
+        p.city || p.town || p.village || p.municipality || "",
+        p.state || "",
+      ]
+        .filter(Boolean)
+        .filter(
+          (valor, posicion, arreglo) => arreglo.indexOf(valor) === posicion,
+        )
+        .join(", ");
+
+      const etiqueta = [principal, secundaria].filter(Boolean).join(", ");
+
+      return {
+        id: p.osm_id || `${lat}-${lng}-${index}`,
+
+        principal,
+        secundaria,
+        etiqueta,
+
+        lat,
+        lng,
+      };
+    })
+    .filter(Boolean);
+
+  // Eliminar duplicados
+  return resultados.filter(
+    (resultado, index, arreglo) =>
+      index ===
+      arreglo.findIndex(
+        (otro) =>
+          otro.etiqueta === resultado.etiqueta &&
+          otro.lat === resultado.lat &&
+          otro.lng === resultado.lng,
+      ),
+  );
 };
 
 // Convierte lat/lng en una direccion legible (calle, numero, ciudad) usando Nominatim inverso
@@ -114,17 +186,17 @@ export const buscarDireccionesMultiples = async (texto) => {
 export const reverseGeocodificar = async (lat, lng) => {
   const url = `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json`;
   const res = await fetch(url, {
-    headers: { 'Accept-Language': 'es', 'User-Agent': 'techo-app/1.0' },
+    headers: { "Accept-Language": "es", "User-Agent": "techo-app/1.0" },
   });
   const data = await res.json();
   if (!data || data.error) return null;
   // Construye una direccion corta: calle numero, barrio, ciudad
   const a = data.address || {};
   const partes = [
-    a.road || a.pedestrian || a.path || '',
-    a.house_number || '',
-    a.suburb || a.neighbourhood || a.quarter || '',
-    a.city || a.town || a.municipality || a.village || '',
+    a.road || a.pedestrian || a.path || "",
+    a.house_number || "",
+    a.suburb || a.neighbourhood || a.quarter || "",
+    a.city || a.town || a.municipality || a.village || "",
   ].filter(Boolean);
-  return partes.length > 0 ? partes.join(', ') : data.display_name;
+  return partes.length > 0 ? partes.join(", ") : data.display_name;
 };
