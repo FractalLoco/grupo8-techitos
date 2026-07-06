@@ -3,6 +3,7 @@ import { UsuarioRepository } from '../repositories/usuario.repository.js';
 import { hashContrasena, compararContrasena } from '../helpers/bcrypt.helper.js';
 import { generarToken } from '../helpers/jwt.helper.js';
 import { UserResponseDTO } from '../dtos/user-response.dto.js';
+import { CorreoService } from './correo.service.js';
 
 export class AuthService {
   // Autentico al usuario buscándolo por RUT, verificando que esté activo y comparando su contraseña con bcrypt.
@@ -44,7 +45,7 @@ export class AuthService {
   }
 
   // Registro un nuevo usuario con contraseña hasheada y cuenta inactiva.
-  // El coordinador deberá activar la cuenta desde el panel de administración.
+  // Envío inmediatamente un correo de confirmación con las credenciales ingresadas.
   static async registrarUsuario(datos) {
     const existente = await UsuarioRepository.buscarPorRut(datos.rut);
     if (existente) {
@@ -66,6 +67,21 @@ export class AuthService {
       rol: datos.rol || 'voluntario',
       activo: false,
     });
+
+    try {
+      await CorreoService.enviarCredenciales({
+        nombre: nuevoUsuario.nombre,
+        correo: nuevoUsuario.correo,
+        rut: nuevoUsuario.rut,
+        contrasena: datos.contrasena,
+        motivo: 'registro',
+      });
+    } catch (error) {
+      // Mantengo registro + entrega de credenciales como una sola operación funcional.
+      // Si no se puede enviar el correo, retiro la cuenta recién creada.
+      await UsuarioRepository.eliminar(nuevoUsuario.id).catch(() => {});
+      throw new Error(`No se pudo enviar el correo de credenciales. Registro cancelado: ${error.message}`);
+    }
 
     return UserResponseDTO.fromEntity(nuevoUsuario);
   }

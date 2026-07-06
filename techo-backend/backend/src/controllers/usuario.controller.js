@@ -16,7 +16,11 @@ export const crearUsuario = async (req, res) => {
     const usuario = await UsuarioService.crearUsuario(req.body);
     return respuestaExito(res, 201, 'Usuario creado correctamente', { usuario });
   } catch (error) {
-    const codigo = error.message.includes('existe') ? 409 : 400;
+    const codigo = error.message.includes('existe')
+      ? 409
+      : error.message.includes('correo de credenciales')
+      ? 502
+      : 400;
     return respuestaError(res, codigo, error.message);
   }
 };
@@ -43,8 +47,18 @@ export const desactivarUsuario = async (req, res) => {
 export const activarUsuario = async (req, res) => {
   try {
     const usuario = await UsuarioService.cambiarEstado(req.params.id, true);
-    return respuestaExito(res, 200, 'Usuario activado correctamente', { usuario });
+    return respuestaExito(
+      res,
+      200,
+      'Usuario activado correctamente y credenciales enviadas por correo',
+      { usuario }
+    );
   } catch (error) {
-    return respuestaError(res, 404, error.message);
+    const codigo = error.message.includes('no encontrado')
+      ? 404
+      : error.message.includes('correo de activación')
+      ? 502
+      : 400;
+    return respuestaError(res, codigo, error.message);
   }
 };

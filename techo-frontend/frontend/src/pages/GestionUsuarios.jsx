@@ -195,7 +195,7 @@ function GestionUsuarios() {
         mostrarMensajeExito("Usuario actualizado correctamente.");
       } else {
         await crearUsuario(formulario);
-        mostrarMensajeExito("Usuario creado correctamente.");
+        mostrarMensajeExito("Usuario creado y credenciales enviadas por correo.");
       }
 
       cerrarFormulario();
@@ -222,13 +222,13 @@ function GestionUsuarios() {
         mostrarMensajeExito("Usuario desactivado correctamente.");
       } else {
         await activarUsuario(id);
-        mostrarMensajeExito("Usuario activado correctamente.");
+        mostrarMensajeExito("Usuario activado y nuevas credenciales enviadas por correo.");
       }
 
       await cargarUsuarios();
     } catch (error) {
       console.error(error);
-      mostrarMensajeError("No se pudo cambiar el estado del usuario.");
+      mostrarMensajeError(error.message || "No se pudo cambiar el estado del usuario.");
     }
   };
 

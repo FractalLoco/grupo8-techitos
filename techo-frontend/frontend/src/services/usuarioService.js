@@ -59,7 +59,13 @@ export async function activarUsuario(id) {
     headers: obtenerHeaders(),
   });
 
-  return respuesta.json();
+  const data = await respuesta.json();
+
+  if (!respuesta.ok) {
+    throw new Error(data.mensaje || "Error al activar usuario");
+  }
+
+  return data;
 }
 
 export async function desactivarUsuario(id) {
@@ -68,5 +74,11 @@ export async function desactivarUsuario(id) {
     headers: obtenerHeaders(),
   });
 
-  return respuesta.json();
+  const data = await respuesta.json();
+
+  if (!respuesta.ok) {
+    throw new Error(data.mensaje || "Error al desactivar usuario");
+  }
+
+  return data;
 }
