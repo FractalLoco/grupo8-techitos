@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import Navbar from "../components/Navbar";
+import Toast from "../components/ui/Toast";
 import {
   MdAdd,
   MdBarChart,
@@ -907,19 +908,8 @@ function GestionEmergencias() {
           </div>
         </section>
 
-        {mensajeExito && (
-          <div className="mb-4 flex items-start gap-3 rounded-xl border border-[#90cdff] bg-[#cbe6ff] px-4 py-3 text-[#004b72]">
-            <MdCheckCircle className="mt-0.5 shrink-0 text-xl" aria-hidden="true" />
-            <span className="text-sm font-semibold">{mensajeExito}</span>
-          </div>
-        )}
-
-        {mensajeError && (
-          <div className="mb-4 flex items-start gap-3 rounded-xl border border-[#ffb4ab] bg-[#ffdad6] px-4 py-3 text-[#93000a]">
-            <MdWarningAmber className="mt-0.5 shrink-0 text-xl" aria-hidden="true" />
-            <span className="text-sm font-semibold">{mensajeError}</span>
-          </div>
-        )}
+        {mensajeExito && <Toast type="success" message={mensajeExito} />}
+        {mensajeError && <Toast type="error" message={mensajeError} />}
 
         <section className="mb-8 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4" aria-label="Resumen de emergencias">
           <article className="flex min-h-32 flex-col justify-between rounded-xl border border-[#bec7d2] bg-white p-6">

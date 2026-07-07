@@ -1,6 +1,10 @@
 'use strict';
 import AppDataSource from '../config/database.js';
 
+function esFechaIsoValida(valor) {
+  return /^\d{4}-\d{2}-\d{2}$/.test(String(valor || ''));
+}
+
 export class AuditoriaRepository {
   static getRepository() {
     return AppDataSource.getRepository('Auditoria');
@@ -15,6 +19,8 @@ export class AuditoriaRepository {
     modulo = 'todos',
     accion = 'todos',
     busqueda = '',
+    fechaDesde = '',
+    fechaHasta = '',
     pagina = 1,
     limite = 20,
   } = {}) {
@@ -45,6 +51,22 @@ export class AuditoriaRepository {
           LOWER(COALESCE(auditoria.accion, '')) LIKE :texto
         )`,
         { texto: `%${texto}%` }
+      );
+    }
+
+    // Interpreta el rango como días civiles de Chile. De esta forma el filtro
+    // respeta automáticamente horario de invierno/verano de America/Santiago.
+    if (esFechaIsoValida(fechaDesde)) {
+      consulta.andWhere(
+        `auditoria.creado_en >= ((:fechaDesde || ' 00:00:00')::timestamp AT TIME ZONE 'America/Santiago')`,
+        { fechaDesde }
+      );
+    }
+
+    if (esFechaIsoValida(fechaHasta)) {
+      consulta.andWhere(
+        `auditoria.creado_en < (((:fechaHasta || ' 00:00:00')::timestamp AT TIME ZONE 'America/Santiago') + INTERVAL '1 day')`,
+        { fechaHasta }
       );
     }
 

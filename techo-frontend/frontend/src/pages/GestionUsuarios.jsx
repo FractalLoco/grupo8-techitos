@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import Navbar from "../components/Navbar";
+import Toast from "../components/ui/Toast";
 import {
   MdAdd,
   MdBlock,
@@ -344,19 +345,8 @@ function GestionUsuarios() {
           </div>
         </section>
 
-        {mensajeExito && (
-          <div className="mb-5 flex items-center gap-3 rounded-xl border border-primary-fixed-dim bg-primary-fixed px-4 py-3 text-on-primary-fixed-variant">
-            <MdCheckCircle className="shrink-0 text-xl" />
-            <span className="text-sm font-medium">{mensajeExito}</span>
-          </div>
-        )}
-
-        {mensajeError && (
-          <div className="mb-5 flex items-center gap-3 rounded-xl border border-error/30 bg-error-container px-4 py-3 text-on-error-container">
-            <MdPersonOff className="shrink-0 text-xl" />
-            <span className="text-sm font-medium">{mensajeError}</span>
-          </div>
-        )}
+        {mensajeExito && <Toast type="success" message={mensajeExito} />}
+        {mensajeError && <Toast type="error" message={mensajeError} />}
 
         <section className="mb-10 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <article className="flex min-h-32 flex-col justify-between rounded-xl border border-outline-variant bg-surface-container-lowest p-6 shadow-sm">

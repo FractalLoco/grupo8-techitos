@@ -11,6 +11,8 @@ export async function obtenerAuditorias({
   modulo = 'todos',
   accion = 'todos',
   busqueda = '',
+  fechaDesde = '',
+  fechaHasta = '',
   pagina = 1,
   limite = 15,
 } = {}) {
@@ -18,6 +20,8 @@ export async function obtenerAuditorias({
     modulo,
     accion,
     busqueda,
+    fechaDesde,
+    fechaHasta,
     pagina: String(pagina),
     limite: String(limite),
   });

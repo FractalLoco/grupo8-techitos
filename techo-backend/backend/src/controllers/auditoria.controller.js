@@ -8,6 +8,8 @@ export const listarAuditorias = async (req, res) => {
       modulo: req.query.modulo,
       accion: req.query.accion,
       busqueda: req.query.busqueda,
+      fechaDesde: req.query.fechaDesde,
+      fechaHasta: req.query.fechaHasta,
       pagina: req.query.pagina,
       limite: req.query.limite,
     });
