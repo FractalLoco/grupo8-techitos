@@ -18,6 +18,7 @@ import { ZonaPeligroEntity } from '../entity/zona-peligro.entity.js';
 import { SolicitudEntity } from '../entity/solicitud.entity.js';
 import { ReporteEntity } from '../entity/reporte.entity.js';
 import { MovimientoHerramientaEntity } from '../entity/movimiento-herramienta.entity.js';
+import { AuditoriaEntity } from '../entity/auditoria.entity.js';
 
 dotenv.config();
 
@@ -48,6 +49,7 @@ const AppDataSource = new DataSource({
     SolicitudEntity,
     ReporteEntity,
     MovimientoHerramientaEntity,
+    AuditoriaEntity,
   ],
 });
 
@@ -55,6 +57,30 @@ const AppDataSource = new DataSource({
 export const initDatabase = async () => {
   try {
     await AppDataSource.initialize();
+
+    // Corrige una instalación anterior donde auditorias.creado_en se creó como
+    // TIMESTAMP sin zona horaria. En ese esquema PostgreSQL podía guardar la hora
+    // UTC como hora mural y el frontend terminaba mostrándola 4 horas adelantada
+    // en Chile. La conversión interpreta esos valores heredados como UTC y los
+    // transforma en instantes reales TIMESTAMPTZ. En instalaciones nuevas no hace nada.
+    await AppDataSource.query(`
+      DO $$
+      BEGIN
+        IF EXISTS (
+          SELECT 1
+          FROM information_schema.columns
+          WHERE table_schema = 'public'
+            AND table_name = 'auditorias'
+            AND column_name = 'creado_en'
+            AND data_type = 'timestamp without time zone'
+        ) THEN
+          ALTER TABLE auditorias
+            ALTER COLUMN creado_en TYPE TIMESTAMPTZ
+            USING creado_en AT TIME ZONE 'UTC';
+        END IF;
+      END $$;
+    `);
+
     // Crea y actualiza las tablas descritas por las entidades sin eliminar datos.
     await AppDataSource.synchronize(false);
 

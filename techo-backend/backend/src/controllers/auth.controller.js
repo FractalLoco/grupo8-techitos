@@ -44,6 +44,9 @@ export const registrarUsuario = async (solicitud, respuesta) => {
     if (error.message.includes('Ya existe')) {
       return respuestaError(respuesta, 409, error.message);
     }
+    if (error.message.includes('correo de credenciales')) {
+      return respuestaError(respuesta, 502, error.message);
+    }
     console.error('Error en registrarUsuario:', error.message);
     return respuestaError(respuesta, 500, 'Error interno del servidor');
   }

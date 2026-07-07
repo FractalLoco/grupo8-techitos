@@ -14,6 +14,7 @@ import zonaPeligroRoutes from './zona-peligro.routes.js';
 import solicitudRoutes from './solicitud.routes.js';
 import reporteRoutes from './reporte.routes.js';
 import movimientoRoutes from './movimiento-herramienta.routes.js';
+import auditoriaRoutes from './auditoria.routes.js';
 
 const router = Router();
 
@@ -32,5 +33,6 @@ router.use('/zonas-peligro', zonaPeligroRoutes);
 router.use('/solicitudes', solicitudRoutes);
 router.use('/reportes', reporteRoutes);
 router.use('/movimientos', movimientoRoutes);
+router.use('/auditorias', auditoriaRoutes);
 
 export default router;
