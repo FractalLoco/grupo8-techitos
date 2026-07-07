@@ -42,8 +42,9 @@ const crearFormularioFamilia = (emergencia = null) => ({
 function GestionEmergencias() {
   const [emergencias, setEmergencias] = useState([]);
   const [cargando, setCargando] = useState(true);
-  const [mensajeExito, setMensajeExito] = useState("");
+  const [mensajeExito, setMensajeExito] = useState(null);
   const [mensajeError, setMensajeError] = useState("");
+  const temporizadorMensajeExitoRef = useRef(null);
   const [busquedaEmergencia, setBusquedaEmergencia] = useState("");
   const [filtroEstadoEmergencia, setFiltroEstadoEmergencia] = useState("todos");
   const [paginaActualEmergencias, setPaginaActualEmergencias] = useState(1);
@@ -103,14 +104,36 @@ function GestionEmergencias() {
 
   const normalizarTexto = (texto) => String(texto || "").toLowerCase().trim();
 
-  const mostrarMensajeExito = (mensaje) => {
+  const mostrarMensajeExito = (titulo, descripcion) => {
     setMensajeError("");
-    setMensajeExito(mensaje);
-    setTimeout(() => setMensajeExito(""), 3500);
+
+    if (temporizadorMensajeExitoRef.current) {
+      clearTimeout(temporizadorMensajeExitoRef.current);
+    }
+
+    setMensajeExito({
+      id: Date.now(),
+      titulo,
+      descripcion: descripcion || "Los datos se han guardado correctamente.",
+    });
+
+    temporizadorMensajeExitoRef.current = setTimeout(() => {
+      setMensajeExito(null);
+      temporizadorMensajeExitoRef.current = null;
+    }, 4500);
+  };
+
+  const cerrarMensajeExito = () => {
+    if (temporizadorMensajeExitoRef.current) {
+      clearTimeout(temporizadorMensajeExitoRef.current);
+      temporizadorMensajeExitoRef.current = null;
+    }
+
+    setMensajeExito(null);
   };
 
   const mostrarMensajeError = (mensaje) => {
-    setMensajeExito("");
+    cerrarMensajeExito();
     setMensajeError(mensaje);
     setTimeout(() => setMensajeError(""), 5000);
   };
@@ -151,6 +174,14 @@ function GestionEmergencias() {
 
   useEffect(() => {
     cargarEmergencias();
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (temporizadorMensajeExitoRef.current) {
+        clearTimeout(temporizadorMensajeExitoRef.current);
+      }
+    };
   }, []);
 
   const emergenciasFiltradas = useMemo(() => {
@@ -674,13 +705,19 @@ function GestionEmergencias() {
 
       if (editandoId) {
         await actualizarEmergencia(editandoId, datos);
-        mostrarMensajeExito("Emergencia actualizada correctamente.");
+        mostrarMensajeExito(
+          "¡Emergencia actualizada!",
+          "Los datos se han guardado correctamente."
+        );
       } else {
         await crearEmergencia({
           ...datos,
           estado: "activa",
         });
-        mostrarMensajeExito("Emergencia creada correctamente.");
+        mostrarMensajeExito(
+          "¡Emergencia creada!",
+          "La nueva emergencia se ha registrado correctamente."
+        );
       }
 
       limpiarFormulario();
@@ -722,7 +759,10 @@ function GestionEmergencias() {
   const finalizarEmergencia = async (id) => {
     try {
       await cerrarEmergencia(id);
-      mostrarMensajeExito("Emergencia cerrada correctamente.");
+      mostrarMensajeExito(
+        "¡Emergencia cerrada!",
+        "La emergencia fue finalizada y quedó disponible para consulta histórica."
+      );
       await cargarEmergencias();
     } catch (error) {
       console.error(error.response?.data || error);
@@ -793,7 +833,10 @@ function GestionEmergencias() {
       await registrarFamilia(obtenerId(emergenciaFamiliaAccion), datosFamilia);
       await cargarFamilias(emergenciaFamiliaAccion);
       cerrarModalFamiliaAccion();
-      mostrarMensajeExito("Familia registrada correctamente.");
+      mostrarMensajeExito(
+        "¡Familia registrada!",
+        "La familia afectada se ha asociado correctamente a la emergencia."
+      );
     } catch (error) {
       console.error(error.response?.data || error);
       mostrarMensajeError(
@@ -811,7 +854,10 @@ function GestionEmergencias() {
       await registrarFamilia(obtenerId(emergenciaSeleccionada), datosFamilia);
       await cargarFamilias(emergenciaSeleccionada);
       cerrarModalFamiliaSeccion();
-      mostrarMensajeExito("Familia registrada correctamente.");
+      mostrarMensajeExito(
+        "¡Familia registrada!",
+        "La familia afectada se ha asociado correctamente a la emergencia."
+      );
     } catch (error) {
       console.error(error.response?.data || error);
       mostrarMensajeError(
@@ -890,6 +936,37 @@ function GestionEmergencias() {
       <Navbar />
 
       <main className="mx-auto w-full max-w-[1200px] px-4 pb-12 pt-20 sm:px-6">
+        {mensajeExito && (
+          <div
+            key={mensajeExito.id}
+            className="mb-4 flex animate-audit-success-in items-center justify-between gap-4 rounded-xl border border-green-600/20 bg-green-50 p-4 shadow-sm"
+            role="status"
+            aria-live="polite"
+          >
+            <div className="flex min-w-0 items-center gap-3">
+              <div className="flex shrink-0 items-center justify-center rounded-full bg-green-600 p-1 text-white">
+                <MdCheckCircle className="text-xl" aria-hidden="true" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-xs font-bold text-green-600 sm:text-sm">
+                  {mensajeExito.titulo}
+                </p>
+                <p className="mt-0.5 text-xs text-green-600/80">
+                  {mensajeExito.descripcion}
+                </p>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={cerrarMensajeExito}
+              className="shrink-0 rounded-full p-1 text-green-600 transition-colors hover:bg-green-600/10"
+              aria-label="Cerrar mensaje de éxito"
+            >
+              <MdClose className="text-xl" aria-hidden="true" />
+            </button>
+          </div>
+        )}
+
         <section className="relative mb-8 overflow-hidden rounded-xl border border-[#bec7d2] bg-[#006192]">
           <div className="absolute inset-0 bg-[radial-gradient(circle_at_85%_15%,rgba(144,205,255,0.38),transparent_35%),linear-gradient(120deg,#006192_0%,#007bb7_58%,#386cea_100%)]" />
           <div className="relative flex min-h-36 items-end p-6 md:min-h-48 md:p-8">
@@ -908,7 +985,6 @@ function GestionEmergencias() {
           </div>
         </section>
 
-        {mensajeExito && <Toast type="success" message={mensajeExito} />}
         {mensajeError && <Toast type="error" message={mensajeError} />}
 
         <section className="mb-8 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4" aria-label="Resumen de emergencias">

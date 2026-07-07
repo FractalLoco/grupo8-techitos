@@ -36,7 +36,7 @@ const FORMULARIO_INICIAL = {
 function GestionUsuarios() {
   const [usuarios, setUsuarios] = useState([]);
   const [cargando, setCargando] = useState(true);
-  const [mensajeExito, setMensajeExito] = useState("");
+  const [mensajeExito, setMensajeExito] = useState(null);
   const [mensajeError, setMensajeError] = useState("");
   const [busqueda, setBusqueda] = useState("");
   const [filtroRol, setFiltroRol] = useState("todos");
@@ -52,14 +52,19 @@ function GestionUsuarios() {
 
   const obtenerId = (usuario) => usuario._id || usuario.id;
 
-  const mostrarMensajeExito = (mensaje) => {
+  const mostrarMensajeExito = (titulo, descripcion) => {
     setMensajeError("");
-    setMensajeExito(mensaje);
-    setTimeout(() => setMensajeExito(""), 3500);
+    setMensajeExito({
+      id: Date.now(),
+      titulo,
+      descripcion,
+    });
+
+    setTimeout(() => setMensajeExito(null), 4500);
   };
 
   const mostrarMensajeError = (mensaje) => {
-    setMensajeExito("");
+    setMensajeExito(null);
     setMensajeError(mensaje);
     setTimeout(() => setMensajeError(""), 5000);
   };
@@ -214,9 +219,10 @@ function GestionUsuarios() {
 
         await actualizarUsuario(editandoId, datosActualizacion);
         mostrarMensajeExito(
+          "¡Cambios guardados con éxito!",
           contrasena
-            ? "Usuario y contraseña actualizados correctamente."
-            : "Usuario actualizado correctamente."
+            ? "Los datos y la contraseña del usuario se han actualizado correctamente."
+            : "El registro de usuario ha sido actualizado correctamente."
         );
       } else {
         const contrasena = formulario.contrasena.trim();
@@ -232,7 +238,10 @@ function GestionUsuarios() {
           contrasena,
           rol: formulario.rol,
         });
-        mostrarMensajeExito("Usuario creado y credenciales enviadas por correo.");
+        mostrarMensajeExito(
+          "¡Usuario creado!",
+          "La cuenta se ha registrado y las credenciales fueron enviadas por correo."
+        );
       }
 
       cerrarFormulario();
@@ -256,10 +265,16 @@ function GestionUsuarios() {
 
       if (usuario.activo) {
         await desactivarUsuario(id);
-        mostrarMensajeExito("Usuario desactivado correctamente.");
+        mostrarMensajeExito(
+          "¡Usuario desactivado!",
+          "La cuenta se ha desactivado correctamente."
+        );
       } else {
         await activarUsuario(id);
-        mostrarMensajeExito("Usuario activado y nuevas credenciales enviadas por correo.");
+        mostrarMensajeExito(
+          "¡Usuario activado!",
+          "La cuenta quedó activa y se enviaron nuevas credenciales por correo."
+        );
       }
 
       await cargarUsuarios();
@@ -324,6 +339,39 @@ function GestionUsuarios() {
       <Navbar />
 
       <main className="mx-auto w-full max-w-[1200px] px-4 pb-12 pt-24 md:px-6 lg:px-8">
+        {mensajeExito && (
+          <div
+            key={mensajeExito.id}
+            className="animate-audit-success-in mb-6 flex items-center justify-between gap-4 rounded-xl border border-green-600/20 bg-green-50 p-4 shadow-sm"
+            role="status"
+            aria-live="polite"
+          >
+            <div className="flex min-w-0 items-center gap-3">
+              <div className="flex shrink-0 items-center justify-center rounded-full bg-green-600 p-1 text-white">
+                <MdCheckCircle className="text-xl" aria-hidden="true" />
+              </div>
+
+              <div className="min-w-0">
+                <p className="text-xs font-bold text-green-600">
+                  {mensajeExito.titulo}
+                </p>
+                <p className="mt-0.5 text-xs text-green-600/80">
+                  {mensajeExito.descripcion}
+                </p>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setMensajeExito(null)}
+              className="shrink-0 rounded-full p-1 text-green-600 transition-colors hover:bg-green-600/10"
+              aria-label="Cerrar mensaje de éxito"
+            >
+              <MdClose className="text-xl" />
+            </button>
+          </div>
+        )}
+
         <section
           className="relative mb-10 h-36 overflow-hidden rounded-xl bg-cover bg-center shadow-sm md:h-48"
           style={{
@@ -345,7 +393,6 @@ function GestionUsuarios() {
           </div>
         </section>
 
-        {mensajeExito && <Toast type="success" message={mensajeExito} />}
         {mensajeError && <Toast type="error" message={mensajeError} />}
 
         <section className="mb-10 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
