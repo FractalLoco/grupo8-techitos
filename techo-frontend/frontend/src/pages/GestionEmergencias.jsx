@@ -936,6 +936,17 @@ function GestionEmergencias() {
       <Navbar />
 
       <main className="mx-auto w-full max-w-[1200px] px-4 pb-12 pt-20 sm:px-6">
+        <div
+          className="mb-4 flex items-center justify-center py-2"
+          aria-label="Logo de TECHO Chile"
+        >
+          <img
+            src="/logo-techo-color-oficial.svg"
+            alt="TECHO Chile"
+            className="h-14 w-auto object-contain animate-techo-logo-energetic"
+          />
+        </div>
+
         {mensajeExito && (
           <div
             key={mensajeExito.id}

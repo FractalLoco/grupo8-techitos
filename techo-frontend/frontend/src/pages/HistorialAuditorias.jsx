@@ -4,7 +4,9 @@ import {
   MdArrowBack,
   MdArrowForward,
   MdAssignment,
+  MdCheckCircle,
   MdChevronRight,
+  MdClose,
   MdEdit,
   MdEmergency,
   MdFamilyRestroom,
@@ -294,6 +296,7 @@ export default function HistorialAuditorias() {
   const [acciones, setAcciones] = useState([]);
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState('');
+  const [mensajeExito, setMensajeExito] = useState(null);
   const [modulo, setModulo] = useState('todos');
   const [accion, setAccion] = useState('todos');
   const [busqueda, setBusqueda] = useState('');
@@ -306,7 +309,7 @@ export default function HistorialAuditorias() {
   const [expandida, setExpandida] = useState(null);
   const limite = 10;
 
-  const cargar = async () => {
+  const cargar = async ({ mostrarExito = false } = {}) => {
     try {
       setCargando(true);
       setError('');
@@ -326,6 +329,14 @@ export default function HistorialAuditorias() {
       setAcciones(Array.isArray(datos.acciones) ? datos.acciones : []);
       setTotal(Number(datos.total) || 0);
       setTotalPaginas(Math.max(1, Number(datos.totalPaginas) || 1));
+
+      if (mostrarExito) {
+        setMensajeExito({
+          titulo: 'Historial actualizado con éxito',
+          detalle: 'El historial de auditoría se ha actualizado correctamente.',
+          marcaTiempo: Date.now(),
+        });
+      }
     } catch (err) {
       setAuditorias([]);
       setError(err.message || 'No se pudo cargar el historial.');
@@ -337,6 +348,16 @@ export default function HistorialAuditorias() {
   useEffect(() => {
     cargar();
   }, [modulo, accion, busquedaAplicada, fechaDesde, fechaHasta, pagina]);
+
+  useEffect(() => {
+    if (!mensajeExito) return undefined;
+
+    const temporizador = window.setTimeout(() => {
+      setMensajeExito(null);
+    }, 4500);
+
+    return () => window.clearTimeout(temporizador);
+  }, [mensajeExito]);
 
   useEffect(() => {
     setPagina(1);
@@ -383,6 +404,48 @@ export default function HistorialAuditorias() {
       <Navbar />
 
       <main className="mx-auto w-full max-w-[1280px] px-4 pb-12 pt-24 sm:px-6 lg:px-8">
+        <div
+          className="mb-4 flex min-h-20 items-center justify-center py-2 pointer-events-none select-none"
+          aria-label="Logo de TECHO Chile"
+        >
+          <img
+            src="/logo-techo-color-oficial.svg"
+            alt="TECHO Chile"
+            className="h-14 w-auto object-contain animate-techo-logo-energetic"
+          />
+        </div>
+
+        {mensajeExito && (
+          <section
+            key={mensajeExito.marcaTiempo}
+            role="status"
+            aria-live="polite"
+            className="animate-audit-success-in mb-6 flex items-center justify-between gap-4 rounded-xl border border-green-600/20 bg-green-50 p-4 shadow-sm"
+          >
+            <div className="flex min-w-0 items-center gap-3">
+              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-green-600 text-white">
+                <MdCheckCircle className="text-xl" aria-hidden="true" />
+              </span>
+              <div className="min-w-0">
+                <p className="text-xs font-bold text-green-700">
+                  {mensajeExito.titulo}
+                </p>
+                <p className="mt-0.5 text-xs text-green-700/80">
+                  {mensajeExito.detalle}
+                </p>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => setMensajeExito(null)}
+              className="shrink-0 rounded-full p-1.5 text-green-700 transition-colors hover:bg-green-600/10"
+              aria-label="Cerrar mensaje de éxito"
+            >
+              <MdClose className="text-xl" />
+            </button>
+          </section>
+        )}
+
         <section className="relative mb-10 overflow-hidden rounded-xl bg-inverse-surface p-6 text-white shadow-lg md:p-8">
           <div className="absolute -right-16 -top-20 h-64 w-64 rounded-full bg-primary/20" />
           <div className="absolute -bottom-24 right-40 h-56 w-56 rounded-full bg-tertiary/10" />
@@ -414,7 +477,7 @@ export default function HistorialAuditorias() {
 
               <button
                 type="button"
-                onClick={cargar}
+                onClick={() => cargar({ mostrarExito: true })}
                 disabled={cargando}
                 className="inline-flex min-h-12 items-center justify-center gap-2 rounded-lg bg-primary px-6 text-sm font-bold text-white transition hover:bg-primary-container disabled:opacity-50"
               >
