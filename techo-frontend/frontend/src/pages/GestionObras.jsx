@@ -16,7 +16,7 @@ import Button from '../components/ui/Button';
 import Card from '../components/ui/Card';
 import Badge from '../components/ui/Badge';
 import Toast from '../components/ui/Toast';
-import { obtenerEmergencias } from '../services/emergenciaService';
+import { obtenerEmergencias, obtenerFamilias } from '../services/emergenciaService';
 import { listarCuadrillasConEstado, asignarObra } from '../services/cuadrillaService';
 import { crearObra, listarObrasPorEmergencia } from '../services/obraService';
 import { buscarDireccionesMultiples } from '../services/mapaService';
@@ -34,11 +34,56 @@ function normalizarLista(respuesta, clave) {
   return Array.isArray(lista) ? lista : [];
 }
 
+function coordenadaOpcional(valor) {
+  if (valor === null || valor === undefined || valor === '') return null;
+  const numero = Number(valor);
+  return Number.isFinite(numero) ? numero : null;
+}
+
+function ubicacionPreferida(familia, emergencia) {
+  const latFamilia = coordenadaOpcional(familia?.lat);
+  const lngFamilia = coordenadaOpcional(familia?.lng);
+  const familiaTieneCoordenadas = latFamilia !== null && lngFamilia !== null;
+
+  if (familiaTieneCoordenadas) {
+    return {
+      direccion: familia?.direccion || emergencia?.direccion || '',
+      lat: latFamilia,
+      lng: lngFamilia,
+    };
+  }
+
+  return {
+    direccion: familia?.direccion || emergencia?.direccion || '',
+    lat: coordenadaOpcional(emergencia?.lat),
+    lng: coordenadaOpcional(emergencia?.lng),
+  };
+}
+
+function formularioPorDefecto(emergencia, familias = []) {
+  const familia = familias[0] || null;
+  const ubicacion = ubicacionPreferida(familia, emergencia);
+
+  return {
+    nombre: familia
+      ? `Atención familia ${familia.nombre_cabeza_familia}`
+      : emergencia?.nombre
+        ? `Obra ${emergencia.nombre}`
+        : '',
+    descripcion: emergencia?.descripcion || '',
+    direccion: ubicacion.direccion,
+    lat: ubicacion.lat,
+    lng: ubicacion.lng,
+    familia_id: familia ? String(familia.id) : '',
+  };
+}
+
 export default function GestionObras() {
   const [emergencias, setEmergencias] = useState([]);
   const [emergenciaId, setEmergenciaId] = useState('');
   const [obras, setObras] = useState([]);
   const [cuadrillas, setCuadrillas] = useState([]);
+  const [familias, setFamilias] = useState([]);
   const [cargando, setCargando] = useState(false);
   const [actualizando, setActualizando] = useState(false);
   const [asignandoObraId, setAsignandoObraId] = useState(null);
@@ -53,6 +98,7 @@ export default function GestionObras() {
     direccion: '',
     lat: null,
     lng: null,
+    familia_id: '',
   });
   const [buscandoDireccion, setBuscandoDireccion] = useState(false);
   const [resultadosDireccion, setResultadosDireccion] = useState([]);
@@ -61,6 +107,11 @@ export default function GestionObras() {
   const [filtroEstado, setFiltroEstado] = useState('');
   const [pagina, setPagina] = useState(1);
   const [seleccionCuadrilla, setSeleccionCuadrilla] = useState({});
+
+  const emergenciaSeleccionada = useMemo(
+    () => emergencias.find((e) => String(e.id) === String(emergenciaId)) || null,
+    [emergencias, emergenciaId],
+  );
 
   const mostrarExito = useCallback((titulo, descripcion) => {
     setMensajeExito({ titulo, descripcion });
@@ -88,10 +139,12 @@ export default function GestionObras() {
     return () => { activo = false; };
   }, []);
 
-  const cargarDatos = useCallback(async ({ manual = false } = {}) => {
+  const cargarDatos = useCallback(async ({ manual = false, reiniciarFormulario = false } = {}) => {
     if (!emergenciaId) {
       setObras([]);
       setCuadrillas([]);
+      setFamilias([]);
+      setFormObra(formularioPorDefecto(null, []));
       return;
     }
 
@@ -100,29 +153,38 @@ export default function GestionObras() {
     setMensajeError('');
 
     try {
-      const [respuestaObras, respuestaCuadrillas] = await Promise.all([
+      const [respuestaObras, respuestaCuadrillas, respuestaFamilias] = await Promise.all([
         listarObrasPorEmergencia(emergenciaId),
         listarCuadrillasConEstado(emergenciaId),
+        obtenerFamilias(emergenciaId),
       ]);
+      const listaFamilias = normalizarLista(respuestaFamilias, 'familias');
       setObras(normalizarLista(respuestaObras, 'obras'));
       setCuadrillas(normalizarLista(respuestaCuadrillas, 'cuadrillas'));
+      setFamilias(listaFamilias);
+
+      if (reiniciarFormulario) {
+        setFormObra(formularioPorDefecto(emergenciaSeleccionada, listaFamilias));
+        setResultadosDireccion([]);
+      }
+
       if (manual) {
         setPagina(1);
-        mostrarExito('¡Obras actualizadas!', 'La información de obras y cuadrillas se sincronizó correctamente.');
+        mostrarExito('¡Obras actualizadas!', 'La información de obras, familias y cuadrillas se sincronizó correctamente.');
       }
     } catch (error) {
-      setMensajeError(error.response?.data?.mensaje || error.message || 'No se pudieron cargar las obras');
+      setMensajeError(error.response?.data?.mensaje || error.message || 'No se pudieron cargar los datos de obras');
     } finally {
       setCargando(false);
       setActualizando(false);
     }
-  }, [emergenciaId, mostrarExito]);
+  }, [emergenciaId, emergenciaSeleccionada, mostrarExito]);
 
   useEffect(() => {
-    cargarDatos();
+    cargarDatos({ reiniciarFormulario: true });
     setPagina(1);
     setSeleccionCuadrilla({});
-  }, [cargarDatos]);
+  }, [emergenciaId]);
 
   useEffect(() => {
     const texto = formObra.direccion.trim();
@@ -182,7 +244,7 @@ export default function GestionObras() {
       const estadoReal = obra.estado === 'completada' ? 'completada' : cuadrilla ? 'asignada' : obra.estado;
       if (filtroEstado && estadoReal !== filtroEstado) return false;
       if (!texto) return true;
-      return [obra.nombre, obra.descripcion, obra.direccion, cuadrilla?.nombre]
+      return [obra.nombre, obra.descripcion, obra.direccion, obra.familia?.nombre_cabeza_familia, cuadrilla?.nombre]
         .filter(Boolean)
         .some((valor) => String(valor).toLowerCase().includes(texto));
     });
@@ -210,8 +272,27 @@ export default function GestionObras() {
     setFormObra((prev) => ({ ...prev, direccion: valor, lat: null, lng: null }));
   };
 
+  const seleccionarFamilia = (familiaId) => {
+    const familia = familias.find((item) => String(item.id) === String(familiaId)) || null;
+    const ubicacion = ubicacionPreferida(familia, emergenciaSeleccionada);
+
+    setFormObra((prev) => ({
+      ...prev,
+      familia_id: familia ? String(familia.id) : '',
+      nombre: familia
+        ? `Atención familia ${familia.nombre_cabeza_familia}`
+        : emergenciaSeleccionada?.nombre
+          ? `Obra ${emergenciaSeleccionada.nombre}`
+          : prev.nombre,
+      direccion: ubicacion.direccion,
+      lat: ubicacion.lat,
+      lng: ubicacion.lng,
+    }));
+    setResultadosDireccion([]);
+  };
+
   const limpiarFormulario = () => {
-    setFormObra({ nombre: '', descripcion: '', direccion: '', lat: null, lng: null });
+    setFormObra(formularioPorDefecto(emergenciaSeleccionada, familias));
     setResultadosDireccion([]);
   };
 
@@ -233,6 +314,7 @@ export default function GestionObras() {
         lat: formObra.lat,
         lng: formObra.lng,
         emergencia_id: Number(emergenciaId),
+        familia_id: formObra.familia_id ? Number(formObra.familia_id) : null,
       });
       limpiarFormulario();
       setMostrarCrear(false);
@@ -266,7 +348,6 @@ export default function GestionObras() {
     }
   };
 
-  const emergenciaSeleccionada = emergencias.find((e) => String(e.id) === String(emergenciaId));
 
   return (
     <div className="min-h-screen bg-background">
@@ -316,6 +397,27 @@ export default function GestionObras() {
                 <MdClose size={20} />
               </button>
             </div>
+          )}
+
+          {emergenciaSeleccionada && (
+            <section className="card p-4">
+              <div className="grid gap-3 md:grid-cols-3 md:items-center">
+                <div>
+                  <p className="text-[11px] font-bold uppercase tracking-wider text-outline">Emergencia seleccionada</p>
+                  <p className="mt-1 font-bold text-on-surface">{emergenciaSeleccionada.nombre}</p>
+                </div>
+                <div>
+                  <p className="text-[11px] font-bold uppercase tracking-wider text-outline">Dirección base</p>
+                  <p className="mt-1 text-sm text-on-surface-variant">{emergenciaSeleccionada.direccion || 'Sin dirección registrada'}</p>
+                </div>
+                <div>
+                  <p className="text-[11px] font-bold uppercase tracking-wider text-outline">Familias registradas</p>
+                  <p className="mt-1 flex items-center gap-2 text-sm font-semibold text-on-surface">
+                    <MdGroups className="text-primary" /> {familias.length}
+                  </p>
+                </div>
+              </div>
+            </section>
           )}
 
           <section className="grid grid-cols-2 gap-3 lg:grid-cols-4">
@@ -382,7 +484,26 @@ export default function GestionObras() {
                   />
                 </div>
 
-                <div className="relative">
+                <div>
+                  <label className="label">Familia afectada</label>
+                  <select
+                    className="input-field"
+                    value={formObra.familia_id}
+                    onChange={(e) => seleccionarFamilia(e.target.value)}
+                  >
+                    <option value="">Sin familia específica</option>
+                    {familias.map((familia) => (
+                      <option key={familia.id} value={familia.id}>
+                        {familia.nombre_cabeza_familia} · {familia.direccion || 'sin dirección'}
+                      </option>
+                    ))}
+                  </select>
+                  <p className="mt-1 text-xs text-outline">
+                    Al cambiar de familia se carga automáticamente su dirección. Si no tiene ubicación, se usa la de la emergencia.
+                  </p>
+                </div>
+
+                <div className="relative md:col-span-2">
                   <label className="label">Dirección</label>
                   <div className="relative">
                     <MdLocationOn className="absolute left-3 top-1/2 -translate-y-1/2 text-outline" />
@@ -415,7 +536,7 @@ export default function GestionObras() {
                     </div>
                   )}
                   {formObra.lat !== null && (
-                    <p className="mt-1 flex items-center gap-1 text-xs font-medium text-[#006D37]"><MdCheckCircle /> Dirección seleccionada correctamente</p>
+                    <p className="mt-1 flex items-center gap-1 text-xs font-medium text-[#006D37]"><MdCheckCircle /> Ubicación lista para crear la obra</p>
                   )}
                 </div>
 
@@ -432,7 +553,7 @@ export default function GestionObras() {
                 </div>
 
                 <div className="flex flex-wrap justify-end gap-2 md:col-span-2">
-                  <Button variant="ghost" type="button" onClick={limpiarFormulario}>Limpiar</Button>
+                  <Button variant="ghost" type="button" onClick={limpiarFormulario}>Restaurar datos</Button>
                   <Button type="submit" disabled={guardando}>
                     <MdAdd /> {guardando ? 'Guardando...' : 'Crear obra'}
                   </Button>
@@ -475,6 +596,15 @@ export default function GestionObras() {
                       <h3 className="text-base font-bold text-on-surface">{obra.nombre}</h3>
                       <p className="mt-1 line-clamp-2 text-sm text-on-surface-variant">{obra.descripcion || 'Sin descripción'}</p>
                     </div>
+
+                    {obra.familia && (
+                      <div className="flex items-start gap-2 text-xs text-on-surface-variant">
+                        <MdGroups className="mt-0.5 flex-shrink-0 text-primary" />
+                        <span>
+                          Familia: <strong className="text-on-surface">{obra.familia.nombre_cabeza_familia}</strong>
+                        </span>
+                      </div>
+                    )}
 
                     <div className="flex items-start gap-2 text-xs text-on-surface-variant">
                       <MdLocationOn className="mt-0.5 flex-shrink-0 text-primary" />
