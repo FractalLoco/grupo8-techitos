@@ -9,4 +9,15 @@ export default defineConfig({
     // Pre-bundleo las dependencias más pesadas al arrancar para reducir el tiempo de carga en desarrollo
     include: ['react', 'react-dom', 'react-router-dom'],
   },
+  server: {
+    host: '0.0.0.0',
+    port: 443,
+    strictPort: true
+  },
+  preview: {
+    host: '0.0.0.0',
+    port: 443,
+    strictPort: true,
+    cors: true,
+  },
 });
