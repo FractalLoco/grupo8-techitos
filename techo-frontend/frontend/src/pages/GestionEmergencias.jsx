@@ -885,12 +885,24 @@ function GestionEmergencias() {
     [emergencias]
   );
 
-  const obtenerNombreCuadrilla = (emergencia) =>
-    emergencia?.cuadrilla?.nombre ||
-    emergencia?.cuadrilla_asignada?.nombre ||
-    emergencia?.cuadrilla_nombre ||
-    emergencia?.nombre_cuadrilla ||
-    "";
+  const obtenerCuadrillasEmergencia = (emergencia) => {
+    if (Array.isArray(emergencia?.cuadrillas)) {
+      return emergencia.cuadrillas.filter(Boolean);
+    }
+
+    // Mantengo compatibilidad con respuestas antiguas que pudieran traer
+    // una sola cuadrilla en propiedades singulares.
+    const cuadrillaLegacy =
+      emergencia?.cuadrilla ||
+      emergencia?.cuadrilla_asignada ||
+      (emergencia?.cuadrilla_nombre || emergencia?.nombre_cuadrilla
+        ? {
+            nombre: emergencia?.cuadrilla_nombre || emergencia?.nombre_cuadrilla,
+          }
+        : null);
+
+    return cuadrillaLegacy ? [cuadrillaLegacy] : [];
+  };
 
   const obtenerInicialesCuadrilla = (nombre) =>
     String(nombre || "")
@@ -1097,7 +1109,10 @@ function GestionEmergencias() {
               {emergenciasPaginadas.map((emergencia) => {
                 const id = obtenerId(emergencia);
                 const activa = emergencia.estado === "activa";
-                const nombreCuadrilla = obtenerNombreCuadrilla(emergencia);
+                const cuadrillasEmergencia = obtenerCuadrillasEmergencia(emergencia);
+                const cuadrillaPrincipal = cuadrillasEmergencia[0] || null;
+                const nombreCuadrillaPrincipal = cuadrillaPrincipal?.nombre || "";
+                const cuadrillasAdicionales = Math.max(0, cuadrillasEmergencia.length - 1);
                 const seleccionada =
                   emergenciaSeleccionada && obtenerId(emergenciaSeleccionada) === id;
 
@@ -1148,16 +1163,28 @@ function GestionEmergencias() {
 
                     <div className="mt-auto flex items-end justify-between gap-3">
                       <div className="flex min-w-0 items-center gap-2">
-                        {nombreCuadrilla ? (
+                        {cuadrillasEmergencia.length > 0 ? (
                           <>
                             <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#007bb7] text-[10px] font-bold text-white">
-                              {obtenerInicialesCuadrilla(nombreCuadrilla)}
+                              {obtenerInicialesCuadrilla(nombreCuadrillaPrincipal)}
                             </div>
                             <div className="min-w-0">
-                              <span className="block text-xs font-medium text-[#3f4850]">Cuadrilla</span>
-                              <span className="block truncate text-sm font-semibold text-[#191c1d]">
-                                {nombreCuadrilla}
+                              <span className="block text-xs font-medium text-[#3f4850]">
+                                {cuadrillasEmergencia.length === 1
+                                  ? "Cuadrilla"
+                                  : `Cuadrillas (${cuadrillasEmergencia.length})`}
                               </span>
+                              <span
+                                className="block max-w-[145px] truncate text-sm font-semibold text-[#191c1d]"
+                                title={cuadrillasEmergencia.map((cuadrilla) => cuadrilla?.nombre).filter(Boolean).join(", ")}
+                              >
+                                {nombreCuadrillaPrincipal || "Cuadrilla sin nombre"}
+                              </span>
+                              {cuadrillasAdicionales > 0 && (
+                                <span className="block text-[11px] font-medium text-[#006192]">
+                                  +{cuadrillasAdicionales} más
+                                </span>
+                              )}
                             </div>
                           </>
                         ) : (
