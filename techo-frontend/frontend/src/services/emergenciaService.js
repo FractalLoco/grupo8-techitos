@@ -1,6 +1,7 @@
 import axios from 'axios';
+import API_BASE from './apiBase.js';
 
-const API_URL = 'http://localhost:3000/api/emergencias';
+const API_URL = `${API_BASE}/api/emergencias`;
 
 const obtenerHeaders = () => {
   const token = localStorage.getItem('token');

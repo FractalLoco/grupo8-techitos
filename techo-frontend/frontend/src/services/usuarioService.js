@@ -1,4 +1,6 @@
-const API_URL = "http://localhost:3000/api/usuarios";
+import API_BASE from './apiBase.js';
+
+const API_URL = `${API_BASE}/api/usuarios`;
 
 function obtenerHeaders() {
   const token = localStorage.getItem("token");
