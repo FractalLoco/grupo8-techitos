@@ -52,7 +52,10 @@ export const NotificacionEntity = new EntitySchema({
     },
   },
   checks: [
-    { expression: `"tipo" IN ('asignacion_obra', 'alerta_emergencia', 'alerta_herramienta', 'reasignacion', 'broadcast', 'mensaje_cuadrilla')` },
+    {
+      name: 'CHK_notificaciones_tipo',
+      expression: `"tipo" IN ('asignacion_obra', 'alerta_emergencia', 'alerta_herramienta', 'reasignacion', 'broadcast', 'mensaje_cuadrilla', 'registro_usuario')`,
+    },
   ],
   relations: {
     usuario: {

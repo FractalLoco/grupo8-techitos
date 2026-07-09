@@ -48,6 +48,14 @@ export class CuadrillaRepository {
     });
   }
 
+  // Busca qué cuadrilla tiene actualmente una obra concreta. Se usa para impedir
+  // que una misma obra quede asignada a dos equipos distintos.
+  static async buscarPorObraAsignada(obraId) {
+    return this.getRepository().findOne({
+      where: { obra_asignada_id: Number(obraId) },
+    });
+  }
+
   // Actualizo campos parciales de una cuadrilla y devuelvo el registro resultante
   static async actualizar(id, datos) {
     const repo = this.getRepository();
