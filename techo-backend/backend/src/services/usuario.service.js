@@ -1,5 +1,4 @@
 'use strict';
-import crypto from 'crypto';
 import { UsuarioRepository } from '../repositories/usuario.repository.js';
 import { hashContrasena } from '../helpers/bcrypt.helper.js';
 import { CorreoService } from './correo.service.js';
@@ -10,10 +9,6 @@ const CAMPOS_EDITABLES = ['nombre', 'rut', 'correo', 'rol'];
 export class UsuarioService {
   static async listarUsuarios() {
     return UsuarioRepository.listar();
-  }
-
-  static generarContrasenaTemporal() {
-    return crypto.randomBytes(6).toString('base64url');
   }
 
   static filtrarCamposEditables(datos = {}) {
@@ -139,7 +134,7 @@ export class UsuarioService {
   }
 
   static async cambiarEstado(id, activo, actor = null) {
-    const usuario = await UsuarioRepository.buscarPorIdConContrasena(id);
+    const usuario = await UsuarioRepository.buscarPorId(id);
     if (!usuario) throw new Error('Usuario no encontrado');
 
     if (!activo) {
@@ -165,30 +160,24 @@ export class UsuarioService {
       throw new Error('El usuario ya está activo');
     }
 
-    const contrasenaTemporal = this.generarContrasenaTemporal();
-    const nuevoHash = await hashContrasena(contrasenaTemporal);
-
-    await UsuarioRepository.actualizarCredencialesYEstado(id, nuevoHash, true);
+    // Activar una cuenta solo cambia su estado. La contraseña existente se
+    // conserva exactamente como está almacenada y nunca se regenera aquí.
+    const actualizado = await UsuarioRepository.cambiarEstadoActivo(id, true);
 
     try {
-      await CorreoService.enviarCredenciales({
-        nombre: usuario.nombre,
-        correo: usuario.correo,
-        rut: usuario.rut,
-        contrasena: contrasenaTemporal,
-        motivo: 'activacion',
+      await CorreoService.enviarCuentaActivada({
+        nombre: actualizado.nombre,
+        correo: actualizado.correo,
+        rut: actualizado.rut,
       });
     } catch (error) {
-      await UsuarioRepository.actualizarCredencialesYEstado(
-        id,
-        usuario.contrasena,
-        usuario.activo
-      ).catch(() => {});
+      // Mantengo el comportamiento transaccional anterior: si no se puede
+      // notificar la activación, restauro solo el estado previo. La contraseña
+      // no se toca en ningún momento.
+      await UsuarioRepository.cambiarEstadoActivo(id, usuario.activo).catch(() => {});
 
       throw new Error(`No se pudo enviar el correo de activación. La cuenta no fue activada: ${error.message}`);
     }
-
-    const actualizado = await UsuarioRepository.buscarPorId(id);
 
     await AuditoriaService.registrarSeguro({
       modulo: 'usuarios',
@@ -196,11 +185,12 @@ export class UsuarioService {
       entidadId: actualizado.id,
       entidadNombre: actualizado.nombre,
       actor,
-      descripcion: `Se activó la cuenta de ${actualizado.nombre} y se enviaron nuevas credenciales.`,
+      descripcion: `Se activó la cuenta de ${actualizado.nombre} sin modificar su contraseña.`,
       detalles: {
         estado_anterior: 'inactivo',
         estado_nuevo: 'activo',
-        credenciales_enviadas_por_correo: true,
+        contrasena_modificada: false,
+        notificacion_activacion_enviada: true,
       },
     });
 

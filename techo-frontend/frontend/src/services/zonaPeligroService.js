@@ -1,6 +1,6 @@
 import axios from 'axios';
-
-const API = 'http://localhost:3000/api/zonas-peligro';
+import API_BASE from './apiBase.js';
+const API = `${API_BASE}/api/zonas-peligro`;
 
 const headers = () => ({
   headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },

@@ -1,6 +1,7 @@
 import { io } from 'socket.io-client';
+import API_BASE from './apiBase.js';
 
-const URL_BASE = import.meta.env.VITE_URL_BACKEND || 'http://localhost:3000';
+const URL_BASE = import.meta.env.VITE_URL_BACKEND || API_BASE || 'http://localhost:3000';
 
 function obtenerHeaders() {
   const token = localStorage.getItem('token');

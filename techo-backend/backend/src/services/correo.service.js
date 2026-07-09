@@ -46,17 +46,6 @@ const obtenerTransportador = () => {
 };
 
 const obtenerContenidoPorMotivo = (motivo) => {
-  if (motivo === 'activacion') {
-    return {
-      asunto: 'Tu cuenta TECHO Chile fue activada',
-      titulo: 'Cuenta activada correctamente',
-      introduccion:
-        'Tu cuenta ya está activa. Por seguridad se generó una nueva contraseña temporal para este acceso.',
-      aviso:
-        'La contraseña temporal reemplaza cualquier contraseña anterior. Te recomendamos cambiarla después de iniciar sesión.',
-    };
-  }
-
   if (motivo === 'creacion') {
     return {
       asunto: 'Credenciales de tu nueva cuenta TECHO Chile',
@@ -64,7 +53,7 @@ const obtenerContenidoPorMotivo = (motivo) => {
       introduccion:
         'Se creó una cuenta para ti en la plataforma de gestión de TECHO Chile. La cuenta permanecerá pendiente hasta que un coordinador la active.',
       aviso:
-        'Cuando la cuenta sea activada recibirás un nuevo correo con credenciales válidas de activación.',
+        'Cuando la cuenta sea activada podrás ingresar con estas mismas credenciales. La activación no cambiará tu contraseña.',
     };
   }
 
@@ -74,7 +63,7 @@ const obtenerContenidoPorMotivo = (motivo) => {
     introduccion:
       'Tu registro fue recibido y tu cuenta quedó pendiente de activación por un coordinador.',
     aviso:
-      'Cuando la cuenta sea activada recibirás un nuevo correo. La activación puede reemplazar esta contraseña por una contraseña temporal.',
+      'Cuando la cuenta sea activada podrás ingresar con la misma contraseña que definiste en el registro. La activación no la reemplazará.',
   };
 };
 
@@ -146,6 +135,68 @@ export class CorreoService {
               </div>
 
               <p style="margin:0 0 22px;font-size:14px;line-height:1.6;color:#3f4850;">${avisoSeguro}</p>
+
+              <a href="${urlLoginSegura}" style="display:inline-block;background:#006192;color:#ffffff;text-decoration:none;font-weight:700;padding:12px 20px;border-radius:8px;">Ir al inicio de sesión</a>
+            </div>
+          </div>
+        </div>
+      `,
+    });
+
+    return {
+      messageId: info.messageId,
+      accepted: info.accepted,
+      rejected: info.rejected,
+    };
+  }
+
+  static async enviarCuentaActivada({ nombre, correo, rut }) {
+    if (!correo || !rut) {
+      throw new Error('Faltan datos para enviar la notificación de activación.');
+    }
+
+    const remitente =
+      process.env.CORREO_REMITENTE ||
+      `TECHO Chile <${process.env.CORREO_USUARIO}>`;
+    const urlBase = String(process.env.FRONTEND_URL || 'http://localhost:5173').replace(/\/$/, '');
+    const urlLogin = `${urlBase}/auth/iniciar-sesion`;
+
+    const nombreSeguro = escaparHtml(nombre || 'Usuario');
+    const rutSeguro = escaparHtml(rut);
+    const urlLoginSegura = escaparHtml(urlLogin);
+
+    const info = await obtenerTransportador().sendMail({
+      from: remitente,
+      to: correo,
+      subject: 'Tu cuenta TECHO Chile fue activada',
+      text: [
+        `Hola ${nombre || 'Usuario'},`,
+        '',
+        'Tu cuenta fue activada correctamente.',
+        'Puedes iniciar sesión usando el mismo RUT y la misma contraseña que ya tenías. La activación no modificó tu contraseña.',
+        '',
+        `RUT: ${rut}`,
+        `Ingresar: ${urlLogin}`,
+        '',
+        'TECHO Chile',
+      ].join('\n'),
+      html: `
+        <div style="margin:0;padding:24px;background:#f3f4f5;font-family:Arial,sans-serif;color:#191c1d;">
+          <div style="max-width:620px;margin:0 auto;background:#ffffff;border:1px solid #bec7d2;border-radius:14px;overflow:hidden;">
+            <div style="background:#006192;color:#ffffff;padding:24px;">
+              <div style="font-size:13px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;opacity:.85;">TECHO Chile</div>
+              <h1 style="margin:8px 0 0;font-size:26px;line-height:1.25;">Cuenta activada correctamente</h1>
+            </div>
+            <div style="padding:28px;">
+              <p style="margin:0 0 16px;font-size:16px;line-height:1.6;">Hola <strong>${nombreSeguro}</strong>,</p>
+              <p style="margin:0 0 18px;font-size:15px;line-height:1.6;color:#3f4850;">Tu cuenta fue activada correctamente y ya puedes ingresar a la plataforma.</p>
+
+              <div style="background:#f3f4f5;border:1px solid #bec7d2;border-radius:10px;padding:18px;margin:0 0 20px;">
+                <div style="font-size:12px;font-weight:700;color:#6f7882;text-transform:uppercase;">RUT de acceso</div>
+                <div style="font-size:17px;font-weight:700;color:#191c1d;">${rutSeguro}</div>
+              </div>
+
+              <p style="margin:0 0 22px;font-size:14px;line-height:1.6;color:#3f4850;"><strong>Tu contraseña no fue modificada.</strong> Usa la misma contraseña que definiste o recibiste cuando se creó tu cuenta.</p>
 
               <a href="${urlLoginSegura}" style="display:inline-block;background:#006192;color:#ffffff;text-decoration:none;font-weight:700;padding:12px 20px;border-radius:8px;">Ir al inicio de sesión</a>
             </div>

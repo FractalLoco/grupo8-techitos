@@ -12,6 +12,7 @@ function obtenerHeaders() {
 export async function obtenerUsuarios() {
   const respuesta = await fetch(API_URL, {
     headers: obtenerHeaders(),
+    cache: "no-store",
   });
 
   if (!respuesta.ok) {

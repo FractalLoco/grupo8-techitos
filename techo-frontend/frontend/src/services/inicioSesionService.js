@@ -1,5 +1,6 @@
 // Leo la URL del backend desde las variables de entorno de Vite; si no existe uso localhost como fallback
-const URL_BASE = import.meta.env.VITE_URL_BACKEND || 'http://localhost:3000';
+import API_BASE from './apiBase.js';
+const URL_BASE = import.meta.env.VITE_URL_BACKEND || API_BASE || 'http://localhost:3000';
 
 // Envío las credenciales al backend y devuelvo el token junto con los datos del usuario.
 // Si el servidor responde con error, lanzo una excepción con el mensaje que viene del backend.

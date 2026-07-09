@@ -25,7 +25,7 @@ export class UsuarioRepository {
     });
   }
 
-  // Busco internamente el usuario incluyendo el hash actual para poder restaurarlo si falla el correo de activación.
+  // Busco internamente el usuario incluyendo el hash actual para operaciones de edición de contraseña.
   // Este método solo se usa dentro de la capa de servicio y nunca expone la contraseña al frontend.
   static async buscarPorIdConContrasena(id) {
     return this.getRepository().findOne({
@@ -68,13 +68,6 @@ export class UsuarioRepository {
   static async cambiarContrasena(id, nuevoHash) {
     const repo = this.getRepository();
     await repo.update(id, { contrasena: nuevoHash });
-    return this.buscarPorId(id);
-  }
-
-  // Actualizo contraseña y estado juntos para que las credenciales generadas al activar sean válidas inmediatamente.
-  static async actualizarCredencialesYEstado(id, nuevoHash, activo) {
-    const repo = this.getRepository();
-    await repo.update(id, { contrasena: nuevoHash, activo });
     return this.buscarPorId(id);
   }
 

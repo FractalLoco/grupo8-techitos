@@ -54,7 +54,7 @@ export const activarUsuario = async (req, res) => {
     return respuestaExito(
       res,
       200,
-      'Usuario activado correctamente y credenciales enviadas por correo',
+      'Usuario activado correctamente sin modificar su contraseña',
       { usuario }
     );
   } catch (error) {

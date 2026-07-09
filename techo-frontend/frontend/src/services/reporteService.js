@@ -1,4 +1,6 @@
-const URL_BASE = import.meta.env.VITE_URL_BACKEND || 'http://localhost:3000';
+import API_BASE from './apiBase.js';
+
+const URL_BASE = import.meta.env.VITE_URL_BACKEND || API_BASE || 'http://localhost:3000';
 const API_URL = `${URL_BASE}/api/reportes`;
 
 const obtenerHeaders = () => {

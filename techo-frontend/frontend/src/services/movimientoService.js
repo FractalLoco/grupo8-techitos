@@ -1,6 +1,7 @@
 import axios from 'axios';
+import API_BASE from './apiBase.js';
 
-const API = 'http://localhost:3000/api/movimientos';
+const API = `${API_BASE}/api/movimientos`;
 
 const headers = () => ({
   headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
