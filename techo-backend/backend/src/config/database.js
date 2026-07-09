@@ -81,6 +81,60 @@ export const initDatabase = async () => {
       END $$;
     `);
 
+    // Amplía el tipo de notificaciones para instalaciones existentes.
+    // La restricción anterior no contemplaba los avisos de registro público.
+    // En instalaciones nuevas este bloque no hace nada porque la tabla aún no existe
+    // y TypeORM la crea después con la restricción actualizada de la entidad.
+    await AppDataSource.query(`
+      DO $$
+      DECLARE
+        restriccion RECORD;
+      BEGIN
+        IF to_regclass('public.notificaciones') IS NOT NULL
+          AND NOT EXISTS (
+            SELECT 1
+            FROM pg_constraint c
+            JOIN pg_class t ON t.oid = c.conrelid
+            JOIN pg_namespace n ON n.oid = t.relnamespace
+            WHERE n.nspname = 'public'
+              AND t.relname = 'notificaciones'
+              AND c.contype = 'c'
+              AND pg_get_constraintdef(c.oid) ILIKE '%tipo%'
+              AND pg_get_constraintdef(c.oid) ILIKE '%registro_usuario%'
+          ) THEN
+          FOR restriccion IN
+            SELECT c.conname
+            FROM pg_constraint c
+            JOIN pg_class t ON t.oid = c.conrelid
+            JOIN pg_namespace n ON n.oid = t.relnamespace
+            WHERE n.nspname = 'public'
+              AND t.relname = 'notificaciones'
+              AND c.contype = 'c'
+              AND pg_get_constraintdef(c.oid) ILIKE '%tipo%'
+          LOOP
+            EXECUTE format(
+              'ALTER TABLE public.notificaciones DROP CONSTRAINT %I',
+              restriccion.conname
+            );
+          END LOOP;
+
+          ALTER TABLE public.notificaciones
+            ADD CONSTRAINT "CHK_notificaciones_tipo"
+            CHECK (
+              "tipo" IN (
+                'asignacion_obra',
+                'alerta_emergencia',
+                'alerta_herramienta',
+                'reasignacion',
+                'broadcast',
+                'mensaje_cuadrilla',
+                'registro_usuario'
+              )
+            );
+        END IF;
+      END $$;
+    `);
+
     // Crea y actualiza las tablas descritas por las entidades sin eliminar datos.
     await AppDataSource.synchronize(false);
 

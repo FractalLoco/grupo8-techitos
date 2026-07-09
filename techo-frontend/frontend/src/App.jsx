@@ -17,6 +17,7 @@ import GestionEmergencias from './pages/GestionEmergencias';
 import NotFound from './pages/NotFound';
 import GestionUsuarios from './pages/GestionUsuarios';
 import GestionCuadrillas from './pages/GestionCuadrillas';
+import GestionObras from './pages/GestionObras';
 import MapaInteractivo from './pages/MapaInteractivo';
 import GestionHerramientas from './pages/GestionHerramientas';
 import GestionInventario from './pages/GestionInventario';
@@ -64,6 +65,16 @@ function Aplicacion() {
             element={
               <RutaProtegida rolesPermitidos={['coordinador', 'jefe_cuadrilla']}>
                 <GestionCuadrillas />
+              </RutaProtegida>
+            }
+          />
+
+          {/* Obras: creación, consulta y asignación directa a cuadrillas (solo coordinador) */}
+          <Route
+            path="/obras"
+            element={
+              <RutaProtegida rolesPermitidos={['coordinador']}>
+                <GestionObras />
               </RutaProtegida>
             }
           />

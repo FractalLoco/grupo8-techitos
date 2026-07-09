@@ -5,6 +5,7 @@ import { generarToken } from '../helpers/jwt.helper.js';
 import { UserResponseDTO } from '../dtos/user-response.dto.js';
 import { CorreoService } from './correo.service.js';
 import { AuditoriaService } from './auditoria.service.js';
+import { NotificacionService } from './notificacion.service.js';
 
 export class AuthService {
   static async iniciarSesion(rut, contrasena) {
@@ -40,6 +41,13 @@ export class AuthService {
   }
 
   static async registrarUsuario(datos) {
+    const rolSolicitado = datos.rol || 'voluntario';
+    const rolesRegistroPublico = ['voluntario', 'jefe_cuadrilla'];
+
+    if (!rolesRegistroPublico.includes(rolSolicitado)) {
+      throw new Error('El rol seleccionado no es válido para el registro público');
+    }
+
     const existente = await UsuarioRepository.buscarPorRut(datos.rut);
     if (existente) {
       throw new Error('Ya existe un usuario con ese RUT');
@@ -57,7 +65,7 @@ export class AuthService {
       rut: datos.rut,
       correo: datos.correo,
       contrasena: contrasenaHash,
-      rol: datos.rol || 'voluntario',
+      rol: rolSolicitado,
       activo: false,
     });
 
@@ -89,6 +97,13 @@ export class AuthService {
         credenciales_enviadas_por_correo: true,
       },
     });
+
+    // La notificación in-app es complementaria: nunca debe invalidar un registro
+    // exitoso si, por ejemplo, un aviso puntual no puede persistirse.
+    await NotificacionService.notificarNuevoRegistro(nuevoUsuario).catch(() => ({
+      creadas: 0,
+      fallidas: 0,
+    }));
 
     return UserResponseDTO.fromEntity(nuevoUsuario);
   }

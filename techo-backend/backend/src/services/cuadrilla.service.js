@@ -8,6 +8,7 @@ import { FamiliaRepository } from '../repositories/familia.repository.js';
 import { ObraRepository } from '../repositories/obra.repository.js';
 import { NotificacionService } from '../services/notificacion.service.js';
 import { MovimientoHerramientaService } from '../services/movimiento-herramienta.service.js';
+import AppDataSource from '../config/database.js';
 
 const MIN_MIEMBROS = 10;
 const MAX_MIEMBROS = 11;
@@ -89,30 +90,77 @@ export class CuadrillaService {
     return MiembroCuadrillaRepository.eliminar(cuadrillaId, voluntarioId);
   }
 
-  // Asigno la obra validando que pertenezca a la misma emergencia y notifico a todos los integrantes
+  // Asigno una obra de forma consistente: misma emergencia, equipo completo,
+  // cuadrilla sin otra obra y obra no ocupada por otro equipo. Las notificaciones
+  // son posteriores a la asignación y nunca revierten una operación ya guardada.
   static async asignarObra(cuadrillaId, obraId) {
-    const cuadrilla = await CuadrillaRepository.buscarPorId(cuadrillaId);
+    const cuadrillaIdNumero = Number(cuadrillaId);
+    const obraIdNumero = Number(obraId);
+
+    if (!Number.isInteger(cuadrillaIdNumero) || !Number.isInteger(obraIdNumero)) {
+      throw new Error('Cuadrilla u obra inválida');
+    }
+
+    const cuadrilla = await CuadrillaRepository.buscarPorId(cuadrillaIdNumero);
     if (!cuadrilla) {
       throw new Error('Cuadrilla no encontrada');
     }
+    if (cuadrilla.estado === 'completada' || cuadrilla.estado === 'desarmada') {
+      throw new Error('No se puede asignar una obra a una cuadrilla terminada');
+    }
 
-    const obra = await ObraRepository.buscarPorId(obraId);
+    const miembrosActuales = await CuadrillaRepository.contarMiembros(cuadrillaIdNumero);
+    if (miembrosActuales < MIN_MIEMBROS) {
+      throw new Error(`La cuadrilla necesita al menos ${MIN_MIEMBROS} integrantes antes de recibir una obra`);
+    }
+
+    const obra = await ObraRepository.buscarPorId(obraIdNumero);
     if (!obra) {
       throw new Error('Obra no encontrada');
     }
-    if (obra.emergencia_id !== cuadrilla.emergencia_id) {
+    if (Number(obra.emergencia_id) !== Number(cuadrilla.emergencia_id)) {
       throw new Error('La obra no pertenece a la emergencia de esta cuadrilla');
     }
+    if (obra.estado === 'completada') {
+      throw new Error('La obra ya está completada y no puede volver a asignarse');
+    }
 
-    const cuadrillaActualizada = await CuadrillaRepository.asignarObra(cuadrillaId, obraId);
-    await ObraRepository.actualizar(obraId, { estado: 'asignada' });
+    const cuadrillaQueOcupaLaObra = await CuadrillaRepository.buscarPorObraAsignada(obraIdNumero);
+    if (cuadrillaQueOcupaLaObra && cuadrillaQueOcupaLaObra.id !== cuadrillaIdNumero) {
+      throw new Error(`La obra ya está asignada a la cuadrilla "${cuadrillaQueOcupaLaObra.nombre}"`);
+    }
 
-    // Notificación con la ubicación exacta y el plazo para jefe y todos los integrantes
+    if (cuadrilla.obra_asignada_id && Number(cuadrilla.obra_asignada_id) !== obraIdNumero) {
+      throw new Error('La cuadrilla ya tiene una obra asignada. Completa esa obra antes de asignar otra');
+    }
+
+    // Si ya existe exactamente la misma relación, la operación es idempotente.
+    if (Number(cuadrilla.obra_asignada_id) === obraIdNumero) {
+      return cuadrilla;
+    }
+
+    // Cuadrilla y obra cambian dentro de la misma transacción para no dejar una
+    // relación a medias si PostgreSQL rechaza alguna actualización.
+    await AppDataSource.transaction(async (manager) => {
+      await manager.getRepository('Cuadrilla').update(cuadrillaIdNumero, {
+        obra_asignada_id: obraIdNumero,
+        fecha_asignacion: new Date(),
+      });
+      await manager.getRepository('Obra').update(obraIdNumero, { estado: 'asignada' });
+    });
+
+    const cuadrillaActualizada = await CuadrillaRepository.buscarPorId(cuadrillaIdNumero);
+
+    // Notificación con dirección legible cuando existe. Un fallo del módulo de
+    // notificaciones no debe hacer creer al frontend que la asignación fracasó.
     const titulo = `Obra asignada: ${obra.nombre}`;
-    const mensaje = `Tu cuadrilla ha sido asignada a la obra "${obra.nombre}". Ubicación: lat ${obra.lat}, lng ${obra.lng}. Plazo de entrega: ${cuadrillaActualizada.plazo_dias} días.`;
+    const ubicacion = obra.direccion || `lat ${obra.lat}, lng ${obra.lng}`;
+    const mensaje = `Tu cuadrilla ha sido asignada a la obra "${obra.nombre}". Ubicación: ${ubicacion}. Plazo de entrega: ${cuadrillaActualizada.plazo_dias} días.`;
 
-    await NotificacionService.crearNotificacion(cuadrilla.jefe_id, titulo, mensaje, 'asignacion_obra', obra.id);
-    await NotificacionService.notificarCuadrilla(cuadrillaId, titulo, mensaje, 'asignacion_obra', obra.id);
+    await Promise.allSettled([
+      NotificacionService.crearNotificacion(cuadrilla.jefe_id, titulo, mensaje, 'asignacion_obra', obra.id),
+      NotificacionService.notificarCuadrilla(cuadrillaIdNumero, titulo, mensaje, 'asignacion_obra', obra.id),
+    ]);
 
     return cuadrillaActualizada;
   }
