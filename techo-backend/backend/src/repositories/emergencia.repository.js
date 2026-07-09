@@ -19,6 +19,11 @@ export class EmergenciaRepository {
       where: {
         id: Number(id),
       },
+      // Cargo las cuadrillas porque la emergencia puede tener varios equipos
+      // asociados mediante cuadrillas.emergencia_id.
+      relations: {
+        cuadrillas: true,
+      },
     });
   }
 
@@ -26,13 +31,21 @@ export class EmergenciaRepository {
   static async listarActivas() {
     return this.getRepository().find({
       where: { estado: "activa" },
+      relations: {
+        cuadrillas: true,
+      },
       order: { fecha_inicio: "DESC" },
     });
   }
 
   // Devuelvo todas las emergencias sin filtro de estado para el historial completo
   static async listarTodas() {
-    return this.getRepository().find({ order: { fecha_inicio: "DESC" } });
+    return this.getRepository().find({
+      relations: {
+        cuadrillas: true,
+      },
+      order: { fecha_inicio: "DESC" },
+    });
   }
 
   // Actualizo campos específicos de una emergencia y devuelvo el registro actualizado
