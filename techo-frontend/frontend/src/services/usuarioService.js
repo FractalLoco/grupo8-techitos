@@ -1,6 +1,4 @@
-import API_BASE from './apiBase.js';
-
-const API_URL = `${API_BASE}/api/usuarios`;
+const API_URL = "http://localhost:3000/api/usuarios";
 
 function obtenerHeaders() {
   const token = localStorage.getItem("token");
@@ -14,6 +12,7 @@ function obtenerHeaders() {
 export async function obtenerUsuarios() {
   const respuesta = await fetch(API_URL, {
     headers: obtenerHeaders(),
+    cache: "no-store",
   });
 
   if (!respuesta.ok) {

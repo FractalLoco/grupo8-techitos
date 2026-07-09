@@ -36,6 +36,7 @@ const FORMULARIO_INICIAL = {
 function GestionUsuarios() {
   const [usuarios, setUsuarios] = useState([]);
   const [cargando, setCargando] = useState(true);
+  const [actualizando, setActualizando] = useState(false);
   const [mensajeExito, setMensajeExito] = useState(null);
   const [mensajeError, setMensajeError] = useState("");
   const [busqueda, setBusqueda] = useState("");
@@ -69,26 +70,60 @@ function GestionUsuarios() {
     setTimeout(() => setMensajeError(""), 5000);
   };
 
-  const cargarUsuarios = async () => {
+  const cargarUsuarios = async ({ mostrarExito = false, actualizacionManual = false } = {}) => {
     try {
-      setCargando(true);
+      if (actualizacionManual) {
+        setActualizando(true);
+      } else {
+        setCargando(true);
+      }
+
       const data = await obtenerUsuarios();
+      let usuariosRecibidos = [];
 
       if (Array.isArray(data?.datos?.usuarios)) {
-        setUsuarios(data.datos.usuarios);
+        usuariosRecibidos = data.datos.usuarios;
       } else if (Array.isArray(data?.datos)) {
-        setUsuarios(data.datos);
+        usuariosRecibidos = data.datos;
       } else if (Array.isArray(data)) {
-        setUsuarios(data);
-      } else {
-        setUsuarios([]);
+        usuariosRecibidos = data;
       }
+
+      setUsuarios(usuariosRecibidos);
+
+      if (actualizacionManual) {
+        // El backend ordena por creado_en DESC: volver a la primera página
+        // hace visibles de inmediato los registros públicos más recientes.
+        setPaginaActual(1);
+      }
+
+      if (mostrarExito) {
+        mostrarMensajeExito(
+          "¡Lista de usuarios actualizada!",
+          "Los registros se han sincronizado correctamente con el servidor."
+        );
+      }
+
+      return true;
     } catch (error) {
       console.error(error);
-      setUsuarios([]);
-      mostrarMensajeError("No se pudieron cargar los usuarios.");
+
+      // En una actualización manual conservamos la lista visible para no
+      // borrar información útil por un fallo temporal de red.
+      if (!actualizacionManual) {
+        setUsuarios([]);
+      }
+
+      mostrarMensajeError(
+        error.message || "No se pudieron cargar los usuarios."
+      );
+      return false;
     } finally {
-      setCargando(false);
+      if (actualizacionManual) {
+        setActualizando(false);
+      } else {
+        setCargando(false);
+      }
     }
   };
 
@@ -273,7 +308,7 @@ function GestionUsuarios() {
         await activarUsuario(id);
         mostrarMensajeExito(
           "¡Usuario activado!",
-          "La cuenta quedó activa y se enviaron nuevas credenciales por correo."
+          "La cuenta quedó activa sin cambiar su contraseña. Se envió una notificación por correo."
         );
       }
 
@@ -486,14 +521,35 @@ function GestionUsuarios() {
               </select>
             </div>
 
-            <button
-              type="button"
-              onClick={abrirNuevoUsuario}
-              className="flex w-full items-center justify-center gap-2 whitespace-nowrap rounded-lg bg-primary px-6 py-2.5 text-sm font-bold text-on-primary shadow-sm transition hover:bg-primary-dark lg:w-auto"
-            >
-              <MdAdd className="text-xl" />
-              Nuevo usuario
-            </button>
+            <div className="flex w-full flex-col gap-2 sm:flex-row lg:w-auto">
+              <button
+                type="button"
+                onClick={() =>
+                  cargarUsuarios({
+                    mostrarExito: true,
+                    actualizacionManual: true,
+                  })
+                }
+                disabled={actualizando || cargando}
+                className="inline-flex w-full items-center justify-center gap-2 whitespace-nowrap rounded-lg border border-outline-variant bg-surface-container-lowest px-5 py-2.5 text-sm font-bold text-primary shadow-sm transition hover:bg-primary/5 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
+                aria-label="Actualizar lista de usuarios"
+              >
+                <MdRefresh
+                  className={`text-xl ${actualizando ? "animate-spin" : ""}`}
+                  aria-hidden="true"
+                />
+                {actualizando ? "Actualizando..." : "Actualizar"}
+              </button>
+
+              <button
+                type="button"
+                onClick={abrirNuevoUsuario}
+                className="flex w-full items-center justify-center gap-2 whitespace-nowrap rounded-lg bg-primary px-6 py-2.5 text-sm font-bold text-on-primary shadow-sm transition hover:bg-primary-dark sm:w-auto"
+              >
+                <MdAdd className="text-xl" />
+                Nuevo usuario
+              </button>
+            </div>
           </div>
 
           {(busqueda || filtroRol !== "todos" || filtroEstado !== "todos") && (
