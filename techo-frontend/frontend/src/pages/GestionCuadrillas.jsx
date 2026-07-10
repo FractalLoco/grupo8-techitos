@@ -464,7 +464,7 @@ function GestionCuadrillas() {
               <div className="w-10 h-10 border-2 border-primary border-t-transparent rounded-full animate-spin" />
               <span className="text-sm">Cargando cuadrillas...</span>
             </div>
-          ) : cuadrillasVisibles.length === 0 ? (
+          ) : (cuadrillasVisibles.length === 0 && cuadrillasCompletadas.length === 0) ? (
             <div className="flex flex-col items-center justify-center py-20 text-outline">
               <MdGroups className="text-6xl mb-3 opacity-20" />
               <p className="text-sm font-medium text-on-surface-variant">
@@ -480,6 +480,7 @@ function GestionCuadrillas() {
             </div>
           ) : (
             <>
+              {cuadrillasVisibles.length > 0 && (
               <div className="flex items-center gap-2 mb-2">
                 <h2 className="text-xs font-bold text-on-surface">Cuadrillas activas</h2>
                 {cuadrillasConAlerta > 0 && (
@@ -488,6 +489,7 @@ function GestionCuadrillas() {
                   </Badge>
                 )}
               </div>
+              )}
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
                 {cuadrillasVisibles.map((c, idx) => {
                   const ci = colorInfo(c.estadoColor);
@@ -628,7 +630,7 @@ function GestionCuadrillas() {
                     <span>Completadas ({cuadrillasCompletadas.length})</span>
                     <span className="h-px flex-1 bg-outline-variant/60" />
                   </button>
-                  {mostrarCompletadas && (
+                  {(mostrarCompletadas || filtroColor === 'gris') && (
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 mt-3">
                       {cuadrillasCompletadas.map((c, idx) => {
                         const jefe = nombreJefe(c.jefe_id);

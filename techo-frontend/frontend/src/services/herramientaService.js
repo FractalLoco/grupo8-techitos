@@ -8,8 +8,9 @@ const headers = () => ({
 });
 
 // Las rutas de herramientas viven bajo /api/herramientas/:cuadrillaId en el backend
-export const registrarHerramienta = (cuadrillaId, nombre) =>
-  axios.post(`${API}/${cuadrillaId}`, { nombre }, headers()).then((r) => r.data);
+// Se envía el tipo_item real del ítem para no guardar un EPP como herramienta (evita duplicados en el catálogo)
+export const registrarHerramienta = (cuadrillaId, nombre, tipo_item = 'herramienta') =>
+  axios.post(`${API}/${cuadrillaId}`, { nombre, tipo_item }, headers()).then((r) => r.data);
 
 export const registrarHerramientasMasivas = (cuadrillaId, nombres) =>
   axios.post(`${API}/${cuadrillaId}/masivo`, { nombres }, headers()).then((r) => r.data);

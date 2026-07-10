@@ -147,9 +147,11 @@ export default function GestionHerramientas() {
   const mostrarExito = (msg) => { setExito(msg); setTimeout(() => setExito(''), 3500); };
 
   const handleRegistrarIndividual = async () => {
-    if (!nombreHerramienta.trim()) return;
+    // El value del select trae "nombre|tipo_item" para conservar el tipo real del ítem
+    const [nombre, tipo] = nombreHerramienta.split('|');
+    if (!nombre?.trim()) return;
     setGuardando(true);
-    const res = await registrarHerramienta(cuadrillaId, nombreHerramienta.trim());
+    const res = await registrarHerramienta(cuadrillaId, nombre.trim(), tipo || 'herramienta');
     setGuardando(false);
     if (res.estado === 'exitoso') { setNombreHerramienta(''); await cargarHerramientas(); await cargarBalance(); mostrarExito('Herramienta registrada'); }
     else { setError(res.mensaje || 'Error al registrar'); }
@@ -505,10 +507,14 @@ export default function GestionHerramientas() {
                         <div className="flex flex-col gap-2">
                           <select value={nombreHerramienta} onChange={(e) => setNombreHerramienta(e.target.value)} className="input-field">
                             <option value="">— Selecciona del Inventario —</option>
-                            {catalogo.filter((c) => c.tipo_item === 'herramienta' || c.tipo_item === 'epp').map((c) => {
+                            {catalogo.filter((c) => {
+                              if (c.tipo_item !== 'herramienta' && c.tipo_item !== 'epp') return false;
+                              const disp = c.disponible ?? Math.max(0, (c.buenas ?? 0) - (c.entregadas ?? 0));
+                              return disp > 0; // no se ofrecen ítems sin stock disponible
+                            }).map((c) => {
                               const disp = c.disponible ?? Math.max(0, (c.buenas ?? 0) - (c.entregadas ?? 0));
                               return (
-                                <option key={`${c.nombre}|${c.tipo_item}`} value={c.nombre}>
+                                <option key={`${c.nombre}|${c.tipo_item}`} value={`${c.nombre}|${c.tipo_item}`}>
                                   {c.nombre} ({c.tipo_item}) — Disponible: {disp}
                                 </option>
                               );
