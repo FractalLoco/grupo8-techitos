@@ -2,6 +2,11 @@ import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAutenticacion } from '../context/AuthContext';
 import { login } from '../services/inicioSesionService';
+import {
+  formatearRutChileno,
+  normalizarRutParaBackend,
+  validarFormatoRutChileno,
+} from '../utils/rut';
 
 function Login() {
   const [rut, setRut] = useState('');
@@ -11,12 +16,6 @@ function Login() {
   const [mostrarContrasena, setMostrarContrasena] = useState(false);
   const navegar = useNavigate();
   const { iniciarSesion } = useAutenticacion();
-
-  // Valido el formato del RUT chileno antes de enviarlo al backend
-  const validarRut = (rutIngresado) => {
-    const rutRegex = /^(\d{1,2}\.)?(\d{3}\.)?(\d{3}[-]?[0-9K])$|^\d{7,8}[-]?[0-9K]$/i;
-    return rutRegex.test(rutIngresado.trim());
-  };
 
   // Manejo el envío del formulario: valido los campos localmente antes de llamar al backend
   const manejarInicioSesion = async (evento) => {
@@ -37,15 +36,15 @@ function Login() {
       return;
     }
 
-    if (!validarRut(rut)) {
-      setMensajeError('Formato de RUT inválido. Ejemplo: 12345678-9');
+    if (!validarFormatoRutChileno(rut)) {
+      setMensajeError('Formato de RUT inválido. Ejemplo: 12.345.678-9');
       setCargando(false);
       return;
     }
 
     try {
       // Si el login es exitoso, guardo la sesión en el contexto y navego al panel principal
-      const datos = await login(rut, contrasena);
+      const datos = await login(normalizarRutParaBackend(rut), contrasena);
       iniciarSesion(datos.token, datos.usuario);
       navegar('/inicio');
     } catch (error) {
@@ -78,10 +77,13 @@ function Login() {
               <input
                 className="w-full px-3 py-2.5 border border-outline-variant rounded-lg text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all"
                 type="text"
-                placeholder="12345678-9"
+                placeholder="12.345.678-9"
                 value={rut}
-                onChange={(e) => setRut(e.target.value)}
+                onChange={(e) => setRut(formatearRutChileno(e.target.value))}
                 required
+                inputMode="text"
+                autoComplete="username"
+                maxLength={12}
               />
             </div>
 
