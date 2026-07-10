@@ -41,7 +41,8 @@ export default function SolicitudesHerramientas() {
   const esCoordinador = usuario?.rol === 'coordinador';
   const esJefe = usuario?.rol === 'jefe_cuadrilla';
   const esVoluntario = usuario?.rol === 'voluntario';
-  const puedeAprobar = esCoordinador || esJefe;
+  // Solo el coordinador aprueba/rechaza. El jefe crea y ve las de su cuadrilla (sin aprobar).
+  const puedeAprobar = esCoordinador;
 
   const [emergencias, setEmergencias] = useState([]);
   const [emergenciaId, setEmergenciaId] = useState('');
@@ -379,7 +380,7 @@ export default function SolicitudesHerramientas() {
         </div>
       </div>
 
-      {/* FAB: nueva solicitud */}
+      {/* FAB: nueva solicitud — la crea la cuadrilla (voluntario/jefe) o el coordinador */}
       {(esVoluntario || esJefe || esCoordinador) && !mostrarForm && (
         <button
           onClick={() => setMostrarForm(true)}
