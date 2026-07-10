@@ -935,9 +935,8 @@ function GestionCuadrillas() {
                           {esCoordinador && (
                             <button
                               onClick={() => handleEliminarMiembro(m.id)}
-                              disabled={integrantesVoluntarios.length <= 10}
-                              title={integrantesVoluntarios.length <= 10 ? 'La cuadrilla debe conservar al menos 10 integrantes' : 'Quitar de la cuadrilla'}
-                              className="ml-auto p-1.5 rounded-lg text-error hover:bg-red-50 transition disabled:opacity-30 disabled:cursor-not-allowed flex-shrink-0"
+                              title="Quitar de la cuadrilla"
+                              className="ml-auto p-1.5 rounded-lg text-error hover:bg-red-50 transition flex-shrink-0"
                             >
                               <MdClose className="text-base" />
                             </button>
