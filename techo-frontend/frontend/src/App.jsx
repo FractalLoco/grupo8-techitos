@@ -20,7 +20,6 @@ import GestionCuadrillas from './pages/GestionCuadrillas';
 import GestionObras from './pages/GestionObras';
 import MapaInteractivo from './pages/MapaInteractivo';
 import GestionHerramientas from './pages/GestionHerramientas';
-import GestionInventario from './pages/GestionInventario';
 import CatalogoInventario from './pages/CatalogoInventario';
 import SolicitudesHerramientas from './pages/SolicitudesHerramientas';
 import Reportes from './pages/Reportes';
@@ -100,17 +99,9 @@ function Aplicacion() {
             }
           />
 
+          {/* Inventario unificado: una sola pantalla para coordinador (con 'Agregar') y jefe (lectura) */}
           <Route
             path="/inventario"
-            element={
-              <RutaProtegida rolesPermitidos={['coordinador']}>
-                <GestionInventario />
-              </RutaProtegida>
-            }
-          />
-
-          <Route
-            path="/catalogo"
             element={
               <RutaProtegida rolesPermitidos={['coordinador', 'jefe_cuadrilla']}>
                 <CatalogoInventario />

@@ -145,30 +145,30 @@ function GestionCuadrillas() {
 
   const mostrarMensaje = (tipo, texto) => { setMensaje({ tipo, texto }); setTimeout(() => setMensaje(null), 4000); };
 
-  // Construye el set de voluntarios ocupados desde cuadrillas ACTIVAS (no completadas/desarmadas)
-  useEffect(() => {
+  // Construye el set de voluntarios ocupados desde cuadrillas ACTIVAS (no completadas/desarmadas).
+  // Se recalcula al montar y también tras agregar/quitar/reasignar para que el desplegable se actualice.
+  const cargarOcupados = useCallback(async () => {
     if (!esCoordinador) return;
-    const cargarOcupados = async () => {
-      try {
-        const res = await listarTodasLasCuadrillasConEstado();
-        const todas = res.datos?.cuadrillas || [];
-        const activas = todas.filter((c) => c.estado !== 'completada' && c.estado !== 'desarmada');
-        const ocupados = new Set();
-        const liderando = new Set();
-        for (const c of activas) {
-          if (c.jefe_id) liderando.add(String(c.jefe_id));
-          try {
-            const data = await obtenerIntegrantesCuadrilla(c.id);
-            const miembros = Array.isArray(data) ? data : (data?.integrantes || []);
-            miembros.forEach((i) => ocupados.add(String(i.id)));
-          } catch { /* omitir */ }
-        }
-        setOcupadosIds(ocupados);
-        setLiderandoIds(liderando);
-      } catch { /* omitir */ }
-    };
-    cargarOcupados();
+    try {
+      const res = await listarTodasLasCuadrillasConEstado();
+      const todas = res.datos?.cuadrillas || [];
+      const activas = todas.filter((c) => c.estado !== 'completada' && c.estado !== 'desarmada');
+      const ocupados = new Set();
+      const liderando = new Set();
+      for (const c of activas) {
+        if (c.jefe_id) liderando.add(String(c.jefe_id));
+        try {
+          const data = await obtenerIntegrantesCuadrilla(c.id);
+          const miembros = Array.isArray(data) ? data : (data?.integrantes || []);
+          miembros.forEach((i) => ocupados.add(String(i.id)));
+        } catch { /* omitir */ }
+      }
+      setOcupadosIds(ocupados);
+      setLiderandoIds(liderando);
+    } catch { /* omitir */ }
   }, [esCoordinador]);
+
+  useEffect(() => { cargarOcupados(); }, [cargarOcupados]);
 
   // Carga los integrantes reales de una cuadrilla (para listar/quitar/mover con datos correctos)
   const cargarIntegrantes = useCallback(async (cuadrillaId) => {
@@ -216,8 +216,11 @@ function GestionCuadrillas() {
       mostrarMensaje('exito', 'Miembro agregado');
       setVoluntarioId('');
       setHabilidades('');
+      // Actualizo el conteo del drawer al instante y recargo listas y voluntarios ocupados
+      setCuadrillaActiva((prev) => (prev ? { ...prev, miembrosCount: (prev.miembrosCount ?? 0) + 1 } : prev));
       cargarIntegrantes(cuadrillaActiva.id);
       cargarCuadrillas();
+      cargarOcupados();
     } catch (err) {
       const msg = err.response?.data?.mensaje || err.message;
       if (msg.includes('ya pertenece a una cuadrilla') || msg.includes('no está disponible')) {
@@ -232,8 +235,10 @@ function GestionCuadrillas() {
     try {
       await eliminarMiembro(cuadrillaActiva.id, volId);
       mostrarMensaje('exito', 'Miembro quitado de la cuadrilla');
+      setCuadrillaActiva((prev) => (prev ? { ...prev, miembrosCount: Math.max(0, (prev.miembrosCount ?? 0) - 1) } : prev));
       cargarIntegrantes(cuadrillaActiva.id);
       cargarCuadrillas();
+      cargarOcupados();
     } catch (err) { mostrarMensaje('error', err.response?.data?.mensaje || err.message); }
   };
 
@@ -275,8 +280,10 @@ function GestionCuadrillas() {
       setCuadrillaDestinoId('');
       setVoluntarioReasignarId('');
       setMostrarReasignar(false);
+      setCuadrillaActiva((prev) => (prev ? { ...prev, miembrosCount: Math.max(0, (prev.miembrosCount ?? 0) - 1) } : prev));
       cargarIntegrantes(cuadrillaActiva.id);
       cargarCuadrillas();
+      cargarOcupados();
     } catch (err) { mostrarMensaje('error', err.response?.data?.mensaje || err.message); }
   };
 
@@ -547,13 +554,13 @@ function GestionCuadrillas() {
                               <strong className={(c.miembrosCount ?? 0) < 10 ? 'text-[#835100]' : 'text-on-surface'}>
                                 {c.miembrosCount ?? '?'}
                               </strong>
-                              <span className="text-outline">/11</span>
+                              <span className="text-outline">/10</span>
                             </span>
                           </div>
                           <div className="w-28 h-1.5 bg-surface-container rounded-full overflow-hidden">
                             <div
                               className={`h-full rounded-full transition-all ${(c.miembrosCount ?? 0) >= 10 ? 'bg-[#006D37]' : (c.miembrosCount ?? 0) >= 6 ? 'bg-[#835100]' : 'bg-error'}`}
-                              style={{ width: `${Math.min(((c.miembrosCount ?? 0) / 11) * 100, 100)}%` }}
+                              style={{ width: `${Math.min(((c.miembrosCount ?? 0) / 10) * 100, 100)}%` }}
                             />
                           </div>
                         </div>
@@ -847,7 +854,7 @@ function GestionCuadrillas() {
                 </label>
               ))}
             </div>
-            <p className="text-xs text-outline mt-1">Los voluntarios se agregan después de crear la cuadrilla (10–11 integrantes)</p>
+            <p className="text-xs text-outline mt-1">Los voluntarios se agregan después de crear la cuadrilla (10 integrantes)</p>
           </div>
           <Button type="submit"><MdAdd /> Crear cuadrilla</Button>
         </form>
@@ -898,7 +905,7 @@ function GestionCuadrillas() {
                   }`}>
                     <MdPeople />
                     <span>
-                      <strong>{cuadrillaActiva.miembrosCount ?? 0}</strong> de 10–11 integrantes requeridos
+                      <strong>{cuadrillaActiva.miembrosCount ?? 0}</strong> de 10 integrantes requeridos
                       {(cuadrillaActiva.miembrosCount ?? 0) < 10 && ` — faltan ${10 - (cuadrillaActiva.miembrosCount ?? 0)} para el mínimo`}
                     </span>
                   </div>
@@ -991,10 +998,10 @@ function GestionCuadrillas() {
                           {cuadrillas
                             .filter((c) => c.id !== cuadrillaActiva.id && c.estado !== 'completada' && c.estado !== 'desarmada')
                             .map((c) => {
-                              const llena = (c.miembrosCount ?? 0) >= 11;
+                              const llena = (c.miembrosCount ?? 0) >= 10;
                               return (
                                 <option key={c.id} value={c.id} disabled={llena}>
-                                  {c.nombre} ({c.miembrosCount ?? '?'}/11){llena ? ' — completa' : ''}
+                                  {c.nombre} ({c.miembrosCount ?? '?'}/10){llena ? ' — completa' : ''}
                                 </option>
                               );
                             })}

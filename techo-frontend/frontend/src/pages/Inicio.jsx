@@ -33,7 +33,7 @@ const accesosPorRol = {
     { label: 'Mi Cuadrilla', path: '/cuadrillas', desc: 'Ver el estado de tu cuadrilla, actualizar fase y enviar alertas' },
     { label: 'Mapa', path: '/mapa', desc: 'Ver la ubicación de tu obra y navegar hacia ella' },
     { label: 'Herramientas', path: '/herramientas', desc: 'Registrar y hacer balance de herramientas del día' },
-    { label: 'Catálogo de Inventario', path: '/catalogo', desc: 'Consultar stock de herramientas y EPP disponibles' },
+    { label: 'Inventario', path: '/inventario', desc: 'Consultar stock de herramientas, EPP y materiales disponibles' },
     { label: 'Solicitudes', path: '/solicitudes', desc: 'Crear y revisar solicitudes de herramientas' },
     { label: 'Comunicaciones', path: '/comunicaciones', desc: 'Chat de tu cuadrilla y anuncios del coordinador' },
   ],

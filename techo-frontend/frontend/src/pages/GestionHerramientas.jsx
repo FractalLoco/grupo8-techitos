@@ -146,34 +146,44 @@ export default function GestionHerramientas() {
   };
   const mostrarExito = (msg) => { setExito(msg); setTimeout(() => setExito(''), 3500); };
 
+  // Los errores se muestran como toast flotante y se ocultan solos a los 4s
+  useEffect(() => {
+    if (!error) return undefined;
+    const t = setTimeout(() => setError(''), 4000);
+    return () => clearTimeout(t);
+  }, [error]);
+
   const handleRegistrarIndividual = async () => {
     // El value del select trae "nombre|tipo_item" para conservar el tipo real del ítem
     const [nombre, tipo] = nombreHerramienta.split('|');
-    if (!nombre?.trim()) return;
+    if (!nombre?.trim()) return setError('Selecciona una herramienta del inventario');
     setGuardando(true);
-    const res = await registrarHerramienta(cuadrillaId, nombre.trim(), tipo || 'herramienta');
-    setGuardando(false);
-    if (res.estado === 'exitoso') { setNombreHerramienta(''); await cargarHerramientas(); await cargarBalance(); mostrarExito('Herramienta registrada'); }
-    else { setError(res.mensaje || 'Error al registrar'); }
+    try {
+      await registrarHerramienta(cuadrillaId, nombre.trim(), tipo || 'herramienta');
+      setNombreHerramienta(''); await cargarHerramientas(); await cargarBalance(); mostrarExito('Herramienta registrada');
+    } catch (err) { setError(err.response?.data?.mensaje || err.message || 'Error al registrar'); }
+    finally { setGuardando(false); }
   };
 
   const handleRegistrarMasivo = async () => {
     const nombres = nombresMultiples.split(/[\n,]+/).map((n) => n.trim()).filter(Boolean);
-    if (nombres.length === 0) return;
+    if (nombres.length === 0) return setError('Escribe al menos una herramienta');
     setGuardando(true);
-    const res = await registrarHerramientasMasivas(cuadrillaId, nombres);
-    setGuardando(false);
-    if (res.estado === 'exitoso') { setNombresMultiples(''); await cargarHerramientas(); await cargarBalance(); mostrarExito(`${nombres.length} herramientas registradas`); }
-    else { setError(res.mensaje || 'Error al registrar'); }
+    try {
+      await registrarHerramientasMasivas(cuadrillaId, nombres);
+      setNombresMultiples(''); await cargarHerramientas(); await cargarBalance(); mostrarExito(`${nombres.length} herramientas registradas`);
+    } catch (err) { setError(err.response?.data?.mensaje || err.message || 'Error al registrar'); }
+    finally { setGuardando(false); }
   };
 
   const handleGuardarEstado = async (herramientaId) => {
-    if (!nuevoEstado) return;
+    if (!nuevoEstado) return setError('Selecciona un estado');
     setGuardando(true);
-    const res = await actualizarEstadoHerramienta(herramientaId, nuevoEstado, observaciones);
-    setGuardando(false);
-    if (res.estado === 'exitoso') { setEditandoId(null); setNuevoEstado(''); setObservaciones(''); await cargarHerramientas(); await cargarBalance(); mostrarExito('Estado actualizado'); }
-    else { setError(res.mensaje || 'Error al actualizar'); }
+    try {
+      await actualizarEstadoHerramienta(herramientaId, nuevoEstado, observaciones);
+      setEditandoId(null); setNuevoEstado(''); setObservaciones(''); await cargarHerramientas(); await cargarBalance(); mostrarExito('Estado actualizado');
+    } catch (err) { setError(err.response?.data?.mensaje || err.message || 'Error al actualizar'); }
+    finally { setGuardando(false); }
   };
 
   const handleCerrarBalance = async () => {
@@ -184,10 +194,11 @@ export default function GestionHerramientas() {
       onConfirm: async () => {
         setConfirmar((c) => ({ ...c, abierto: false }));
         setGuardando(true);
-        const res = await cerrarBalanceDia(cuadrillaId);
-        setGuardando(false);
-        if (res.estado === 'exitoso') { await cargarBalance(); mostrarExito('Balance cerrado. Alertas actualizadas.'); }
-        else { setError(res.mensaje || 'Error al cerrar balance'); }
+        try {
+          await cerrarBalanceDia(cuadrillaId);
+          await cargarBalance(); mostrarExito('Balance cerrado. Alertas actualizadas.');
+        } catch (err) { setError(err.response?.data?.mensaje || err.message || 'Error al cerrar balance'); }
+        finally { setGuardando(false); }
       },
     });
   };
@@ -195,10 +206,11 @@ export default function GestionHerramientas() {
   const handleReportarIncidente = async () => {
     if (!herramientaReporte) { setError('Selecciona una herramienta'); return; }
     setGuardando(true);
-    const res = await actualizarEstadoHerramienta(herramientaReporte, estadoReporte, obsReporte);
-    setGuardando(false);
-    if (res.estado === 'exitoso') { setHerramientaReporte(''); setEstadoReporte('danada'); setObsReporte(''); await cargarHerramientas(); mostrarExito('Incidente reportado correctamente'); }
-    else { setError(res.mensaje || 'Error al reportar'); }
+    try {
+      await actualizarEstadoHerramienta(herramientaReporte, estadoReporte, obsReporte);
+      setHerramientaReporte(''); setEstadoReporte('danada'); setObsReporte(''); await cargarHerramientas(); mostrarExito('Incidente reportado correctamente');
+    } catch (err) { setError(err.response?.data?.mensaje || err.message || 'Error al reportar'); }
+    finally { setGuardando(false); }
   };
 
   const handleEnviarSolicitud = async () => {
@@ -214,7 +226,7 @@ export default function GestionHerramientas() {
       });
       setNombreSolicitud(''); setCantidadSolicitud(1); setDescSolicitud('');
       await cargarSolicitudes(); mostrarExito('Solicitud enviada al coordinador');
-    } catch { setError('Error al enviar solicitud'); }
+    } catch (err) { setError(err.response?.data?.mensaje || err.message || 'Error al enviar solicitud'); }
     finally { setGuardando(false); }
   };
 
@@ -255,21 +267,11 @@ export default function GestionHerramientas() {
     });
   };
 
+  // Notificaciones flotantes (toast), consistentes con el resto de las páginas
   const Mensajes = () => (
     <>
-      {error && (
-        <div className="mb-4 flex items-center gap-3 p-3 bg-red-50 border border-error/40 rounded-xl">
-          <MdError className="text-error text-xl flex-shrink-0" />
-          <p className="text-error text-sm flex-1">{error}</p>
-          <button onClick={() => setError('')}><MdClose className="text-error/60" /></button>
-        </div>
-      )}
-      {exito && (
-        <div className="mb-4 flex items-center gap-3 p-3 bg-green-50 border border-[#006D37]/40 rounded-xl">
-          <MdCheckCircle className="text-[#006D37] text-xl flex-shrink-0" />
-          <p className="text-[#006D37] text-sm">{exito}</p>
-        </div>
-      )}
+      {error && <Toast type="error" message={error} />}
+      {exito && <Toast type="success" message={exito} />}
     </>
   );
 
