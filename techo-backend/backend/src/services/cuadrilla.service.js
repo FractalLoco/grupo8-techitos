@@ -10,7 +10,7 @@ import { NotificacionService } from '../services/notificacion.service.js';
 import { MovimientoHerramientaService } from '../services/movimiento-herramienta.service.js';
 
 const MIN_MIEMBROS = 10;
-const MAX_MIEMBROS = 11;
+const MAX_MIEMBROS = 10;
 const PLAZOS_VALIDOS = [2, 5];
 const FASES_VALIDAS = ['limpieza', 'montaje', 'terminaciones'];
 
@@ -216,7 +216,11 @@ export class CuadrillaService {
     }
 
     const herramientas = await HerramientaRepository.listarPorCuadrilla(cuadrillaId);
-    const reutilizables = herramientas.filter((h) => h.estado === 'buena' || h.estado === 'entregada');
+    // El material es consumible: su salida ya se registró y no vuelve al almacén.
+    // Solo se devuelven herramientas/EPP en buen estado.
+    const reutilizables = herramientas.filter((h) =>
+      (h.estado === 'buena' || h.estado === 'entregada') && (h.tipo_item || 'herramienta') !== 'material'
+    );
 
     // Agrupa por nombre + tipo para devolver el stock consolidado
     const grupos = {};
