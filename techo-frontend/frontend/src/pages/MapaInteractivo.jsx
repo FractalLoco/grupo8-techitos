@@ -281,6 +281,15 @@ function MapaInteractivo() {
   const abrirGoogleMaps = (lat, lng) => window.open(`https://www.google.com/maps?q=${lat},${lng}`, '_blank');
   const abrirWaze = (lat, lng) => window.open(`https://waze.com/ul?ll=${lat},${lng}&navigate=yes`, '_blank');
 
+  const volverAtras = () => {
+    if (window.history.length > 1) {
+      navigate(-1);
+      return;
+    }
+
+    navigate('/inicio');
+  };
+
   return (
     <div className="min-h-screen bg-background flex flex-col">
       {mensaje && (
@@ -302,7 +311,17 @@ function MapaInteractivo() {
         {/* SIDEBAR */}
         <aside className="w-72 bg-primary-dark flex flex-col flex-shrink-0 overflow-hidden shadow-xl">
           <div className="px-4 py-3 border-b border-white/10">
-            <div className="flex items-center gap-2 mb-3">
+            <div className="flex items-center justify-between gap-3 mb-3">
+              <button
+                type="button"
+                onClick={volverAtras}
+                className="group inline-flex items-center gap-2 rounded-xl border border-white/15 bg-white/10 px-3 py-2 text-xs font-semibold text-white transition-all hover:-translate-x-0.5 hover:bg-white/20 focus:outline-none focus:ring-2 focus:ring-white/40"
+                aria-label="Volver a la página anterior"
+                title="Volver atrás"
+              >
+                <MdArrowBack className="text-base transition-transform group-hover:-translate-x-0.5" />
+                Volver
+              </button>
               <img src="/logo-techo-blanco-oficial.png" alt="TECHO" className="h-8 w-auto" onError={(e) => { e.target.style.display = 'none'; }} />
             </div>
             <div className="flex items-center gap-2 mb-2">
