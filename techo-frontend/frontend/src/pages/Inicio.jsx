@@ -31,7 +31,7 @@ const accesosPorRol = {
     { label: 'Mi Cuadrilla', path: '/cuadrillas', desc: 'Ver el estado de tu cuadrilla, actualizar fase y enviar alertas' },
     { label: 'Mapa', path: '/mapa', desc: 'Ver la ubicación de tu obra y navegar hacia ella' },
     { label: 'Herramientas', path: '/herramientas', desc: 'Registrar y hacer balance de herramientas del día' },
-    { label: 'Inventario', path: '/inventario', desc: 'Consultar stock de herramientas y EPP disponibles' },
+    { label: 'Catálogo de Inventario', path: '/catalogo', desc: 'Consultar stock de herramientas y EPP disponibles' },
     { label: 'Solicitudes', path: '/solicitudes', desc: 'Crear y revisar solicitudes de herramientas' },
     { label: 'Comunicaciones', path: '/comunicaciones', desc: 'Chat de tu cuadrilla y anuncios del coordinador' },
   ],
@@ -51,6 +51,7 @@ const iconosPorPath = {
   '/usuarios':      'M18 9a3 3 0 11-6 0 3 3 0 016 0zm-9 11a4 4 0 118 0H9zm-2-8a2 2 0 100-4 2 2 0 000 4z',
   '/auth/registro': 'M18 9v3m0 0v3m0-3h3m-3 0h-3M13 7a4 4 0 11-8 0 4 4 0 018 0zM3 21a6 6 0 0112 0',
   '/inventario':    'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2',
+  '/catalogo':      'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2',
   '/solicitudes':   'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 12h6m-6 4h4',
   '/reportes':      'M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z',
 };
@@ -64,6 +65,7 @@ const coloresPorPath = {
   '/usuarios':      'from-techo-success to-emerald-700',
   '/auth/registro': 'from-emerald-500 to-teal-700',
   '/inventario':    'from-cyan-600 to-blue-700',
+  '/catalogo':      'from-cyan-600 to-blue-700',
   '/solicitudes':   'from-amber-500 to-orange-700',
   '/reportes':      'from-techo-accent to-amber-600',
 };

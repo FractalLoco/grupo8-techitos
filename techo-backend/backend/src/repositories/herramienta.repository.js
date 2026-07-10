@@ -20,6 +20,11 @@ export class HerramientaRepository {
     return this.getRepository().find({ where: { cuadrilla_id: cuadrillaId } });
   }
 
+  // Busco una herramienta puntual por su ID para validar su existencia antes de operar sobre ella
+  static async buscarPorId(id) {
+    return this.getRepository().findOne({ where: { id } });
+  }
+
   // Actualizo el estado de una herramienta y agrego observaciones si las hay
   static async actualizarEstado(id, estado, observaciones = null) {
     const repo = this.getRepository();

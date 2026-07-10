@@ -11,7 +11,7 @@ const MODULOS = [
   { nombre: 'Herramientas', ruta: '/herramientas', roles: ['coordinador', 'jefe_cuadrilla'] },
   { nombre: 'Inventario', ruta: '/inventario', roles: ['coordinador'] },
   { nombre: 'Catálogo', ruta: '/catalogo', roles: ['coordinador', 'jefe_cuadrilla'] },
-  { nombre: 'Solicitudes', ruta: '/solicitudes', roles: ['coordinador', 'jefe_cuadrilla'] },
+  { nombre: 'Solicitudes', ruta: '/solicitudes', roles: ['coordinador', 'jefe_cuadrilla', 'voluntario'] },
   { nombre: 'Usuarios', ruta: '/usuarios', roles: ['coordinador'] },
   { nombre: 'Reportes', ruta: '/reportes', roles: ['coordinador'] },
 ];
