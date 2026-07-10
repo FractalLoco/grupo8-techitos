@@ -24,6 +24,10 @@ import {
   activarUsuario,
   desactivarUsuario,
 } from "../services/usuarioService";
+import {
+  formatearRutChileno,
+  normalizarRutParaBackend,
+} from "../utils/rut";
 
 const FORMULARIO_INICIAL = {
   nombre: "",
@@ -197,7 +201,13 @@ function GestionUsuarios() {
 
   const manejarCambio = (e) => {
     const { name, value } = e.target;
-    setFormulario((actual) => ({ ...actual, [name]: value }));
+    const valorProcesado =
+      name === "rut" ? formatearRutChileno(value) : value;
+
+    setFormulario((actual) => ({
+      ...actual,
+      [name]: valorProcesado,
+    }));
   };
 
   const abrirNuevoUsuario = () => {
@@ -212,7 +222,7 @@ function GestionUsuarios() {
     setMostrarContrasena(false);
     setFormulario({
       nombre: usuario.nombre || "",
-      rut: usuario.rut || "",
+      rut: formatearRutChileno(usuario.rut || ""),
       correo: usuario.correo || "",
       contrasena: "",
       rol: usuario.rol || "voluntario",
@@ -243,7 +253,7 @@ function GestionUsuarios() {
 
         const datosActualizacion = {
           nombre: formulario.nombre,
-          rut: formulario.rut,
+          rut: normalizarRutParaBackend(formulario.rut),
           correo: formulario.correo,
           rol: formulario.rol,
         };
@@ -268,7 +278,7 @@ function GestionUsuarios() {
 
         await crearUsuario({
           nombre: formulario.nombre,
-          rut: formulario.rut,
+          rut: normalizarRutParaBackend(formulario.rut),
           correo: formulario.correo,
           contrasena,
           rol: formulario.rol,
@@ -791,6 +801,9 @@ function GestionUsuarios() {
                     value={formulario.rut}
                     onChange={manejarCambio}
                     placeholder="12.345.678-9"
+                    maxLength={12}
+                    inputMode="text"
+                    autoComplete="off"
                     className="w-full rounded-lg border border-outline-variant bg-surface px-4 py-2.5 text-sm outline-none transition focus:border-primary focus:ring-1 focus:ring-primary"
                     required
                   />
