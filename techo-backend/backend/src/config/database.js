@@ -138,6 +138,27 @@ export const initDatabase = async () => {
     // Crea y actualiza las tablas descritas por las entidades sin eliminar datos.
     await AppDataSource.synchronize(false);
 
+    // Repara auditorías heredadas de cierre de emergencia. Una versión anterior
+    // recorría los Date como objetos genéricos y guardaba fecha_fin como {} en JSONB.
+    // Como la auditoría conserva entidad_id, recupero la fecha real desde emergencias.
+    await AppDataSource.query(`
+      UPDATE auditorias AS a
+      SET detalles = jsonb_set(
+        COALESCE(a.detalles, '{}'::jsonb),
+        '{fecha_fin}',
+        to_jsonb(e.fecha_fin),
+        true
+      )
+      FROM emergencias AS e
+      WHERE a.modulo = 'emergencias'
+        AND a.accion = 'FINALIZAR_EMERGENCIA'
+        AND a.entidad_id = e.id
+        AND e.fecha_fin IS NOT NULL
+        AND a.detalles IS NOT NULL
+        AND jsonb_typeof(a.detalles -> 'fecha_fin') = 'object'
+        AND (a.detalles -> 'fecha_fin') = '{}'::jsonb;
+    `);
+
     // Crea los tres usuarios principales solo cuando no existen.
     // La contrasena inicial de las tres cuentas es techo123.
     await AppDataSource.query(`
