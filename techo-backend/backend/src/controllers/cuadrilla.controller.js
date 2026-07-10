@@ -29,7 +29,8 @@ export const agregarMiembro = async (solicitud, respuesta) => {
 export const eliminarMiembro = async (solicitud, respuesta) => {
   try {
     const { cuadrillaId, voluntarioId } = solicitud.params;
-    await CuadrillaService.eliminarMiembro(cuadrillaId, voluntarioId);
+    // El coordinador gestiona el plantel libremente; el mínimo de 10 se re-valida al asignar una obra.
+    await CuadrillaService.eliminarMiembro(cuadrillaId, voluntarioId, { permitirBajoMinimo: true });
     return respuestaExito(respuesta, 200, 'Miembro eliminado de la cuadrilla');
   } catch (error) {
     return respuestaError(respuesta, 400, error.message);
