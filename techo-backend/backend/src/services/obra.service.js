@@ -102,6 +102,10 @@ export class ObraService {
     if (!obra) {
       throw new Error('Obra no encontrada');
     }
+    // Una obra completada es un estado terminal: no se puede reabrir ni volver atrás
+    if (obra.estado === 'completada' && estado !== 'completada') {
+      throw new Error('La obra ya está completada y no se puede cambiar su estado');
+    }
     return ObraRepository.actualizar(id, { estado });
   }
 }

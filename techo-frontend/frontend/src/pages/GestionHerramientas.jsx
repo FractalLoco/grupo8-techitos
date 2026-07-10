@@ -12,7 +12,7 @@ import {
 } from '../services/herramientaService';
 import { obtenerEmergencias } from '../services/emergenciaService';
 import { obtenerUsuarios } from '../services/usuarioService';
-import { listarCuadrillas, obtenerBalanceHerramientas, cerrarBalanceDia, devolverHerramientas } from '../services/cuadrillaService';
+import { listarCuadrillas, listarTodasLasCuadrillasConEstado, obtenerBalanceHerramientas, cerrarBalanceDia, devolverHerramientas } from '../services/cuadrillaService';
 import { crearSolicitud, listarSolicitudesPorCuadrilla } from '../services/solicitudService';
 import Button from '../components/ui/Button';
 import Card, { CardBody } from '../components/ui/Card';
@@ -86,13 +86,34 @@ export default function GestionHerramientas() {
   }, []);
 
   useEffect(() => {
-    obtenerEmergencias().then((res) => {
-      const lista = res.datos?.emergencias || res.datos || [];
-      const activas = Array.isArray(lista) ? lista.filter((e) => e.estado === 'activa') : [];
-      setEmergencias(activas);
-      if (activas.length > 0) setEmergenciaId(String(activas[0].id));
-    }).catch(() => setError('No se pudieron cargar las emergencias'));
-  }, []);
+    let activo = true;
+    (async () => {
+      try {
+        const res = await obtenerEmergencias();
+        const lista = res.datos?.emergencias || res.datos || [];
+        const activas = Array.isArray(lista) ? lista.filter((e) => e.estado === 'activa') : [];
+        if (!activo) return;
+        setEmergencias(activas);
+
+        // El jefe no elige emergencia: se fija automáticamente la de su cuadrilla asignada.
+        if (esJefe) {
+          try {
+            const resC = await listarTodasLasCuadrillasConEstado();
+            const miCuadrilla = (resC.datos?.cuadrillas || []).find((c) => c.jefe_id === usuario?.id);
+            if (activo && miCuadrilla?.emergencia_id) {
+              setEmergenciaId(String(miCuadrilla.emergencia_id));
+              return;
+            }
+          } catch { /* si falla, cae al comportamiento por defecto */ }
+        }
+
+        if (activo && activas.length > 0) setEmergenciaId(String(activas[0].id));
+      } catch {
+        if (activo) setError('No se pudieron cargar las emergencias');
+      }
+    })();
+    return () => { activo = false; };
+  }, [esJefe, usuario?.id]);
 
   useEffect(() => {
     if (!emergenciaId) return;
@@ -197,6 +218,7 @@ export default function GestionHerramientas() {
 
   const herramientasFiltradas = filtroEstado === 'todos' ? herramientas : herramientas.filter((h) => h.estado === filtroEstado);
   const cuadrillaActual = cuadrillas.find((c) => String(c.id) === cuadrillaId);
+  const emergenciaActual = emergencias.find((e) => String(e.id) === String(emergenciaId));
   const cuadrillasTerminadas = cuadrillas.filter((c) => c.estado === 'completada' || c.estado === 'desarmada');
 
   const toggleTerminada = async (id) => {
@@ -349,14 +371,21 @@ export default function GestionHerramientas() {
             <h1 className="page-header-title">Control de Herramientas</h1>
             <div className="flex items-center gap-1.5">
               <label className="text-white/60 text-xs font-medium whitespace-nowrap">Emergencia</label>
-              <select
-                value={emergenciaId}
-                onChange={(e) => { setEmergenciaId(e.target.value); setCuadrillaId(''); setHerramientas([]); setBalance(null); }}
-                className="page-select"
-              >
-                {emergencias.length === 0 && <option value="">Sin emergencias activas</option>}
-                {emergencias.map((e) => <option key={e.id} value={e.id} className="text-on-surface bg-white">{e.nombre}</option>)}
-              </select>
+              {esJefe ? (
+                // El jefe no elige emergencia: se muestra la de su cuadrilla asignada como texto fijo.
+                <span className="text-white text-sm font-semibold px-3 py-1.5 rounded-lg bg-white/10 whitespace-nowrap">
+                  {emergenciaActual?.nombre || 'Tu emergencia asignada'}
+                </span>
+              ) : (
+                <select
+                  value={emergenciaId}
+                  onChange={(e) => { setEmergenciaId(e.target.value); setCuadrillaId(''); setHerramientas([]); setBalance(null); }}
+                  className="page-select"
+                >
+                  {emergencias.length === 0 && <option value="">Sin emergencias activas</option>}
+                  {emergencias.map((e) => <option key={e.id} value={e.id} className="text-on-surface bg-white">{e.nombre}</option>)}
+                </select>
+              )}
             </div>
             {esCoordinador && (
               <div className="flex items-center gap-1.5">

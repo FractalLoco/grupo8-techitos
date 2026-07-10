@@ -5,12 +5,29 @@ import { UsuarioRepository } from '../repositories/usuario.repository.js';
 import { CuadrillaRepository } from '../repositories/cuadrilla.repository.js';
 import { MiembroCuadrillaRepository } from '../repositories/miembro-cuadrilla.repository.js';
 
+// Valores válidos alineados con los checks de la entidad Solicitud
+const TIPOS_SOLICITUD_VALIDOS = ['herramienta', 'epp', 'material', 'otro'];
+const ESTADOS_SOLICITUD_VALIDOS = ['aprobada', 'rechazada'];
+
 export class SolicitudService {
   // El creador puede ser voluntario, jefe o coordinador. Para un voluntario se deriva
   // automáticamente su cuadrilla; de la cuadrilla se toman el jefe y la emergencia.
   static async crear({ creadorId, rolCreador, cuadrillaId, emergenciaId, tipo, descripcion, nombre_item = null, cantidad = 1 }) {
     let cuadrilla_id = cuadrillaId ? Number(cuadrillaId) : null;
     let emergencia_id = emergenciaId ? Number(emergenciaId) : null;
+
+    // Valido los datos del ítem antes de resolver la cuadrilla para fallar temprano
+    if (!TIPOS_SOLICITUD_VALIDOS.includes(tipo)) {
+      throw new Error(`El tipo de solicitud debe ser uno de: ${TIPOS_SOLICITUD_VALIDOS.join(', ')}`);
+    }
+    const descripcionLimpia = String(descripcion || '').trim();
+    if (!descripcionLimpia) {
+      throw new Error('La descripción de la solicitud es obligatoria');
+    }
+    const cantidadNumero = Number(cantidad ?? 1);
+    if (!Number.isInteger(cantidadNumero) || cantidadNumero < 1) {
+      throw new Error('La cantidad debe ser un número entero mayor o igual a 1');
+    }
 
     if (rolCreador === 'voluntario') {
       const membresia = await MiembroCuadrillaRepository.buscarVoluntarioEnCuadrilla(creadorId);
@@ -30,9 +47,9 @@ export class SolicitudService {
       cuadrilla_id,
       emergencia_id,
       tipo,
-      descripcion,
-      nombre_item: nombre_item || null,
-      cantidad: cantidad || 1,
+      descripcion: descripcionLimpia,
+      nombre_item: nombre_item ? String(nombre_item).trim() : null,
+      cantidad: cantidadNumero,
     });
   }
 
@@ -57,6 +74,10 @@ export class SolicitudService {
   }
 
   static async actualizarEstado(id, estado, respuesta = null, aprobadorId = null) {
+    if (!ESTADOS_SOLICITUD_VALIDOS.includes(estado)) {
+      throw new Error(`Estado inválido. La solicitud solo puede marcarse como: ${ESTADOS_SOLICITUD_VALIDOS.join(' o ')}`);
+    }
+
     const solicitud = await SolicitudRepository.buscarPorId(id);
     if (!solicitud) throw new Error('Solicitud no encontrada');
     if (solicitud.estado !== 'pendiente') throw new Error('La solicitud ya fue procesada');
