@@ -1,6 +1,7 @@
 import axios from 'axios';
+import API_BASE from './apiBase.js';
 
-const API = 'http://localhost:3000/api/cuadrillas';
+const API = `${API_BASE}/api/cuadrillas`;
 
 const headers = () => ({
   headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },

@@ -15,6 +15,45 @@ export class NotificacionService {
     });
   }
 
+  // Avisa a todos los coordinadores activos cuando una persona completa
+  // el registro público como voluntario o jefe de cuadrilla.
+  // Uso allSettled para que un problema aislado al guardar un aviso no cancele
+  // el registro que ya fue creado correctamente.
+  static async notificarNuevoRegistro(usuario) {
+    const coordinadores = await NotificacionRepository.listarCoordinadoresActivos();
+    if (!coordinadores.length) {
+      return { creadas: 0, fallidas: 0 };
+    }
+
+    const rolLegible = usuario.rol === 'jefe_cuadrilla'
+      ? 'jefe de cuadrilla'
+      : 'voluntario';
+
+    const titulo = usuario.rol === 'jefe_cuadrilla'
+      ? 'Nuevo registro de jefe de cuadrilla'
+      : 'Nuevo registro de voluntario';
+
+    const mensaje = `${usuario.nombre} se registró como ${rolLegible}. `
+      + 'La cuenta está pendiente de activación. Revisa Gestión de Usuarios.';
+
+    const resultados = await Promise.allSettled(
+      coordinadores.map((coordinadorId) => NotificacionRepository.crear({
+        usuario_id: coordinadorId,
+        titulo,
+        mensaje,
+        tipo: 'registro_usuario',
+        referencia_id: usuario.id,
+        cuadrilla_id: null,
+        leida: false,
+      }))
+    );
+
+    return {
+      creadas: resultados.filter((resultado) => resultado.status === 'fulfilled').length,
+      fallidas: resultados.filter((resultado) => resultado.status === 'rejected').length,
+    };
+  }
+
   // Se avisa a todos los integrantes de la cuadrilla al mismo tiempo
   static async notificarCuadrilla(cuadrillaId, titulo, mensaje, tipo, referenciaId = null) {
     const miembros = await MiembroCuadrillaRepository.listarPorCuadrilla(cuadrillaId);

@@ -19,7 +19,7 @@ const ROLES_LECTURA = ['coordinador', 'jefe_cuadrilla', 'voluntario'];
 /**
  * POST /api/obras
  * Registrar una nueva obra con coordenadas (solo coordinador)
- * Body: { nombre, descripcion?, lat, lng, emergencia_id }
+ * Body: { nombre, descripcion?, direccion?, lat?, lng?, emergencia_id, familia_id? }
  */
 router.post('/', authMiddleware, roleMiddleware('coordinador'), crearObra);
 

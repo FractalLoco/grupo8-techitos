@@ -17,11 +17,13 @@ import GestionEmergencias from './pages/GestionEmergencias';
 import NotFound from './pages/NotFound';
 import GestionUsuarios from './pages/GestionUsuarios';
 import GestionCuadrillas from './pages/GestionCuadrillas';
+import GestionObras from './pages/GestionObras';
 import MapaInteractivo from './pages/MapaInteractivo';
 import GestionHerramientas from './pages/GestionHerramientas';
 import CatalogoInventario from './pages/CatalogoInventario';
 import SolicitudesHerramientas from './pages/SolicitudesHerramientas';
 import Reportes from './pages/Reportes';
+import HistorialAuditorias from './pages/HistorialAuditorias';
 
 function Aplicacion() {
   return (
@@ -66,6 +68,16 @@ function Aplicacion() {
             }
           />
 
+          {/* Obras: creación, consulta y asignación directa a cuadrillas (solo coordinador) */}
+          <Route
+            path="/obras"
+            element={
+              <RutaProtegida rolesPermitidos={['coordinador']}>
+                <GestionObras />
+              </RutaProtegida>
+            }
+          />
+
           {/* Mapa interactivo con obras, familias y zonas de peligro */}
           <Route
             path="/mapa"
@@ -87,6 +99,7 @@ function Aplicacion() {
             }
           />
 
+          {/* Inventario unificado: una sola pantalla para coordinador (con 'Agregar') y jefe (lectura) */}
           <Route
             path="/inventario"
             element={
@@ -99,7 +112,7 @@ function Aplicacion() {
           <Route
             path="/solicitudes"
             element={
-              <RutaProtegida rolesPermitidos={['coordinador', 'jefe_cuadrilla', 'voluntario']}>
+              <RutaProtegida rolesPermitidos={['coordinador', 'jefe_cuadrilla']}>
                 <SolicitudesHerramientas />
               </RutaProtegida>
             }
@@ -110,6 +123,15 @@ function Aplicacion() {
             element={
               <RutaProtegida rolesPermitidos={['coordinador']}>
                 <GestionUsuarios />
+              </RutaProtegida>
+            }
+          />
+
+          <Route
+            path="/auditorias"
+            element={
+              <RutaProtegida rolesPermitidos={['coordinador']}>
+                <HistorialAuditorias />
               </RutaProtegida>
             }
           />

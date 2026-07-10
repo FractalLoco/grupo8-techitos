@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback, Fragment } from 'react';
+import { Link } from 'react-router-dom';
 import {
   MdGroups, MdAdd, MdWarning, MdCheckCircle, MdBuild, MdPersonAdd,
   MdAssignment, MdSwapHoriz, MdClose, MdRefresh, MdOutlineFilterList,
@@ -398,16 +399,21 @@ function GestionCuadrillas() {
               </select>
             </div>
             {esCoordinador && (
-              <Button
-                variant="secondary"
-                className={`ml-auto ${!emergenciaId ? 'opacity-50 cursor-not-allowed' : ''}`}
-                onClick={() => {
-                  if (!emergenciaId) { mostrarMensaje('error', 'Selecciona una emergencia primero'); return; }
-                  setMostrarFormCuadrilla(true);
-                }}
-              >
-                <MdAdd /> Nueva cuadrilla
-              </Button>
+              <div className="ml-auto flex flex-wrap items-center gap-2">
+                <Link to="/obras" className="btn-secondary">
+                  <MdConstruction /> Gestionar obras
+                </Link>
+                <Button
+                  variant="secondary"
+                  className={!emergenciaId ? 'opacity-50 cursor-not-allowed' : ''}
+                  onClick={() => {
+                    if (!emergenciaId) { mostrarMensaje('error', 'Selecciona una emergencia primero'); return; }
+                    setMostrarFormCuadrilla(true);
+                  }}
+                >
+                  <MdAdd /> Nueva cuadrilla
+                </Button>
+              </div>
             )}
           </div>
         </div>
@@ -1028,7 +1034,13 @@ function GestionCuadrillas() {
                               <option key={o.id} value={o.id}>{o.nombre}{o.direccion ? ` — ${o.direccion}` : ''}</option>
                             ))}
                           </select>
-                          <Button type="submit"><MdAssignment /> Asignar obra</Button>
+                          {obras.filter((o) => o.estado === 'disponible').length === 0 && (
+                            <div className="rounded-xl border border-amber-600/20 bg-amber-50 px-3 py-2 text-xs text-[#835100]">
+                              No hay obras disponibles en esta emergencia.{' '}
+                              <Link to="/obras" className="font-bold underline">Crear o revisar obras</Link>.
+                            </div>
+                          )}
+                          <Button type="submit" disabled={!obraId}><MdAssignment /> Asignar obra</Button>
                         </form>
                       )}
                     </div>

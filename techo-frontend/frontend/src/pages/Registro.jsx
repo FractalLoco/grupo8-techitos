@@ -60,7 +60,7 @@ function Registro() {
     try {
       await registrarUsuario({ nombre, rut, correo, contrasena, rol });
       // Informo al usuario que debe esperar la activación del coordinador
-      setMensajeExito('Usuario registrado correctamente. Espera la activación del coordinador.');
+      setMensajeExito('Usuario registrado correctamente. Revisa tu correo: enviamos tus credenciales. Espera la activación del coordinador.');
       // Limpio todos los campos del formulario tras el éxito
       setNombre('');
       setRut('');

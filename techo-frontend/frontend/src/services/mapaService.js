@@ -1,6 +1,7 @@
 // Servicio para obtener y manipular datos del mapa: obras, cuadrillas con estado y zonas de peligro
+import API_BASE from './apiBase.js';
 
-const BASE_URL = "http://localhost:3000/api";
+const BASE_URL = `${API_BASE}`;
 
 // Cabeceras con el token JWT almacenado en localStorage
 const obtenerHeaders = () => ({

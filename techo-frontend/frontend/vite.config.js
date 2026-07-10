@@ -7,6 +7,17 @@ export default defineConfig({
   plugins: [react()],
   optimizeDeps: {
     // Pre-bundleo las dependencias más pesadas al arrancar para reducir el tiempo de carga en desarrollo
-    include: ['react', 'react-dom', 'react-router-dom'],
+    include: ['react', 'react-dom', 'react-router-dom', 'dotenv'],
+  },
+  server: {
+    host: '0.0.0.0',
+    port: 443,
+    strictPort: true
+  },
+  preview: {
+    host: '0.0.0.0',
+    port: 443,
+    strictPort: true,
+    cors: true,
   },
 });

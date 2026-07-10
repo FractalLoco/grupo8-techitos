@@ -17,6 +17,7 @@ const etiquetaRol = {
 const accesosPorRol = {
   coordinador: [
     { label: 'Gestión de Cuadrillas', path: '/cuadrillas', desc: 'Crear y administrar cuadrillas, asignar obras y voluntarios' },
+    { label: 'Gestión de Obras', path: '/obras', desc: 'Crear obras, revisar su estado y asignarlas a cuadrillas disponibles' },
     { label: 'Mapa de Emergencia', path: '/mapa', desc: 'Ver obras en el mapa, zonas de peligro y ubicación de cuadrillas' },
     { label: 'Herramientas', path: '/herramientas', desc: 'Registro diario de herramientas y balance de inventario' },
     { label: 'Inventario', path: '/inventario', desc: 'Stock de herramientas, EPP, materiales y préstamos activos' },
@@ -24,6 +25,7 @@ const accesosPorRol = {
     { label: 'Emergencias', path: '/emergencias', desc: 'Administrar emergencias activas y familias afectadas' },
     { label: 'Comunicaciones', path: '/comunicaciones', desc: 'Mensajes de cuadrilla y anuncios generales' },
     { label: 'Usuarios', path: '/usuarios', desc: 'Activar cuentas y gestionar roles del equipo' },
+    { label: 'Auditorías', path: '/auditorias', desc: 'Revisar cambios, actores y trazabilidad de usuarios y emergencias' },
     { label: 'Registrar Usuario', path: '/auth/registro', desc: 'Crear una nueva cuenta para un integrante' },
     { label: 'Reportes', path: '/reportes', desc: 'Generar reportes PDF con snapshot de datos de emergencia' },
   ],
@@ -44,11 +46,13 @@ const accesosPorRol = {
 
 const iconosPorPath = {
   '/cuadrillas':    'M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z',
+  '/obras':         'M9 3h6m-7 4h8l1 14H7L8 7zm2 3v8m4-8v8M5 10h14M4 6h16',
   '/mapa':          'M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7',
   '/herramientas':  'M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z',
   '/emergencias':   'M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z',
   '/comunicaciones':'M8 10h8m-8 4h5m-6 6h12a2 2 0 002-2v-6a2 2 0 00-2-2h-1l-3-3H7a2 2 0 00-2 2v9a2 2 0 002 2z',
   '/usuarios':      'M18 9a3 3 0 11-6 0 3 3 0 016 0zm-9 11a4 4 0 118 0H9zm-2-8a2 2 0 100-4 2 2 0 000 4z',
+  '/auditorias':    'M9 12l2 2 4-4m5-4.5A11.95 11.95 0 0112 3a11.95 11.95 0 01-8 2.5V11c0 5.25 3.438 10.125 8 11.5 4.562-1.375 8-6.25 8-11.5V5.5z',
   '/auth/registro': 'M18 9v3m0 0v3m0-3h3m-3 0h-3M13 7a4 4 0 11-8 0 4 4 0 018 0zM3 21a6 6 0 0112 0',
   '/inventario':    'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2',
   '/catalogo':      'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2',
@@ -58,11 +62,13 @@ const iconosPorPath = {
 
 const coloresPorPath = {
   '/cuadrillas':    'from-techo-primary to-techo-secondary',
+  '/obras':         'from-sky-600 to-blue-800',
   '/mapa':          'from-techo-secondary to-cyan-600',
   '/herramientas':  'from-techo-accent to-orange-500',
   '/emergencias':   'from-techo-danger to-red-700',
   '/comunicaciones':'from-purple-600 to-indigo-700',
   '/usuarios':      'from-techo-success to-emerald-700',
+  '/auditorias':    'from-indigo-600 to-slate-800',
   '/auth/registro': 'from-emerald-500 to-teal-700',
   '/inventario':    'from-cyan-600 to-blue-700',
   '/catalogo':      'from-cyan-600 to-blue-700',
@@ -126,15 +132,23 @@ export default function Inicio() {
   };
 
   const leerNotificacion = async (notificacion) => {
-    if (notificacion.leida) return;
-    try {
-      await marcarLeida(notificacion.id);
-      setNotificaciones((actuales) => actuales.map((item) => (
-        item.id === notificacion.id ? { ...item, leida: true } : item
-      )));
-      setNoLeidas((total) => Math.max(0, total - 1));
-    } catch (error) {
-      setErrorNotificaciones(error.message || 'No se pudo marcar la notificación');
+    if (!notificacion.leida) {
+      try {
+        await marcarLeida(notificacion.id);
+        setNotificaciones((actuales) => actuales.map((item) => (
+          item.id === notificacion.id ? { ...item, leida: true } : item
+        )));
+        setNoLeidas((total) => Math.max(0, total - 1));
+      } catch (error) {
+        setErrorNotificaciones(error.message || 'No se pudo marcar la notificación');
+      }
+    }
+
+    // Los avisos de registro llevan al coordinador directamente a la pantalla
+    // donde puede revisar y activar la nueva cuenta.
+    if (notificacion.tipo === 'registro_usuario' && usuario?.rol === 'coordinador') {
+      setNotificacionesAbiertas(false);
+      navigate('/usuarios');
     }
   };
 
@@ -268,8 +282,28 @@ export default function Inicio() {
               {errorNotificaciones && <p className="m-3 rounded-xl bg-red-50 p-3 text-sm text-red-700">{errorNotificaciones}</p>}
               {!cargandoNotificaciones && notificaciones.length === 0 && !errorNotificaciones && <p className="p-8 text-center text-sm text-gray-400">No tienes notificaciones.</p>}
               {notificaciones.map((notificacion) => (
-                <button type="button" key={notificacion.id} onClick={() => leerNotificacion(notificacion)} className={`block w-full border-b px-5 py-4 text-left ${notificacion.leida ? 'bg-white hover:bg-gray-50' : 'bg-blue-50/70 hover:bg-blue-50'}`}>
-                  <div className="flex gap-3"><span className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${notificacion.leida ? 'bg-gray-300' : 'bg-techo-secondary'}`} /><div className="min-w-0 flex-1"><div className="flex justify-between gap-3"><strong className="text-sm text-gray-800">{notificacion.titulo}</strong><time className="shrink-0 text-[10px] text-gray-400">{formatearFecha(notificacion.creado_en)}</time></div><p className="mt-1 whitespace-pre-wrap text-xs text-gray-600">{notificacion.mensaje}</p></div></div>
+                <button
+                  type="button"
+                  key={notificacion.id}
+                  onClick={() => leerNotificacion(notificacion)}
+                  title={notificacion.tipo === 'registro_usuario' ? 'Abrir Gestión de Usuarios' : undefined}
+                  className={`block w-full border-b px-5 py-4 text-left ${notificacion.leida ? 'bg-white hover:bg-gray-50' : 'bg-blue-50/70 hover:bg-blue-50'}`}
+                >
+                  <div className="flex gap-3">
+                    <span className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${notificacion.leida ? 'bg-gray-300' : 'bg-techo-secondary'}`} />
+                    <div className="min-w-0 flex-1">
+                      <div className="flex justify-between gap-3">
+                        <strong className="text-sm text-gray-800">{notificacion.titulo}</strong>
+                        <time className="shrink-0 text-[10px] text-gray-400">{formatearFecha(notificacion.creado_en)}</time>
+                      </div>
+                      {notificacion.tipo === 'registro_usuario' && (
+                        <span className="mt-1 inline-flex rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-emerald-700">
+                          Cuenta pendiente
+                        </span>
+                      )}
+                      <p className="mt-1 whitespace-pre-wrap text-xs text-gray-600">{notificacion.mensaje}</p>
+                    </div>
+                  </div>
                 </button>
               ))}
             </div>

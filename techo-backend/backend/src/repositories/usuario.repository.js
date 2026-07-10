@@ -25,6 +25,15 @@ export class UsuarioRepository {
     });
   }
 
+  // Busco internamente el usuario incluyendo el hash actual para operaciones de edición de contraseña.
+  // Este método solo se usa dentro de la capa de servicio y nunca expone la contraseña al frontend.
+  static async buscarPorIdConContrasena(id) {
+    return this.getRepository().findOne({
+      where: { id },
+      select: ['id', 'nombre', 'rut', 'correo', 'contrasena', 'rol', 'activo', 'creado_en'],
+    });
+  }
+
   // Creo y guardo un nuevo usuario en la base de datos
   static async crear(datos) {
     const repo = this.getRepository();

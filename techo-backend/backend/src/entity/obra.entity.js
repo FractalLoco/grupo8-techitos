@@ -39,6 +39,12 @@ export const ObraEntity = new EntitySchema({
       type: 'int',
       nullable: false,
     },
+    // Familia afectada que será atendida por esta obra. Es opcional para
+    // mantener compatibilidad con obras históricas creadas antes de esta relación.
+    familia_id: {
+      type: 'int',
+      nullable: true,
+    },
     // Arranca disponible, pasa a asignada cuando se le une una cuadrilla y a completada al terminar
     estado: {
       type: 'varchar',
@@ -60,6 +66,16 @@ export const ObraEntity = new EntitySchema({
       type: 'many-to-one',
       joinColumn: {
         name: 'emergencia_id',
+        referencedColumnName: 'id',
+      },
+    },
+    familia: {
+      target: 'Familia',
+      type: 'many-to-one',
+      nullable: true,
+      onDelete: 'SET NULL',
+      joinColumn: {
+        name: 'familia_id',
         referencedColumnName: 'id',
       },
     },

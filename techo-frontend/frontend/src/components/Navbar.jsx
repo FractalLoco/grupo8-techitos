@@ -6,12 +6,14 @@ import { useAutenticacion } from '../context/AuthContext';
 const MODULOS = [
   { nombre: 'Comunicaciones', ruta: '/comunicaciones', roles: ['coordinador', 'jefe_cuadrilla', 'voluntario'] },
   { nombre: 'Cuadrillas', ruta: '/cuadrillas', roles: ['coordinador', 'jefe_cuadrilla'] },
+  { nombre: 'Obras', ruta: '/obras', roles: ['coordinador'] },
   { nombre: 'Mapa', ruta: '/mapa', roles: ['coordinador', 'jefe_cuadrilla', 'voluntario'] },
   { nombre: 'Emergencias', ruta: '/emergencias', roles: ['coordinador'] },
   { nombre: 'Herramientas', ruta: '/herramientas', roles: ['coordinador', 'jefe_cuadrilla'] },
   { nombre: 'Inventario', ruta: '/inventario', roles: ['coordinador', 'jefe_cuadrilla'] },
   { nombre: 'Solicitudes', ruta: '/solicitudes', roles: ['coordinador', 'jefe_cuadrilla', 'voluntario'] },
   { nombre: 'Usuarios', ruta: '/usuarios', roles: ['coordinador'] },
+  { nombre: 'Auditorías', ruta: '/auditorias', roles: ['coordinador'] },
   { nombre: 'Reportes', ruta: '/reportes', roles: ['coordinador'] },
 ];
 

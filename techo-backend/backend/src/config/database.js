@@ -18,6 +18,7 @@ import { ZonaPeligroEntity } from '../entity/zona-peligro.entity.js';
 import { SolicitudEntity } from '../entity/solicitud.entity.js';
 import { ReporteEntity } from '../entity/reporte.entity.js';
 import { MovimientoHerramientaEntity } from '../entity/movimiento-herramienta.entity.js';
+import { AuditoriaEntity } from '../entity/auditoria.entity.js';
 
 dotenv.config();
 
@@ -48,6 +49,7 @@ const AppDataSource = new DataSource({
     SolicitudEntity,
     ReporteEntity,
     MovimientoHerramientaEntity,
+    AuditoriaEntity,
   ],
 });
 
@@ -55,8 +57,107 @@ const AppDataSource = new DataSource({
 export const initDatabase = async () => {
   try {
     await AppDataSource.initialize();
+
+    // Corrige una instalación anterior donde auditorias.creado_en se creó como
+    // TIMESTAMP sin zona horaria. En ese esquema PostgreSQL podía guardar la hora
+    // UTC como hora mural y el frontend terminaba mostrándola 4 horas adelantada
+    // en Chile. La conversión interpreta esos valores heredados como UTC y los
+    // transforma en instantes reales TIMESTAMPTZ. En instalaciones nuevas no hace nada.
+    await AppDataSource.query(`
+      DO $$
+      BEGIN
+        IF EXISTS (
+          SELECT 1
+          FROM information_schema.columns
+          WHERE table_schema = 'public'
+            AND table_name = 'auditorias'
+            AND column_name = 'creado_en'
+            AND data_type = 'timestamp without time zone'
+        ) THEN
+          ALTER TABLE auditorias
+            ALTER COLUMN creado_en TYPE TIMESTAMPTZ
+            USING creado_en AT TIME ZONE 'UTC';
+        END IF;
+      END $$;
+    `);
+
+    // Amplía el tipo de notificaciones para instalaciones existentes.
+    // La restricción anterior no contemplaba los avisos de registro público.
+    // En instalaciones nuevas este bloque no hace nada porque la tabla aún no existe
+    // y TypeORM la crea después con la restricción actualizada de la entidad.
+    await AppDataSource.query(`
+      DO $$
+      DECLARE
+        restriccion RECORD;
+      BEGIN
+        IF to_regclass('public.notificaciones') IS NOT NULL
+          AND NOT EXISTS (
+            SELECT 1
+            FROM pg_constraint c
+            JOIN pg_class t ON t.oid = c.conrelid
+            JOIN pg_namespace n ON n.oid = t.relnamespace
+            WHERE n.nspname = 'public'
+              AND t.relname = 'notificaciones'
+              AND c.contype = 'c'
+              AND pg_get_constraintdef(c.oid) ILIKE '%tipo%'
+              AND pg_get_constraintdef(c.oid) ILIKE '%registro_usuario%'
+          ) THEN
+          FOR restriccion IN
+            SELECT c.conname
+            FROM pg_constraint c
+            JOIN pg_class t ON t.oid = c.conrelid
+            JOIN pg_namespace n ON n.oid = t.relnamespace
+            WHERE n.nspname = 'public'
+              AND t.relname = 'notificaciones'
+              AND c.contype = 'c'
+              AND pg_get_constraintdef(c.oid) ILIKE '%tipo%'
+          LOOP
+            EXECUTE format(
+              'ALTER TABLE public.notificaciones DROP CONSTRAINT %I',
+              restriccion.conname
+            );
+          END LOOP;
+
+          ALTER TABLE public.notificaciones
+            ADD CONSTRAINT "CHK_notificaciones_tipo"
+            CHECK (
+              "tipo" IN (
+                'asignacion_obra',
+                'alerta_emergencia',
+                'alerta_herramienta',
+                'reasignacion',
+                'broadcast',
+                'mensaje_cuadrilla',
+                'registro_usuario'
+              )
+            );
+        END IF;
+      END $$;
+    `);
+
     // Crea y actualiza las tablas descritas por las entidades sin eliminar datos.
     await AppDataSource.synchronize(false);
+
+    // Repara auditorías heredadas de cierre de emergencia. Una versión anterior
+    // recorría los Date como objetos genéricos y guardaba fecha_fin como {} en JSONB.
+    // Como la auditoría conserva entidad_id, recupero la fecha real desde emergencias.
+    await AppDataSource.query(`
+      UPDATE auditorias AS a
+      SET detalles = jsonb_set(
+        COALESCE(a.detalles, '{}'::jsonb),
+        '{fecha_fin}',
+        to_jsonb(e.fecha_fin),
+        true
+      )
+      FROM emergencias AS e
+      WHERE a.modulo = 'emergencias'
+        AND a.accion = 'FINALIZAR_EMERGENCIA'
+        AND a.entidad_id = e.id
+        AND e.fecha_fin IS NOT NULL
+        AND a.detalles IS NOT NULL
+        AND jsonb_typeof(a.detalles -> 'fecha_fin') = 'object'
+        AND (a.detalles -> 'fecha_fin') = '{}'::jsonb;
+    `);
 
     // Crea los tres usuarios principales solo cuando no existen.
     // La contrasena inicial de las tres cuentas es techo123.
