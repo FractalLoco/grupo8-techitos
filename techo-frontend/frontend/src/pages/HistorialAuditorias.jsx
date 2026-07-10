@@ -53,6 +53,8 @@ const ETIQUETAS_CAMPO = {
   lng: 'Longitud',
   estado: 'Estado',
   fecha_fin: 'Fecha de cierre',
+  fecha_cierre: 'Fecha de cierre',
+  fecha_inicio: 'Fecha de inicio',
   prioridad: 'Prioridad',
   miembros: 'Miembros',
   cantidad_integrantes: 'Cantidad de integrantes',
@@ -66,10 +68,40 @@ function formatearAccion(accion) {
   return ETIQUETAS_ACCION[accion] || String(accion || '').replaceAll('_', ' ').toLowerCase();
 }
 
-function formatearValor(valor) {
-  if (valor === null || valor === undefined || valor === '') return 'Sin valor';
+function esCampoFecha(campo) {
+  return ['fecha_fin', 'fecha_cierre', 'fecha_inicio', 'creado_en'].includes(
+    String(campo || '').toLowerCase()
+  );
+}
+
+function esObjetoVacio(valor) {
+  return (
+    valor &&
+    typeof valor === 'object' &&
+    !Array.isArray(valor) &&
+    Object.keys(valor).length === 0
+  );
+}
+
+function formatearValor(valor, campo = '') {
+  if (valor === null || valor === undefined || valor === '') {
+    return esCampoFecha(campo) ? 'Sin fecha registrada' : 'Sin valor';
+  }
+
+  if (esCampoFecha(campo)) {
+    // Compatibilidad con auditorías antiguas afectadas por el bug que guardaba Date como {}.
+    if (esObjetoVacio(valor)) return 'Sin fecha registrada';
+
+    const fechaFormateada = formatearFecha(valor);
+    return fechaFormateada === String(valor) ? String(valor) : fechaFormateada;
+  }
+
   if (typeof valor === 'boolean') return valor ? 'Sí' : 'No';
-  if (typeof valor === 'object') return JSON.stringify(valor);
+  if (typeof valor === 'object') {
+    if (esObjetoVacio(valor)) return 'Sin información registrada';
+    return JSON.stringify(valor);
+  }
+
   return String(valor);
 }
 
@@ -252,11 +284,11 @@ function DetalleAuditoria({ detalles, modulo }) {
                 <div className="mt-2 grid grid-cols-2 gap-2 text-xs">
                   <div className="rounded-md bg-error-container/60 p-2 text-on-error-container">
                     <span className="block font-bold">Antes</span>
-                    <span className="break-words">{formatearValor(valores?.antes)}</span>
+                    <span className="break-words">{formatearValor(valores?.antes, campo)}</span>
                   </div>
                   <div className="rounded-md bg-primary-fixed p-2 text-on-primary-fixed-variant">
                     <span className="block font-bold">Después</span>
-                    <span className="break-words">{formatearValor(valores?.despues)}</span>
+                    <span className="break-words">{formatearValor(valores?.despues, campo)}</span>
                   </div>
                 </div>
               </div>
@@ -280,7 +312,7 @@ function DetalleAuditoria({ detalles, modulo }) {
                   {ETIQUETAS_CAMPO[campo] || campo.replaceAll('_', ' ')}
                 </p>
                 <p className="mt-1 break-words text-sm font-medium text-on-surface">
-                  {formatearValor(valor)}
+                  {formatearValor(valor, campo)}
                 </p>
               </div>
             ))}

@@ -13,6 +13,12 @@ const CLAVES_SENSIBLES = new Set([
 
 export class AuditoriaService {
   static limpiarDetalles(valor) {
+    // Date no debe tratarse como un objeto genérico: Object.entries(new Date())
+    // devuelve [], lo que convertía fechas como fecha_fin en {} dentro del JSONB.
+    if (valor instanceof Date) {
+      return Number.isNaN(valor.getTime()) ? null : valor.toISOString();
+    }
+
     if (Array.isArray(valor)) {
       return valor.map((item) => this.limpiarDetalles(item));
     }
