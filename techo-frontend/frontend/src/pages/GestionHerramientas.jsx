@@ -12,7 +12,7 @@ import {
 } from '../services/herramientaService';
 import { obtenerEmergencias } from '../services/emergenciaService';
 import { obtenerUsuarios } from '../services/usuarioService';
-import { listarCuadrillas, obtenerBalanceHerramientas, cerrarBalanceDia, devolverHerramientas } from '../services/cuadrillaService';
+import { listarCuadrillas, listarTodasLasCuadrillasConEstado, obtenerBalanceHerramientas, cerrarBalanceDia, devolverHerramientas } from '../services/cuadrillaService';
 import { crearSolicitud, listarSolicitudesPorCuadrilla } from '../services/solicitudService';
 import Button from '../components/ui/Button';
 import Card, { CardBody } from '../components/ui/Card';
@@ -86,13 +86,34 @@ export default function GestionHerramientas() {
   }, []);
 
   useEffect(() => {
-    obtenerEmergencias().then((res) => {
-      const lista = res.datos?.emergencias || res.datos || [];
-      const activas = Array.isArray(lista) ? lista.filter((e) => e.estado === 'activa') : [];
-      setEmergencias(activas);
-      if (activas.length > 0) setEmergenciaId(String(activas[0].id));
-    }).catch(() => setError('No se pudieron cargar las emergencias'));
-  }, []);
+    let activo = true;
+    (async () => {
+      try {
+        const res = await obtenerEmergencias();
+        const lista = res.datos?.emergencias || res.datos || [];
+        const activas = Array.isArray(lista) ? lista.filter((e) => e.estado === 'activa') : [];
+        if (!activo) return;
+        setEmergencias(activas);
+
+        // El jefe no elige emergencia: se fija automáticamente la de su cuadrilla asignada.
+        if (esJefe) {
+          try {
+            const resC = await listarTodasLasCuadrillasConEstado();
+            const miCuadrilla = (resC.datos?.cuadrillas || []).find((c) => c.jefe_id === usuario?.id);
+            if (activo && miCuadrilla?.emergencia_id) {
+              setEmergenciaId(String(miCuadrilla.emergencia_id));
+              return;
+            }
+          } catch { /* si falla, cae al comportamiento por defecto */ }
+        }
+
+        if (activo && activas.length > 0) setEmergenciaId(String(activas[0].id));
+      } catch {
+        if (activo) setError('No se pudieron cargar las emergencias');
+      }
+    })();
+    return () => { activo = false; };
+  }, [esJefe, usuario?.id]);
 
   useEffect(() => {
     if (!emergenciaId) return;
@@ -125,32 +146,44 @@ export default function GestionHerramientas() {
   };
   const mostrarExito = (msg) => { setExito(msg); setTimeout(() => setExito(''), 3500); };
 
+  // Los errores se muestran como toast flotante y se ocultan solos a los 4s
+  useEffect(() => {
+    if (!error) return undefined;
+    const t = setTimeout(() => setError(''), 4000);
+    return () => clearTimeout(t);
+  }, [error]);
+
   const handleRegistrarIndividual = async () => {
-    if (!nombreHerramienta.trim()) return;
+    // El value del select trae "nombre|tipo_item" para conservar el tipo real del ítem
+    const [nombre, tipo] = nombreHerramienta.split('|');
+    if (!nombre?.trim()) return setError('Selecciona una herramienta del inventario');
     setGuardando(true);
-    const res = await registrarHerramienta(cuadrillaId, nombreHerramienta.trim());
-    setGuardando(false);
-    if (res.estado === 'exitoso') { setNombreHerramienta(''); await cargarHerramientas(); await cargarBalance(); mostrarExito('Herramienta registrada'); }
-    else { setError(res.mensaje || 'Error al registrar'); }
+    try {
+      await registrarHerramienta(cuadrillaId, nombre.trim(), tipo || 'herramienta');
+      setNombreHerramienta(''); await cargarHerramientas(); await cargarBalance(); mostrarExito('Herramienta registrada');
+    } catch (err) { setError(err.response?.data?.mensaje || err.message || 'Error al registrar'); }
+    finally { setGuardando(false); }
   };
 
   const handleRegistrarMasivo = async () => {
     const nombres = nombresMultiples.split(/[\n,]+/).map((n) => n.trim()).filter(Boolean);
-    if (nombres.length === 0) return;
+    if (nombres.length === 0) return setError('Escribe al menos una herramienta');
     setGuardando(true);
-    const res = await registrarHerramientasMasivas(cuadrillaId, nombres);
-    setGuardando(false);
-    if (res.estado === 'exitoso') { setNombresMultiples(''); await cargarHerramientas(); await cargarBalance(); mostrarExito(`${nombres.length} herramientas registradas`); }
-    else { setError(res.mensaje || 'Error al registrar'); }
+    try {
+      await registrarHerramientasMasivas(cuadrillaId, nombres);
+      setNombresMultiples(''); await cargarHerramientas(); await cargarBalance(); mostrarExito(`${nombres.length} herramientas registradas`);
+    } catch (err) { setError(err.response?.data?.mensaje || err.message || 'Error al registrar'); }
+    finally { setGuardando(false); }
   };
 
   const handleGuardarEstado = async (herramientaId) => {
-    if (!nuevoEstado) return;
+    if (!nuevoEstado) return setError('Selecciona un estado');
     setGuardando(true);
-    const res = await actualizarEstadoHerramienta(herramientaId, nuevoEstado, observaciones);
-    setGuardando(false);
-    if (res.estado === 'exitoso') { setEditandoId(null); setNuevoEstado(''); setObservaciones(''); await cargarHerramientas(); await cargarBalance(); mostrarExito('Estado actualizado'); }
-    else { setError(res.mensaje || 'Error al actualizar'); }
+    try {
+      await actualizarEstadoHerramienta(herramientaId, nuevoEstado, observaciones);
+      setEditandoId(null); setNuevoEstado(''); setObservaciones(''); await cargarHerramientas(); await cargarBalance(); mostrarExito('Estado actualizado');
+    } catch (err) { setError(err.response?.data?.mensaje || err.message || 'Error al actualizar'); }
+    finally { setGuardando(false); }
   };
 
   const handleCerrarBalance = async () => {
@@ -161,10 +194,11 @@ export default function GestionHerramientas() {
       onConfirm: async () => {
         setConfirmar((c) => ({ ...c, abierto: false }));
         setGuardando(true);
-        const res = await cerrarBalanceDia(cuadrillaId);
-        setGuardando(false);
-        if (res.estado === 'exitoso') { await cargarBalance(); mostrarExito('Balance cerrado. Alertas actualizadas.'); }
-        else { setError(res.mensaje || 'Error al cerrar balance'); }
+        try {
+          await cerrarBalanceDia(cuadrillaId);
+          await cargarBalance(); mostrarExito('Balance cerrado. Alertas actualizadas.');
+        } catch (err) { setError(err.response?.data?.mensaje || err.message || 'Error al cerrar balance'); }
+        finally { setGuardando(false); }
       },
     });
   };
@@ -172,10 +206,11 @@ export default function GestionHerramientas() {
   const handleReportarIncidente = async () => {
     if (!herramientaReporte) { setError('Selecciona una herramienta'); return; }
     setGuardando(true);
-    const res = await actualizarEstadoHerramienta(herramientaReporte, estadoReporte, obsReporte);
-    setGuardando(false);
-    if (res.estado === 'exitoso') { setHerramientaReporte(''); setEstadoReporte('danada'); setObsReporte(''); await cargarHerramientas(); mostrarExito('Incidente reportado correctamente'); }
-    else { setError(res.mensaje || 'Error al reportar'); }
+    try {
+      await actualizarEstadoHerramienta(herramientaReporte, estadoReporte, obsReporte);
+      setHerramientaReporte(''); setEstadoReporte('danada'); setObsReporte(''); await cargarHerramientas(); mostrarExito('Incidente reportado correctamente');
+    } catch (err) { setError(err.response?.data?.mensaje || err.message || 'Error al reportar'); }
+    finally { setGuardando(false); }
   };
 
   const handleEnviarSolicitud = async () => {
@@ -191,12 +226,13 @@ export default function GestionHerramientas() {
       });
       setNombreSolicitud(''); setCantidadSolicitud(1); setDescSolicitud('');
       await cargarSolicitudes(); mostrarExito('Solicitud enviada al coordinador');
-    } catch { setError('Error al enviar solicitud'); }
+    } catch (err) { setError(err.response?.data?.mensaje || err.message || 'Error al enviar solicitud'); }
     finally { setGuardando(false); }
   };
 
   const herramientasFiltradas = filtroEstado === 'todos' ? herramientas : herramientas.filter((h) => h.estado === filtroEstado);
   const cuadrillaActual = cuadrillas.find((c) => String(c.id) === cuadrillaId);
+  const emergenciaActual = emergencias.find((e) => String(e.id) === String(emergenciaId));
   const cuadrillasTerminadas = cuadrillas.filter((c) => c.estado === 'completada' || c.estado === 'desarmada');
 
   const toggleTerminada = async (id) => {
@@ -231,21 +267,11 @@ export default function GestionHerramientas() {
     });
   };
 
+  // Notificaciones flotantes (toast), consistentes con el resto de las páginas
   const Mensajes = () => (
     <>
-      {error && (
-        <div className="mb-4 flex items-center gap-3 p-3 bg-red-50 border border-error/40 rounded-xl">
-          <MdError className="text-error text-xl flex-shrink-0" />
-          <p className="text-error text-sm flex-1">{error}</p>
-          <button onClick={() => setError('')}><MdClose className="text-error/60" /></button>
-        </div>
-      )}
-      {exito && (
-        <div className="mb-4 flex items-center gap-3 p-3 bg-green-50 border border-[#006D37]/40 rounded-xl">
-          <MdCheckCircle className="text-[#006D37] text-xl flex-shrink-0" />
-          <p className="text-[#006D37] text-sm">{exito}</p>
-        </div>
-      )}
+      {error && <Toast type="error" message={error} />}
+      {exito && <Toast type="success" message={exito} />}
     </>
   );
 
@@ -349,14 +375,21 @@ export default function GestionHerramientas() {
             <h1 className="page-header-title">Control de Herramientas</h1>
             <div className="flex items-center gap-1.5">
               <label className="text-white/60 text-xs font-medium whitespace-nowrap">Emergencia</label>
-              <select
-                value={emergenciaId}
-                onChange={(e) => { setEmergenciaId(e.target.value); setCuadrillaId(''); setHerramientas([]); setBalance(null); }}
-                className="page-select"
-              >
-                {emergencias.length === 0 && <option value="">Sin emergencias activas</option>}
-                {emergencias.map((e) => <option key={e.id} value={e.id} className="text-on-surface bg-white">{e.nombre}</option>)}
-              </select>
+              {esJefe ? (
+                // El jefe no elige emergencia: se muestra la de su cuadrilla asignada como texto fijo.
+                <span className="text-white text-sm font-semibold px-3 py-1.5 rounded-lg bg-white/10 whitespace-nowrap">
+                  {emergenciaActual?.nombre || 'Tu emergencia asignada'}
+                </span>
+              ) : (
+                <select
+                  value={emergenciaId}
+                  onChange={(e) => { setEmergenciaId(e.target.value); setCuadrillaId(''); setHerramientas([]); setBalance(null); }}
+                  className="page-select"
+                >
+                  {emergencias.length === 0 && <option value="">Sin emergencias activas</option>}
+                  {emergencias.map((e) => <option key={e.id} value={e.id} className="text-on-surface bg-white">{e.nombre}</option>)}
+                </select>
+              )}
             </div>
             {esCoordinador && (
               <div className="flex items-center gap-1.5">
@@ -476,10 +509,14 @@ export default function GestionHerramientas() {
                         <div className="flex flex-col gap-2">
                           <select value={nombreHerramienta} onChange={(e) => setNombreHerramienta(e.target.value)} className="input-field">
                             <option value="">— Selecciona del Inventario —</option>
-                            {catalogo.filter((c) => c.tipo_item === 'herramienta' || c.tipo_item === 'epp').map((c) => {
+                            {catalogo.filter((c) => {
+                              if (c.tipo_item !== 'herramienta' && c.tipo_item !== 'epp') return false;
+                              const disp = c.disponible ?? Math.max(0, (c.buenas ?? 0) - (c.entregadas ?? 0));
+                              return disp > 0; // no se ofrecen ítems sin stock disponible
+                            }).map((c) => {
                               const disp = c.disponible ?? Math.max(0, (c.buenas ?? 0) - (c.entregadas ?? 0));
                               return (
-                                <option key={`${c.nombre}|${c.tipo_item}`} value={c.nombre}>
+                                <option key={`${c.nombre}|${c.tipo_item}`} value={`${c.nombre}|${c.tipo_item}`}>
                                   {c.nombre} ({c.tipo_item}) — Disponible: {disp}
                                 </option>
                               );

@@ -14,7 +14,7 @@ import { roleMiddleware } from '../middleware/role.middleware.js';
 
 const router = Router();
 
-// POST /api/solicitudes — voluntario, jefe o coordinador crean solicitud de herramientas/EPP
+// POST /api/solicitudes — la cuadrilla (voluntario o jefe) crea solicitudes; el coordinador también puede
 router.post('/', authMiddleware, roleMiddleware('coordinador', 'jefe_cuadrilla', 'voluntario'), crearSolicitud);
 
 // GET /api/solicitudes — coordinador ve todas (para la página de solicitudes)
@@ -32,7 +32,7 @@ router.get('/emergencia/:emergenciaId', authMiddleware, listarPorEmergencia);
 // GET /api/solicitudes/cuadrilla/:cuadrillaId — filtradas por cuadrilla
 router.get('/cuadrilla/:cuadrillaId', authMiddleware, listarPorCuadrilla);
 
-// PUT /api/solicitudes/:id/estado — coordinador o jefe aprueban/rechazan con comentario
-router.put('/:id/estado', authMiddleware, roleMiddleware('coordinador', 'jefe_cuadrilla'), actualizarEstadoSolicitud);
+// PUT /api/solicitudes/:id/estado — solo el coordinador aprueba/rechaza según el stock del inventario
+router.put('/:id/estado', authMiddleware, roleMiddleware('coordinador'), actualizarEstadoSolicitud);
 
 export default router;
