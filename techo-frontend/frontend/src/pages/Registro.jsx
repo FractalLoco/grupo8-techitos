@@ -4,6 +4,11 @@ import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 // Importo el servicio que envía los datos al endpoint de registro del backend
 import { registrarUsuario } from '../services/inicioSesionService';
+import {
+  formatearRutChileno,
+  normalizarRutParaBackend,
+  validarFormatoRutChileno,
+} from '../utils/rut';
 
 // Página de registro de nuevos usuarios.
 // La cuenta se crea inactiva; el coordinador debe activarla antes de que el usuario pueda iniciar sesión.
@@ -20,12 +25,6 @@ function Registro() {
   const [cargando, setCargando] = useState(false);
   const navegar = useNavigate();
 
-  // Valido el formato del RUT chileno con o sin puntos y con guión
-  const validarRut = (rutIngresado) => {
-    const rutRegex = /^(\d{1,2}\.)?(\d{3}\.)?(\d{3}[-]?[0-9K])$|^\d{7,8}[-]?[0-9K]$/i;
-    return rutRegex.test(rutIngresado.trim());
-  };
-
   // Proceso el formulario validando todos los campos antes de llamar al backend
   const manejarRegistro = async (evento) => {
     evento.preventDefault();
@@ -38,8 +37,8 @@ function Registro() {
       return;
     }
 
-    if (!validarRut(rut)) {
-      setMensajeError('Formato de RUT inválido. Ejemplo: 12345678-9');
+    if (!validarFormatoRutChileno(rut)) {
+      setMensajeError('Formato de RUT inválido. Ejemplo: 12.345.678-9');
       return;
     }
 
@@ -58,7 +57,13 @@ function Registro() {
     setCargando(true);
 
     try {
-      await registrarUsuario({ nombre, rut, correo, contrasena, rol });
+      await registrarUsuario({
+        nombre,
+        rut: normalizarRutParaBackend(rut),
+        correo,
+        contrasena,
+        rol,
+      });
       // Informo al usuario que debe esperar la activación del coordinador
       setMensajeExito('Usuario registrado correctamente. Revisa tu correo: enviamos tus credenciales. Espera la activación del coordinador.');
       // Limpio todos los campos del formulario tras el éxito
@@ -137,9 +142,12 @@ function Registro() {
                 <input
                   className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-techo-secondary focus:border-transparent outline-none transition-all"
                   type="text"
-                  placeholder="12345678-9"
+                  placeholder="12.345.678-9"
                   value={rut}
-                  onChange={(e) => setRut(e.target.value)}
+                  onChange={(e) => setRut(formatearRutChileno(e.target.value))}
+                  inputMode="text"
+                  autoComplete="username"
+                  maxLength={12}
                 />
               </div>
 
